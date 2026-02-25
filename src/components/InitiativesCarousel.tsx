@@ -90,7 +90,7 @@ export function InitiativesCarousel({ initiatives }: InitiativesCarouselProps) {
               <div
                 className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-slate-200 bg-cover bg-center dark:bg-slate-700"
                 style={{
-                  backgroundImage: `url("${initiative.image || `https://picsum.photos/600/400?random=${idx + 3}`}")`,
+                  backgroundImage: `url("${initiative.imageUrl || initiative.image || `https://picsum.photos/600/400?random=${idx + 3}`}")`,
                 }}
               >
                 <div className="absolute inset-0 bg-black/20 transition-all group-hover:bg-black/0"></div>

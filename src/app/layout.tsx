@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_Arabic, Lexend, Public_Sans } from 'next/font/google';
 import './globals.css'; // Global styles
+import { getPublicLandingData } from '@/lib/firebase/queries';
 
 const notoSansArabic = Noto_Sans_Arabic({
   subsets: ['arabic'],
@@ -17,13 +18,19 @@ const publicSans = Public_Sans({
   variable: '--font-public-sans',
 });
 
-export const metadata: Metadata = {
-  title: 'مجموعة الإرادة لتنمية الغدية',
-  description: 'الصفحة الرئيسية لمجموعة الإرادة لتنمية الغدية',
-  icons: {
-    icon: '/assets/images/favicon.png',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const data = await getPublicLandingData();
+  const title = data?.title || 'مجموعة الإرادة لتنمية الغدية';
+  const favicon = data?.faviconUrl || '/assets/images/favicon.png';
+
+  return {
+    title,
+    description: 'الصفحة الرئيسية لمجموعة الإرادة لتنمية الغدية',
+    icons: {
+      icon: favicon,
+    },
+  };
+}
 
 export default function RootLayout({
   children,

@@ -56,7 +56,7 @@ export default async function Home() {
   return (
     <div className="group/design-root relative flex min-h-screen w-full flex-col">
       <div className="layout-container flex h-full grow flex-col">
-        <Header />
+        <Header title={data.title} logoUrl={data.logoUrl} />
 
         <main className="flex flex-1 flex-col items-center">
           <div className="flex w-full max-w-[1280px] flex-col gap-10 px-4 py-5 md:px-10">
@@ -72,7 +72,7 @@ export default async function Home() {
                 >
                   <div className="relative z-10 flex max-w-[800px] flex-col gap-4 text-center">
                     <h1 className="text-4xl leading-tight font-black tracking-[-0.033em] text-white drop-shadow-md @[480px]:text-6xl">
-                      مجموعة الإرادة{' '}
+                      {data.title || "مجموعة الإرادة"}{' '}
                       <span className="text-primary">لتنمية الغدية</span>
                     </h1>
                     <h2 className="mx-auto max-w-2xl text-base leading-relaxed font-normal text-slate-200 @[480px]:text-xl">
@@ -95,6 +95,37 @@ export default async function Home() {
 
             {/* Stats Section */}
             <div className="grid grid-cols-1 gap-6 px-4 md:grid-cols-3">
+              {/* Active Projects */}
+              <div className="hover:border-primary/50 group flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-8 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-800">
+                <div className="bg-deep-green/10 text-deep-green dark:text-primary group-hover:bg-deep-green group-hover:text-primary mb-2 rounded-full p-3 transition-colors">
+                  <span className="material-symbols-outlined text-3xl">
+                    pending_actions
+                  </span>
+                </div>
+                <p className="text-base leading-normal font-medium text-slate-600 dark:text-slate-400">
+                  مشروع نشط
+                </p>
+                <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
+                  {data.activeProjectsCount || '0'}
+                </p>
+              </div>
+
+              {/* Completed Projects */}
+              <div className="hover:border-primary/50 group flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-8 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-800">
+                <div className="bg-deep-green/10 text-deep-green dark:text-primary group-hover:bg-deep-green group-hover:text-primary mb-2 rounded-full p-3 transition-colors">
+                  <span className="material-symbols-outlined text-3xl">
+                    savings
+                  </span>
+                </div>
+                <p className="text-base leading-normal font-medium text-slate-600 dark:text-slate-400">
+                  مشروع منجز
+                </p>
+                <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
+                  {data.projectsCount || '0'}
+                </p>
+              </div>
+
+              {/* Members */}
               <div className="hover:border-primary/50 group flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-8 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-800">
                 <div className="bg-deep-green/10 text-deep-green dark:text-primary group-hover:bg-deep-green group-hover:text-primary mb-2 rounded-full p-3 transition-colors">
                   <span className="material-symbols-outlined text-3xl">
@@ -106,32 +137,6 @@ export default async function Home() {
                 </p>
                 <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
                   +{data.membersCount?.toLocaleString() || '0'}
-                </p>
-              </div>
-              <div className="hover:border-primary/50 group flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-8 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-800">
-                <div className="bg-deep-green/10 text-deep-green dark:text-primary group-hover:bg-deep-green group-hover:text-primary mb-2 rounded-full p-3 transition-colors">
-                  <span className="material-symbols-outlined text-3xl">
-                    volunteer_activism
-                  </span>
-                </div>
-                <p className="text-base leading-normal font-medium text-slate-600 dark:text-slate-400">
-                  مبادرة نشطة
-                </p>
-                <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
-                  {data.initiatives?.length || 0}
-                </p>
-              </div>
-              <div className="hover:border-primary/50 group flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-8 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-800">
-                <div className="bg-deep-green/10 text-deep-green dark:text-primary group-hover:bg-deep-green group-hover:text-primary mb-2 rounded-full p-3 transition-colors">
-                  <span className="material-symbols-outlined text-3xl">
-                    savings
-                  </span>
-                </div>
-                <p className="text-base leading-normal font-medium text-slate-600 dark:text-slate-400">
-                  مشروع منجز
-                </p>
-                <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
-                  48
                 </p>
               </div>
             </div>
@@ -194,15 +199,15 @@ export default async function Home() {
                     className="aspect-[4/5] bg-cover bg-center"
                     style={{
                       backgroundImage:
-                        'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBZYltJ--me2BXZz85vQZDKcfqydShHxdIxp2fBo7----sK30QcHui2_klvBdTUZzPvIcU3wuiaeKovd4ACpB6NDFV4oF5QR0DAkB26BY68bHRltdClYxrh9lvtKbqhNeoHJFBTT6dzcSN7riPTMCqjGTIkSg9lkO1_MLOoIcKT0K2S47be-R7C5i9bPc-OYgrz6k6ei3zr-ZXGYxDA34aa0WcUl81AD-RUsSn0nt6pMn5gcxiPYTqW79VSkEjmgTghrUstyZu2aCfZ")',
+                        `url("${data.currentAspect?.imageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBZYltJ--me2BXZz85vQZDKcfqydShHxdIxp2fBo7----sK30QcHui2_klvBdTUZzPvIcU3wuiaeKovd4ACpB6NDFV4oF5QR0DAkB26BY68bHRltdClYxrh9lvtKbqhNeoHJFBTT6dzcSN7riPTMCqjGTIkSg9lkO1_MLOoIcKT0K2S47be-R7C5i9bPc-OYgrz6k6ei3zr-ZXGYxDA34aa0WcUl81AD-RUsSn0nt6pMn5gcxiPYTqW79VSkEjmgTghrUstyZu2aCfZ'}")`,
                     }}
                   ></div>
                   <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/80 to-transparent p-6 pt-20">
                     <p className="text-xl font-bold text-white">
-                      جانب من أنشطتنا الميدانية
+                      {data.currentAspect?.title || 'جانب من أنشطتنا الميدانية'}
                     </p>
                     <p className="text-sm text-slate-300">
-                      التزام مستمر بخدمة المجتمع
+                      {data.currentAspect?.subTitle || 'التزام مستمر بخدمة المجتمع'}
                     </p>
                   </div>
                 </div>
@@ -287,7 +292,7 @@ export default async function Home() {
           </div>
         </main>
 
-        <Footer />
+        <Footer title={data.title} logoUrl={data.logoUrl} />
       </div>
     </div>
   );
