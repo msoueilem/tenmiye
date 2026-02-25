@@ -1,21 +1,21 @@
-# مجموعة الإرادة لتنمية الغدية - الصفحة التعريفية
+# Will Group for Development - Landing Page
 
-هذا المشروع هو الصفحة التعريفية (Landing Page) لمجموعة الإرادة، مبني باستخدام Next.js (App Router)، TypeScript، و Tailwind CSS. يتم جلب البيانات ديناميكياً من Firebase Firestore.
+This project is a landing page for the "Will Group for Development" (مجموعة الإرادة لتنمية الغدية), built with Next.js (App Router), TypeScript, and Tailwind CSS. Data is fetched dynamically from Firebase Firestore.
 
-## متطلبات التشغيل
+## Prerequisites
 
-- Node.js (الإصدار 18 أو أحدث)
-- حساب Firebase مع تفعيل Firestore
+- Node.js (Version 18 or later)
+- Firebase account with Firestore enabled
 
-## إعداد بيئة العمل
+## Environment Setup
 
-1. قم بتثبيت المكتبات المطلوبة:
+1. Install required dependencies:
 
    ```bash
    npm install
    ```
 
-2. قم بإنشاء ملف `.env` في المجلد الرئيسي وأضف مفاتيح Firebase الخاصة بك (تم إعداد الملف مسبقاً بالقيم التي قدمتها):
+2. Create a `.env` file in the root directory and add your Firebase keys (see `.env.example`):
 
    ```env
    NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
@@ -26,22 +26,32 @@
    NEXT_PUBLIC_FIREBASE_APP_ID=1:414092387059:web:...
    ```
 
-3. تشغيل المشروع في بيئة التطوير:
+3. Run the project in development mode:
    ```bash
    npm run dev
    ```
 
-## إعداد قاعدة البيانات (Firestore)
+## Available Scripts
 
-يجب إنشاء مستند واحد في Firestore لجعل الصفحة تعمل:
+- `npm run dev`: Starts the development server.
+- `npm run build`: Builds the project for production.
+- `npm run start`: Starts the production server after building.
+- `npm run lint`: Checks for code quality using ESLint.
+- `npm run format`: Formats code using Prettier.
+- `npm run type-check`: Runs TypeScript type checks.
+- `npm run clean`: Removes the `.next` build directory.
 
-- **المجموعة (Collection):** `settings-simple`
-- **المستند (Document):** `public`
+## Database Setup (Firestore)
 
-### الحقول المطلوبة (Fields):
+A single document must be created in Firestore for the landing page to work:
 
-- `aboutText` (string): نص "من نحن".
-- `membersCount` (number): عدد الأعضاء.
+- **Collection:** `settings-simple`
+- **Document:** `public`
+
+### Required Fields:
+
+- `aboutText` (string): "About Us" section text.
+- `membersCount` (number): Number of members.
 - `contact` (map):
   - `whatsapp` (string)
   - `phone` (string)
@@ -50,35 +60,25 @@
 - `initiatives` (array of maps):
   - `title` (string)
   - `description` (string)
-- `teamHierarchy` (map): هيكل الفريق (انظر المثال أدناه).
+- `teamHierarchy` (map): Team structure (see example below).
 
-### مثال لـ JSON الهيكل التنظيمي (teamHierarchy):
+### Team Hierarchy JSON Example (teamHierarchy):
 
 ```json
 {
   "teams": [
     {
-      "team_name": "الإدارة العليا",
+      "team_name": "Senior Management",
       "head": {
-        "name": "أ. محمد بن عبدالله",
-        "title": "رئيس المجموعة",
-        "photo": "رابط_الصورة"
+        "name": "John Doe",
+        "title": "Group President",
+        "photo": "IMAGE_URL"
       },
       "members": [
         {
-          "name": "د. خالد الرحمن",
-          "title": "نائب الرئيس",
-          "photo": "رابط_الصورة"
-        },
-        {
-          "name": "أ. سعيد العمري",
-          "title": "المشرف المالي",
-          "photo": "رابط_الصورة"
-        },
-        {
-          "name": "م. فهد الزهراني",
-          "title": "العلاقات العامة",
-          "photo": "رابط_الصورة"
+          "name": "Jane Smith",
+          "title": "Vice President",
+          "photo": "IMAGE_URL"
         }
       ]
     }
@@ -86,7 +86,7 @@
 }
 ```
 
-## ملاحظات هامة
+## Important Notes
 
-- تأكد من أن قواعد الحماية في Firestore تسمح بالقراءة العامة (Public Read) للمستند `settings-simple/public`.
-- الصفحة تدعم الوضع الليلي (Dark Mode) وتستخدم خطوط Noto Sans Arabic.
+- Ensure Firestore security rules allow public read access for the `settings-simple/public` document.
+- The page supports Dark Mode and uses Noto Sans Arabic fonts.

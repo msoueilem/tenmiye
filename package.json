@@ -1,7 +1,29 @@
 {
-  "name": "ai-studio-applet",
+  "name": "tenmiye",
   "version": "0.1.0",
+  "description": "Landing page for the Will Group for Development in Mauritania",
   "private": true,
+  "author": "Mohamed Soueilem <mlsoueilem@gmail.com>",
+  "license": "MIT",
+  "keywords": [
+    "tenmiye",
+    "mauritania",
+    "development",
+    "nextjs",
+    "firebase",
+    "arabic"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msoueilem/tenmiye.git"
+  },
+  "bugs": {
+    "url": "https://github.com/msoueilem/tenmiye/issues"
+  },
+  "homepage": "https://github.com/msoueilem/tenmiye#readme",
+  "engines": {
+    "node": ">=18.17.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +31,8 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
-    "clean": "next clean"
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next"
   },
   "dependencies": {
     "@google/genai": "^1.17.0",

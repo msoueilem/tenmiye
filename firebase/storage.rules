@@ -14,6 +14,11 @@ service firebase.storage {
       allow write: if isActiveAdmin();
     }
 
+    match /members-simple/{allPaths=**} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

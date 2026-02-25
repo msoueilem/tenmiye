@@ -1,46 +1,46 @@
-# GEMINI.md - مجموعة الإرادة لتنمية الغدية (Simple Landing Page)
+# GEMINI.md - Will Group for Development (Simple Landing Page)
 
-هذا المستند يوفر سياقاً تعليمياً لـ Gemini للتعامل مع مشروع "مجموعة الإرادة". المشروع هو تطبيق Next.js بسيط يمثل صفحة تعريفية (Landing Page) باللغة العربية.
+This document provides context for Gemini to handle the "Will Group" project. The project is a simple Next.js application representing an Arabic landing page.
 
-## نظرة عامة على المشروع (Project Overview)
+## Project Overview
 
-- **الغرض**: صفحة هبوط لمبادرة تنموية في موريتانيا، تشمل التعريف بالمجموعة، المبادرات، الهيكل التنظيمي، ونماذج تواصل.
-- **التقنيات المستخدمة**:
+- **Purpose**: A landing page for a developmental initiative in Mauritania, including information about the group, initiatives, organizational structure, and contact forms.
+- **Technologies Used**:
   - **Framework**: Next.js 15 (App Router)
   - **Language**: TypeScript
   - **Styling**: Tailwind CSS 4.0
   - **Backend**: Firebase Firestore (Client SDK)
   - **Formatting/Linting**: Prettier, ESLint
 
-## بنية البيانات (Architecture & Data)
+## Architecture & Data
 
-- المشروع يعتمد بالكامل على **Firebase Firestore** لجلب البيانات الديناميكية.
-- **قاعدة التسمية**: جميع المجموعات (Collections) في Firestore يجب أن تنتهي باللاحقة `-simple`.
-- **المجموعات الرئيسية**:
-  - `settings-simple/public`: يحتوي على نصوص الصفحة، عداد الأعضاء، وقائمة المبادرات، وهيكل الفريق.
-  - `join-requests-simple`: يخزن طلبات الانضمام المرسلة عبر الاستمارة.
-  - `messages-simple`: يخزن الرسائل المرسلة عبر نموذج التواصل.
+- The project relies entirely on **Firebase Firestore** for dynamic data fetching.
+- **Naming Convention**: All Firestore collections must end with the `-simple` suffix.
+- **Main Collections**:
+  - `settings-simple/public`: Contains the landing page content, members counter, initiatives list, and team structure.
+  - `join-requests-simple`: Stores membership requests sent via the form.
+  - `messages-simple`: Stores messages sent via the contact form.
 
-## تشغيل المشروع (Building & Running)
+## Building & Running
 
-- **تثبيت المكتبات**: `npm install`
-- **التطوير المحلي**: `npm run dev`
-- **بناء المشروع**: `npm run build`
-- **تنسيق الكود**: `npm run format` (Prettier)
-- **فحص الجودة**: `npm run lint` (ESLint)
-- **تهيئة البيانات**: `node --env-file=.env scripts/bootstrap.mjs` (لرفع البيانات الأولية لـ Firestore).
+- **Install Dependencies**: `npm install`
+- **Local Development**: `npm run dev`
+- **Build Project**: `npm run build`
+- **Format Code**: `npm run format` (Prettier)
+- **Quality Check**: `npm run lint` (ESLint)
+- **Data Initialization**: `node --env-file=.env scripts/bootstrap.mjs` (to upload initial data to Firestore).
 
-## اتفاقيات التطوير (Development Conventions)
+## Development Conventions
 
-- **اللغة والاتجاه**: الواجهة عربية بالكامل (Arabic-only) وتستخدم اتجاه `dir="rtl"`.
-- **المكونات**:
-  - `TeamHierarchy`: مكون مخصص لعرض الهيكل التنظيمي بشكل شجري، يعتمد على JSON.
-  - `JoinForm` & `ContactForm`: مكونات Client-side تتعامل مباشرة مع Firestore.
-- **الأنماط**: يتم استخدام Tailwind CSS مع متغيرات مخصصة في `app/globals.css` (مثل `--color-primary` للون الذهبي).
-- **الصور**: تعتمد الصور حالياً على روابط خارجية من Google و Picsum كـ Fallbacks.
+- **Language and Direction**: The UI is entirely in Arabic (Arabic-only) and uses `dir="rtl"`.
+- **Components**:
+  - `TeamHierarchy`: Custom component to display organizational structure as a tree, based on JSON.
+  - `JoinForm` & `ContactForm`: Client-side components that interact directly with Firestore.
+- **Styles**: Uses Tailwind CSS with custom variables in `app/globals.css` (e.g., `--color-primary` for the gold color).
+- **Images**: Images currently rely on external links from Google and Picsum as fallbacks.
 
-## ملاحظات هامة للذكاء الاصطناعي
+## Important AI Notes
 
-- عند إضافة أي حقل جديد في الصفحة، يجب تحديث `lib/firebase/queries.ts` لتعريف الواجهة (Interface) وتحديث `scripts/bootstrap.mjs` ليشمل البيانات الجديدة.
-- دائماً تأكد من هروب علامات الاقتباس في النصوص العربية داخل JSX (استخدم `&quot;`) لتفادي أخطاء ESLint.
-- التزم باستخدام اللاحقة `-simple` لأي مجموعة Firestore جديدة يتم إنشاؤها.
+- When adding any new field to the page, update `lib/firebase/queries.ts` to define the interface and `scripts/bootstrap.mjs` to include the new data.
+- Always escape quotes in Arabic text within JSX (use `&quot;`) to avoid ESLint errors.
+- Adhere to the `-simple` suffix for any new Firestore collection created.

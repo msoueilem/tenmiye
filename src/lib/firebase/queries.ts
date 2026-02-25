@@ -1,7 +1,66 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, getDocs, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db, storage } from './client';
 import { User } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+export interface UserMember {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  status: 'active' | 'pending' | 'blocked';
+  createdAt: any;
+  notes?: string;
+  // Financials
+  contribution?: number;
+  totalContribution?: number;
+  totalDonation?: number;
+  monthsCovered?: number;
+  // Profile
+  photoUrl?: string;
+  dateOfBirth?: string;
+  occupation?: string;
+  location?: string;
+}
+
+export async function getAllUsers(): Promise<UserMember[]> {
+  if (!db) return [];
+  try {
+    const usersRef = collection(db, 'users-simple');
+    const q = query(usersRef, orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserMember));
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return [];
+  }
+}
+
+export async function addUser(data: Omit<UserMember, 'id' | 'createdAt'>): Promise<string | null> {
+  if (!db) return null;
+  try {
+    const usersRef = collection(db, 'users-simple');
+    const docRef = await setDoc(doc(usersRef), {
+      ...data,
+      createdAt: serverTimestamp(),
+    });
+    return 'success';
+  } catch (error) {
+    console.error('Error adding user:', error);
+    return null;
+  }
+}
+
+export async function updateUser(id: string, data: Partial<UserMember>): Promise<void> {
+  if (!db) return;
+  const userDocRef = doc(db, 'users-simple', id);
+  await updateDoc(userDocRef, data);
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  if (!db) return;
+  const userDocRef = doc(db, 'users-simple', id);
+  await deleteDoc(userDocRef);
+}
 
 export interface Admin {
   userId: string;
@@ -12,6 +71,31 @@ export interface Admin {
   status: 'active' | 'inactive' | 'blocked';
   createdAt: any;
   lastLogin: any;
+}
+
+export async function getAllAdmins(): Promise<Admin[]> {
+  if (!db) return [];
+  try {
+    const adminsRef = collection(db, 'admins-simple');
+    const q = query(adminsRef, orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ ...doc.data(), email: doc.id } as Admin));
+  } catch (error) {
+    console.error('Error fetching admins:', error);
+    return [];
+  }
+}
+
+export async function updateAdmin(email: string, data: Partial<Admin>): Promise<void> {
+  if (!db) return;
+  const adminDocRef = doc(db, 'admins-simple', email);
+  await updateDoc(adminDocRef, data);
+}
+
+export async function deleteAdmin(email: string): Promise<void> {
+  if (!db) return;
+  const adminDocRef = doc(db, 'admins-simple', email);
+  await deleteDoc(adminDocRef);
 }
 
 export interface TeamMember {
