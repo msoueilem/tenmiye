@@ -5,10 +5,12 @@ export function Footer() {
     <footer className="border-t border-slate-200 bg-white px-10 py-12 dark:border-slate-800 dark:bg-slate-900">
       <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-6 md:flex-row">
         <div className="flex items-center gap-3">
-          <div className="bg-deep-green text-primary flex size-8 items-center justify-center rounded">
-            <span className="material-symbols-outlined text-xl">
-              diversity_3
-            </span>
+          <div className="bg-deep-green flex size-8 items-center justify-center overflow-hidden rounded">
+            <img
+              src="/assets/images/logo.png"
+              alt="مجموعة الإرادة"
+              className="h-full w-full object-cover"
+            />
           </div>
           <span className="font-bold text-slate-900 dark:text-white">
             مجموعة الإرادة

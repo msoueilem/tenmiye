@@ -2,6 +2,7 @@ import React from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { TeamHierarchy } from '@/components/TeamHierarchy';
+import { InitiativesCarousel } from '@/components/InitiativesCarousel';
 import { JoinForm } from '@/components/JoinForm';
 import { ContactForm } from '@/components/ContactForm';
 import { getPublicLandingData } from '@/lib/firebase/queries';
@@ -66,7 +67,7 @@ export default async function Home() {
                   className="border-primary relative flex min-h-[480px] flex-col items-center justify-center gap-6 overflow-hidden border-b-4 bg-cover bg-center bg-no-repeat p-8 shadow-lg @[480px]:gap-8 @[480px]:rounded-xl"
                   style={{
                     backgroundImage:
-                      'linear-gradient(rgba(6, 78, 59, 0.85), rgba(10, 31, 10, 0.9)), url("https://lh3.googleusercontent.com/aida-public/AB6AXuCbXa1KdCTQwDI1M0_URZaA0ohD90IihTUqnMmDnlsUt7C4WxruZEvuvR4ApzoMRigkqET_8nYlkOzcrykXTDV9lcbMnYP7DWTLsd4tYnhJPTohD3mmmsY1wszrSFjqR-0I3Bk3zwcde4WD1dAYgGWWe_oTjtrL3ukN2vSAwKT5y370wQauR9LUL1hnQIeqgyGIUMs2CZMCMmWOmpHGBNJs0r_dvr_UdUMnkhkbuJ-wUthfKREHGKZl3-obhPdm7Wa8L0kZNMW4qPvS")',
+                      'linear-gradient(rgba(6, 78, 59, 0.85), rgba(10, 31, 10, 0.9)), url("/assets/images/cover.png")',
                   }}
                 >
                   <div className="relative z-10 flex max-w-[800px] flex-col gap-4 text-center">
@@ -153,17 +154,18 @@ export default async function Home() {
                     </span>
                   </h2>
                 </div>
-                                <div className="prose prose-slate dark:prose-invert max-w-none">
-                                  <p className="whitespace-pre-line text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-                                    {data.aboutText ||
-                                      `تأسست &quot;مجموعة الإرادة لتنمية الغدية&quot; في شهر يناير من عام 2015، على يد نخبة من شباب وشابات الوطن الغيورين، بقيادة المهندس محمد عبدالله وفريقه الطموح. انطلقت المجموعة برؤية واضحة تهدف إلى سد الفجوات التنموية في الأحياء الأكثر احتياجاً، وترسيخ ثقافة العمل التطوعي المنظم.`}
-                                  </p>
-                                  {!data.aboutText && (
-                                    <p className="mt-4 text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-                                      منذ انطلاقنا، ونحن نعمل بجد لتحويل التحديات إلى فرص، مستثمرين طاقات الشباب في بناء مجتمع متماسك وقوي.
-                                    </p>
-                                  )}
-                                </div>
+                <div className="prose prose-slate dark:prose-invert max-w-none">
+                  <p className="text-lg leading-relaxed whitespace-pre-line text-slate-600 dark:text-slate-300">
+                    {data.aboutText ||
+                      `تأسست &quot;مجموعة الإرادة لتنمية الغدية&quot; في شهر يناير من عام 2015، على يد نخبة من شباب وشابات الوطن الغيورين، بقيادة المهندس محمد عبدالله وفريقه الطموح. انطلقت المجموعة برؤية واضحة تهدف إلى سد الفجوات التنموية في الأحياء الأكثر احتياجاً، وترسيخ ثقافة العمل التطوعي المنظم.`}
+                  </p>
+                  {!data.aboutText && (
+                    <p className="mt-4 text-lg leading-relaxed text-slate-600 dark:text-slate-300">
+                      منذ انطلاقنا، ونحن نعمل بجد لتحويل التحديات إلى فرص،
+                      مستثمرين طاقات الشباب في بناء مجتمع متماسك وقوي.
+                    </p>
+                  )}
+                </div>
                 <div className="mt-4 flex flex-col gap-4">
                   <h3 className="border-b border-slate-200 pb-2 text-xl font-bold text-slate-800 dark:border-slate-700 dark:text-slate-100">
                     أبرز الإنجازات:
@@ -178,19 +180,21 @@ export default async function Home() {
                       </span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="material-symbols-outlined mt-1 text-primary">
+                      <span className="material-symbols-outlined text-primary mt-1">
                         check_circle
                       </span>
                       <span className="text-slate-600 dark:text-slate-300">
-                        إطلاق حملة &quot;دفء الشتاء&quot; التي خدمت أكثر من 5000 أسرة.
+                        إطلاق حملة &quot;دفء الشتاء&quot; التي خدمت أكثر من 5000
+                        أسرة.
                       </span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="material-symbols-outlined mt-1 text-primary">
+                      <span className="material-symbols-outlined text-primary mt-1">
                         check_circle
                       </span>
                       <span className="text-slate-600 dark:text-slate-300">
-                        تأسيس مركز &quot;الإرادة&quot; للتدريب المهني وتخريج 300 متدرب.
+                        تأسيس مركز &quot;الإرادة&quot; للتدريب المهني وتخريج 300
+                        متدرب.
                       </span>
                     </li>
                     <li className="flex items-start gap-3">
@@ -226,103 +230,7 @@ export default async function Home() {
             </div>
 
             {/* Initiatives Section */}
-            <div className="flex flex-col gap-10 px-4 py-6" id="initiatives">
-              <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
-                <div className="flex max-w-[720px] flex-col gap-4">
-                  <h2 className="tracking-light text-3xl leading-tight font-bold text-slate-900 md:text-4xl dark:text-white">
-                    مبادراتنا <span className="text-primary">المجتمعية</span>
-                  </h2>
-                  <p className="text-lg leading-relaxed font-normal text-slate-600 dark:text-slate-400">
-                    اسحب لاستعراض المبادرات التنموية والخيرية التي تهدف إلى
-                    الارتقاء بالفرد والمجتمع.
-                  </p>
-                </div>
-              </div>
-              <div className="scrollbar-hide w-full snap-x snap-mandatory overflow-x-auto pb-6">
-                <div className="flex w-max gap-6 px-2">
-                  {data.initiatives && data.initiatives.length > 0 ? (
-                    data.initiatives.map((initiative, idx) => (
-                      <div
-                        key={idx}
-                        className="group hover:border-primary flex w-[300px] cursor-pointer snap-center flex-col gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-md transition-all md:w-[400px] dark:border-slate-700 dark:bg-slate-800"
-                      >
-                        <div
-                          className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-slate-200 bg-cover bg-center dark:bg-slate-700"
-                          style={{
-                            backgroundImage: `url("https://picsum.photos/600/400?random=${idx + 3}")`,
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-black/20 transition-all group-hover:bg-black/0"></div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <h3 className="group-hover:text-primary text-xl leading-normal font-bold text-slate-900 transition-colors dark:text-white">
-                            {initiative.title}
-                          </h3>
-                          {initiative.description && (
-                            <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                              {initiative.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <>
-                      <div className="group hover:border-primary flex w-[300px] cursor-pointer snap-center flex-col gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-md transition-all md:w-[400px] dark:border-slate-700 dark:bg-slate-800">
-                        <div
-                          className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-slate-200 bg-cover bg-center dark:bg-slate-700"
-                          style={{
-                            backgroundImage:
-                              'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBKneEU2rq1YaDVPccbze4BVzwXHvZdsEeqrmEke-nMqCPYiKYaB00ImoVwvK_RK9IZloYQgKdOUmIxUetxrAaGdZqA347trLp9W3MNFJpX53ClIe4856U6jgUBw8GVscOicSVGlrc53Oj0dQ36kyuYOMf5ud0MFXEs7nxbeCHIzL3UHCGOgCizr2go_-LX7gkFFOjUurKA2oTleN6tnPhN7IkRsZ57R_tzmbpu6-cvCzJTv4KR_UaJpp-WadL8nTt2UalrxBOLstFA")',
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-black/20 transition-all group-hover:bg-black/0"></div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-deep-green/10 text-deep-green dark:text-primary rounded px-2 py-1 text-xs font-bold">
-                              تعليمي
-                            </span>
-                          </div>
-                          <h3 className="group-hover:text-primary text-xl leading-normal font-bold text-slate-900 transition-colors dark:text-white">
-                            رواتب معلمي القرآن
-                          </h3>
-                          <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                            دعم حلقات تحفيظ القرآن الكريم وتوفير رواتب شهرية
-                            للمعلمين لضمان استمرارية التعليم.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="group hover:border-primary flex w-[300px] cursor-pointer snap-center flex-col gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-md transition-all md:w-[400px] dark:border-slate-700 dark:bg-slate-800">
-                        <div
-                          className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-slate-200 bg-cover bg-center dark:bg-slate-700"
-                          style={{
-                            backgroundImage:
-                              'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBZYltJ--me2BXZz85vQZDKcfqydShHxdIxp2fBo7----sK30QcHui2_klvBdTUZzPvIcU3wuiaeKovd4ACpB6NDFV4oF5QR0DAkB26BY68bHRltdClYxrh9lvtKbqhNeoHJFBTT6dzcSN7riPTMCqjGTIkSg9lkO1_MLOoIcKT0K2S47be-R7C5i9bPc-OYgrz6k6ei3zr-ZXGYxDA34aa0WcUl81AD-RUsSn0nt6pMn5gcxiPYTqW79VSkEjmgTghrUstyZu2aCfZ")',
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-black/20 transition-all group-hover:bg-black/0"></div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-deep-green/10 text-deep-green dark:text-primary rounded px-2 py-1 text-xs font-bold">
-                              تنمية
-                            </span>
-                          </div>
-                          <h3 className="group-hover:text-primary text-xl leading-normal font-bold text-slate-900 transition-colors dark:text-white">
-                            مشاريع تنموية
-                          </h3>
-                          <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                            تمويل وإدارة مشاريع تهدف لتطوير البنية التحتية
-                            والخدمات العامة في الأحياء المحتاجة.
-                          </p>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+            <InitiativesCarousel initiatives={data.initiatives} />
 
             {/* Hierarchy Section */}
             <div id="hierarchy">

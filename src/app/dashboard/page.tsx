@@ -28,8 +28,8 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-dashboard-bg-light dark:bg-dashboard-bg-dark flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-dashboard-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="bg-dashboard-bg-light dark:bg-dashboard-bg-dark flex min-h-screen items-center justify-center">
+        <div className="border-dashboard-primary h-12 w-12 animate-spin rounded-full border-4 border-t-transparent"></div>
       </div>
     );
   }

@@ -20,9 +20,16 @@ const publicSans = Public_Sans({
 export const metadata: Metadata = {
   title: 'مجموعة الإرادة لتنمية الغدية',
   description: 'الصفحة الرئيسية لمجموعة الإرادة لتنمية الغدية',
+  icons: {
+    icon: '/assets/images/favicon.png',
+  },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="ar"

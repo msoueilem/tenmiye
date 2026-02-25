@@ -30,20 +30,20 @@ export function DashboardSignIn() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-dashboard-bg-light font-dashboard text-slate-900 dark:bg-dashboard-bg-dark dark:text-slate-100">
+    <div className="bg-dashboard-bg-light font-dashboard dark:bg-dashboard-bg-dark flex min-h-screen flex-col text-slate-900 dark:text-slate-100">
       {/* Main Content Area */}
       <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-8">
         {/* Abstract Background Pattern */}
         <div className="pointer-events-none absolute inset-0 z-0 opacity-10">
-          <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-dashboard-primary/30 blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-dashboard-primary/10 blur-3xl"></div>
+          <div className="bg-dashboard-primary/30 absolute -top-20 -right-20 h-96 w-96 rounded-full blur-3xl"></div>
+          <div className="bg-dashboard-primary/10 absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full blur-3xl"></div>
         </div>
 
         <div className="z-10 flex w-full max-w-5xl flex-col items-center gap-8 lg:flex-row lg:gap-16">
           {/* Left Side: Visual/Information */}
           <div className="order-2 flex w-full flex-1 flex-col gap-6 lg:order-1 lg:w-1/2">
-            <div className="group relative h-64 w-full overflow-hidden rounded-2xl border border-slate-200 shadow-2xl dark:border-dashboard-primary/20 lg:h-96">
-              <div className="absolute inset-0 z-10 bg-gradient-to-t from-dashboard-bg-dark/90 to-transparent"></div>
+            <div className="group dark:border-dashboard-primary/20 relative h-64 w-full overflow-hidden rounded-2xl border border-slate-200 shadow-2xl lg:h-96">
+              <div className="from-dashboard-bg-dark/90 absolute inset-0 z-10 bg-gradient-to-t to-transparent"></div>
               <div
                 className="h-full w-full transform bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
                 style={{
@@ -51,8 +51,8 @@ export function DashboardSignIn() {
                     'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAl49zCu7wa3hLtY4u7-U8JkpYS9WYVjbyQq0uJwo5GXgL9NPmPg-V9VCBwJ-EDXxyHkgFdvLcx-qm5xW1qh-zlAjGIiQTsM4XY7F-1dc4KXD-8xEbJ9xW0cOjYSR9dl-XQ3oHQU0bLHYxJCEBI-IejXPzox6EfV4YGyV1GrA3NmSTQrAB-fJRvR-LuAQmggMEld5GkbaeihZJiPOguuKUEj7OtHcvEH9iMALE-EIG2cpnolzEmooQY6oKOqGTZby3JT6noMwdGTAcz")',
                 }}
               ></div>
-              <div className="absolute bottom-0 left-0 right-0 z-20 p-6 text-white">
-                <p className="mb-2 flex items-center gap-2 text-sm font-bold text-dashboard-primary">
+              <div className="absolute right-0 bottom-0 left-0 z-20 p-6 text-white">
+                <p className="text-dashboard-primary mb-2 flex items-center gap-2 text-sm font-bold">
                   <span className="material-symbols-outlined text-sm">
                     verified_user
                   </span>
@@ -61,7 +61,7 @@ export function DashboardSignIn() {
                 <h3 className="mb-2 text-2xl font-bold">
                   النظام الإداري المركزي
                 </h3>
-                <p className="text-sm leading-relaxed opacity-90 text-slate-300">
+                <p className="text-sm leading-relaxed text-slate-300 opacity-90">
                   منصة متكاملة لإدارة الموارد وتوجيه الاستراتيجيات المستقبلية
                   لمجموعة الإرادة. تضمن هذه البوابة أعلى معايير الأمان والخصوصية
                   للبيانات الحساسة.
@@ -72,12 +72,12 @@ export function DashboardSignIn() {
 
           {/* Right Side: Login Form */}
           <div className="order-1 flex w-full flex-1 flex-col justify-center lg:order-2 lg:w-1/2">
-            <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-slate-100 bg-white p-8 shadow-xl dark:border-dashboard-primary/10 dark:bg-[#1a2e1d] md:p-10">
+            <div className="dark:border-dashboard-primary/10 relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-slate-100 bg-white p-8 shadow-xl md:p-10 dark:bg-[#1a2e1d]">
               {/* Decorative top accent */}
-              <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-dashboard-primary to-emerald-600"></div>
+              <div className="from-dashboard-primary absolute top-0 right-0 left-0 h-1 bg-gradient-to-r to-emerald-600"></div>
 
               <div className="mb-8 text-center">
-                <div className="mb-4 inline-flex items-center justify-center rounded-full bg-dashboard-primary/10 p-3 text-dashboard-primary">
+                <div className="bg-dashboard-primary/10 text-dashboard-primary mb-4 inline-flex items-center justify-center rounded-full p-3">
                   <span className="material-symbols-outlined text-3xl">
                     admin_panel_settings
                   </span>
@@ -91,7 +91,7 @@ export function DashboardSignIn() {
               </div>
 
               <div className="space-y-6">
-                <div className="flex gap-3 items-start rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800/30 dark:bg-orange-900/20">
+                <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800/30 dark:bg-orange-900/20">
                   <span className="material-symbols-outlined mt-0.5 shrink-0 text-orange-600 dark:text-orange-400">
                     warning
                   </span>
@@ -114,7 +114,7 @@ export function DashboardSignIn() {
                   className="group flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-6 font-medium text-slate-700 shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 disabled:opacity-50"
                 >
                   {loading ? (
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-dashboard-primary"></div>
+                    <div className="border-t-dashboard-primary h-5 w-5 animate-spin rounded-full border-2 border-slate-300"></div>
                   ) : (
                     <svg
                       className="h-5 w-5"
@@ -152,7 +152,7 @@ export function DashboardSignIn() {
 
                 <div className="text-center">
                   <a
-                    className="inline-flex items-center gap-1 text-sm text-slate-500 transition-colors hover:text-dashboard-primary dark:text-slate-400 dark:hover:text-dashboard-primary"
+                    className="hover:text-dashboard-primary dark:hover:text-dashboard-primary inline-flex items-center gap-1 text-sm text-slate-500 transition-colors dark:text-slate-400"
                     href="#"
                   >
                     <span className="material-symbols-outlined text-base">
@@ -163,7 +163,7 @@ export function DashboardSignIn() {
                 </div>
               </div>
 
-              <div className="mt-8 border-t border-slate-100 pt-6 dark:border-slate-700/50 text-center">
+              <div className="mt-8 border-t border-slate-100 pt-6 text-center dark:border-slate-700/50">
                 <p className="text-xs text-slate-400 dark:text-slate-500">
                   © 2024 مجموعة الإرادة لتنمية الغدية. جميع الحقوق محفوظة.
                 </p>

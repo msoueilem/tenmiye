@@ -57,3 +57,6 @@ dist/
 
 # Scripts
 scripts/
+
+# Gemini
+.gemini/

@@ -4,10 +4,12 @@ export function Header() {
   return (
     <header className="bg-background-light/95 dark:bg-background-dark/95 sticky top-0 z-50 flex items-center justify-between border-b border-solid border-slate-200 px-10 py-4 whitespace-nowrap shadow-sm backdrop-blur-sm dark:border-slate-800">
       <div className="flex items-center gap-4 text-slate-900 dark:text-slate-100">
-        <div className="bg-deep-green text-primary flex size-10 items-center justify-center rounded-lg">
-          <span className="material-symbols-outlined text-2xl">
-            diversity_3
-          </span>
+        <div className="bg-deep-green flex size-10 items-center justify-center overflow-hidden rounded-lg">
+          <img
+            src="/assets/images/logo.png"
+            alt="مجموعة الإرادة"
+            className="h-full w-full object-cover"
+          />
         </div>
         <h2 className="hidden text-lg leading-tight font-bold tracking-[-0.015em] text-slate-900 sm:block dark:text-slate-100">
           مجموعة الإرادة لتنمية الغدية

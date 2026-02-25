@@ -19,45 +19,47 @@ export function DashboardHome({ user }: { user: User }) {
   };
 
   return (
-    <div className="min-h-screen bg-dashboard-bg-light dark:bg-dashboard-bg-dark text-slate-900 dark:text-slate-100 font-dashboard flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-2xl bg-white dark:bg-[#1a2e1d] rounded-2xl shadow-xl border border-slate-100 dark:border-dashboard-primary/10 p-8 md:p-10 text-center">
+    <div className="bg-dashboard-bg-light dark:bg-dashboard-bg-dark font-dashboard flex min-h-screen flex-col items-center justify-center p-6 text-slate-900 dark:text-slate-100">
+      <div className="dark:border-dashboard-primary/10 w-full max-w-2xl rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-xl md:p-10 dark:bg-[#1a2e1d]">
         <div className="mb-6">
           {user.photoURL ? (
-            <img 
-              src={user.photoURL} 
-              alt={user.displayName || 'User'} 
-              className="w-24 h-24 rounded-full mx-auto border-4 border-dashboard-primary/20 shadow-lg"
+            <img
+              src={user.photoURL}
+              alt={user.displayName || 'User'}
+              className="border-dashboard-primary/20 mx-auto h-24 w-24 rounded-full border-4 shadow-lg"
             />
           ) : (
-            <div className="w-24 h-24 rounded-full bg-dashboard-primary/10 flex items-center justify-center mx-auto text-dashboard-primary">
+            <div className="bg-dashboard-primary/10 text-dashboard-primary mx-auto flex h-24 w-24 items-center justify-center rounded-full">
               <span className="material-symbols-outlined text-5xl">person</span>
             </div>
           )}
         </div>
 
-        <h1 className="text-3xl font-black mb-2">مرحباً بك، {user.displayName || 'أيها المسؤول'}!</h1>
-        <p className="text-slate-500 dark:text-slate-400 mb-8">{user.email}</p>
+        <h1 className="mb-2 text-3xl font-black">
+          مرحباً بك، {user.displayName || 'أيها المسؤول'}!
+        </h1>
+        <p className="mb-8 text-slate-500 dark:text-slate-400">{user.email}</p>
 
-        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 text-left mb-8 overflow-hidden">
-          <h3 className="text-sm font-bold text-dashboard-primary mb-4 flex items-center gap-2">
+        <div className="mb-8 overflow-hidden rounded-xl bg-slate-50 p-6 text-left dark:bg-slate-900/50">
+          <h3 className="text-dashboard-primary mb-4 flex items-center gap-2 text-sm font-bold">
             <span className="material-symbols-outlined text-base">code</span>
             بيانات المستخدم التقنية:
           </h3>
-          <pre className="text-[10px] md:text-xs font-mono text-slate-600 dark:text-slate-400 overflow-x-auto whitespace-pre-wrap break-all">
+          <pre className="overflow-x-auto font-mono text-[10px] break-all whitespace-pre-wrap text-slate-600 md:text-xs dark:text-slate-400">
             {JSON.stringify(user.toJSON(), null, 2)}
           </pre>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button 
+        <div className="flex flex-col justify-center gap-4 sm:flex-row">
+          <button
             onClick={() => router.push('/')}
-            className="px-8 h-12 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-lg transition-all"
+            className="h-12 rounded-lg bg-slate-100 px-8 font-bold text-slate-700 transition-all hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             العودة للموقع
           </button>
-          <button 
+          <button
             onClick={handleLogout}
-            className="px-8 h-12 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+            className="flex h-12 items-center justify-center gap-2 rounded-lg bg-red-500 px-8 font-bold text-white shadow-lg shadow-red-500/20 transition-all hover:bg-red-600"
           >
             <span className="material-symbols-outlined">logout</span>
             تسجيل الخروج
