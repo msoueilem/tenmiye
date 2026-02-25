@@ -30,6 +30,7 @@ export interface PublicLandingData {
   membersCount: number;
   contact: ContactInfo;
   initiatives: Initiative[];
+  achievements?: string[];
   teamHierarchy: {
     teams: Team[];
   };

@@ -105,7 +105,7 @@ export default async function Home() {
                   عضو مسجل
                 </p>
                 <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
-                  +{data.membersCount?.toLocaleString() || '1,250+'}
+                  +{data.membersCount?.toLocaleString() || '0'}
                 </p>
               </div>
               <div className="hover:border-primary/50 group flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-8 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-800">
@@ -118,7 +118,7 @@ export default async function Home() {
                   مبادرة نشطة
                 </p>
                 <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
-                  {data.initiatives?.length || 15}
+                  {data.initiatives?.length || 0}
                 </p>
               </div>
               <div className="hover:border-primary/50 group flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-8 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-800">
@@ -167,45 +167,25 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="mt-4 flex flex-col gap-4">
-                  <h3 className="border-b border-slate-200 pb-2 text-xl font-bold text-slate-800 dark:border-slate-700 dark:text-slate-100">
-                    أبرز الإنجازات:
-                  </h3>
-                  <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <li className="flex items-start gap-3">
-                      <span className="material-symbols-outlined text-primary mt-1">
-                        check_circle
-                      </span>
-                      <span className="text-slate-600 dark:text-slate-300">
-                        ترميم وتجهيز 12 مدرسة ابتدائية في المناطق النائية.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="material-symbols-outlined text-primary mt-1">
-                        check_circle
-                      </span>
-                      <span className="text-slate-600 dark:text-slate-300">
-                        إطلاق حملة &quot;دفء الشتاء&quot; التي خدمت أكثر من 5000
-                        أسرة.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="material-symbols-outlined text-primary mt-1">
-                        check_circle
-                      </span>
-                      <span className="text-slate-600 dark:text-slate-300">
-                        تأسيس مركز &quot;الإرادة&quot; للتدريب المهني وتخريج 300
-                        متدرب.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="material-symbols-outlined text-primary mt-1">
-                        check_circle
-                      </span>
-                      <span className="text-slate-600 dark:text-slate-300">
-                        تنظيم أكبر حملة تشجير حضرية، بزراعة 1000 شجرة.
-                      </span>
-                    </li>
-                  </ul>
+                  {data.achievements && data.achievements.length > 0 && (
+                    <>
+                      <h3 className="border-b border-slate-200 pb-2 text-xl font-bold text-slate-800 dark:border-slate-700 dark:text-slate-100">
+                        أبرز الإنجازات:
+                      </h3>
+                      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {data.achievements.map((achievement: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-3">
+                            <span className="material-symbols-outlined mt-1 text-primary">
+                              check_circle
+                            </span>
+                            <span className="text-slate-600 dark:text-slate-300">
+                              {achievement}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="w-full flex-1 lg:max-w-[500px]">
