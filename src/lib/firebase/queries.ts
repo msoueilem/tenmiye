@@ -1,5 +1,17 @@
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './client';
+import { User } from 'firebase/auth';
+
+export interface Admin {
+  userId: string;
+  name: string | null;
+  email: string;
+  phoneNumber: string | null;
+  role: 'super-admin' | 'editor';
+  status: 'active' | 'inactive' | 'blocked';
+  createdAt: any;
+  lastLogin: any;
+}
 
 export interface TeamMember {
   name: string;
@@ -57,5 +69,35 @@ export async function getPublicLandingData(): Promise<PublicLandingData | null> 
   } catch (error) {
     console.error('Error fetching public landing data:', error);
     throw error;
+  }
+}
+
+export async function checkAdminStatus(user: User): Promise<Admin | null> {
+  if (!db || !user.email) return null;
+
+  const adminDocRef = doc(db, 'admins-simple', user.email);
+  const adminSnap = await getDoc(adminDocRef);
+
+  if (adminSnap.exists()) {
+    const adminData = adminSnap.data() as Admin;
+    // Update last login
+    await updateDoc(adminDocRef, {
+      lastLogin: serverTimestamp(),
+    });
+    return { ...adminData, email: user.email };
+  } else {
+    // Create new record as inactive
+    const newAdmin: Partial<Admin> = {
+      userId: user.uid,
+      name: user.displayName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: 'editor',
+      status: 'inactive',
+      createdAt: serverTimestamp(),
+      lastLogin: serverTimestamp(),
+    };
+    await setDoc(adminDocRef, newAdmin);
+    return newAdmin as Admin;
   }
 }
