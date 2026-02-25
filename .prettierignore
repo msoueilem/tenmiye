@@ -1,0 +1,10 @@
+.next
+node_modules
+dist
+package-lock.json
+public
+*.ico
+*.png
+*.svg
+.env
+.env.*

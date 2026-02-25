@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing and MCP artifacts
+.playwright-mcp/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache
+
+# Next.js build output
+.next/
+out/
+build/
+
+# Environment variables (CRITICAL: Never commit secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Allow .env.example
+!.env.example
+
+# Firebase
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.vercel
+.turbo
+coverage/
+dist/
+
+# Scripts
+scripts/
