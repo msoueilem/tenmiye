@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isActiveAdmin() {
+      return request.auth != null &&
+             request.auth.token.email != null &&
+             firestore.get(/databases/(default)/documents/admins-simple/$(request.auth.token.email)).data.status == 'active';
+    }
+
+    match /settings-simple/{allPaths=**} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

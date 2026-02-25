@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey:
@@ -24,6 +25,7 @@ const firebaseConfig = {
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
+let storage: FirebaseStorage | null = null;
 
 if (typeof window !== 'undefined' || firebaseConfig.projectId) {
   if (!getApps().length) {
@@ -38,6 +40,7 @@ if (typeof window !== 'undefined' || firebaseConfig.projectId) {
 if (app) {
   db = getFirestore(app);
   auth = getAuth(app);
+  storage = getStorage(app);
 }
 
-export { app, db, auth };
+export { app, db, auth, storage };

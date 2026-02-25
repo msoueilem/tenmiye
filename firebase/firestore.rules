@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isActiveAdmin() {
+      return request.auth != null &&
+             request.auth.token.email != null &&
+             exists(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)) &&
+             get(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)).data.status == 'active';
+    }
+
+    // Landing page settings doc(s)
+    match /settings-simple/{document=**} {
+      allow read: if true;
+      allow write: if isActiveAdmin(); // allow dashboard saves for active admins
+    }
+
+    // Public create-only collections
+    match /join-requests-simple/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+
+    match /messages-simple/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+
+    // Admin user records
+    match /admins-simple/{email} {
+      // Safer than allow read: if true (don’t leak admin list)
+      allow read: if request.auth != null && request.auth.token.email == email;
+
+      // Allow user to create their own record as inactive (optional, if you do self-signup)
+      allow create: if request.auth != null &&
+                    request.auth.token.email == email &&
+                    request.resource.data.status == 'inactive';
+
+      // User can update their own doc; active admins can update any admin doc
+      allow update: if request.auth != null &&
+                    (request.auth.token.email == email || isActiveAdmin());
+    }
+
+    // Upload audit log
+    match /uploads-simple/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
