@@ -20,7 +20,7 @@ export function DashboardSidebar() {
   const navItems = [
     { name: 'لوحة التحكم', icon: 'dashboard', href: '/dashboard' },
     { name: 'الأعضاء', icon: 'group', href: '/dashboard/members' },
-    { name: 'الانتخابات', icon: 'how_to_vote', href: '/dashboard/elections' },
+    { name: 'إدارة الانتخابات', icon: 'how_to_vote', href: '/dashboard/elections' },
     { name: 'إعدادات المجموعة', icon: 'settings', href: '/dashboard/settings' },
   ];
 

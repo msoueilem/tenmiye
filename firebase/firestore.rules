@@ -16,9 +16,27 @@ service cloud.firestore {
       allow write: if isActiveAdmin(); // allow dashboard saves for active admins
     }
 
+    // Elections Collection
+    match /elections-simple/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    // Votes Collection (Unique ID: electionId_voterId)
+    match /votes-simple/{voteId} {
+      allow read: if isActiveAdmin();
+      // Allow creation only if voter exists and is active (checked via voterId in request)
+      allow create: if request.resource.data.voterId != null &&
+                    get(/databases/$(database)/documents/users-simple/$(request.resource.data.voterId)).data.status == 'active';
+    }
+
     // Community Members Collection
-    match /users-simple/{document=**} {
-      allow read, write: if isActiveAdmin();
+    match /users-simple/{userId} {
+      allow read: if true; // Needed for phone check and nomination search
+      allow write: if isActiveAdmin();
+      // Allow limited updates for profile prep (name, photo, password)
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['name', 'photoUrl', 'password', 'votedElections']);
     }
 
     // Public create-only collections (Admins can read/manage)
@@ -59,3 +77,14 @@ service cloud.firestore {
     }
   }
 }
+
+// =========================================
+// rules_version = '2';
+
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     match /{document=**} {
+//       allow read, write: if false;
+//     }
+//   }
+// }

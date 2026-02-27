@@ -12,19 +12,23 @@ export const revalidate = 0;
 
 export default async function Home() {
   let data = null;
+  let elections = [];
   let error = null;
 
   try {
-    data = await getPublicLandingData();
+    const [landingData, allElections] = await Promise.all([
+      getPublicLandingData(),
+      getAllElections()
+    ]);
+    data = landingData;
+    // Show only active elections on home
+    elections = allElections.filter(e => e.status === 'active');
   } catch (err) {
     console.error('Error in Home:', err);
     error = 'حدث خطأ أثناء جلب البيانات';
   }
 
-  // If no data and no error, it means the document doesn't exist yet
-  // We should still show the page but with "No data" state as per requirements
-  // OR we can show the default design data as a fallback if the user preferred that.
-  // The requirements say: Add Arabic loading/empty states: "جارٍ التحميل…" "لا توجد بيانات حالياً"
+  // ... if error or no data ...
 
   if (error) {
     return (
@@ -92,6 +96,32 @@ export default async function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Elections Banner */}
+            {elections.length > 0 && (
+              <div className="px-4 animate-in slide-in-from-top-4 duration-700">
+                <div className="bg-gradient-to-l from-[#0df20d]/20 to-[#0df20d]/5 border border-[#0df20d]/20 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-[#0df20d]/5 overflow-hidden relative">
+                  <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <span className="material-symbols-outlined text-9xl">how_to_vote</span>
+                  </div>
+                  <div className="flex items-center gap-6 relative z-10">
+                    <div className="size-16 bg-[#0df20d] text-slate-900 rounded-2xl flex items-center justify-center animate-pulse shadow-lg shadow-[#0df20d]/30">
+                      <span className="material-symbols-outlined text-3xl">how_to_vote</span>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white">صوتك يصنع الفرق!</h3>
+                      <p className="text-slate-600 dark:text-slate-400 font-medium">هناك {elections.length === 1 ? 'عملية تصويت واحدة جارية' : `${elections.length} عمليات تصويت جارية`} حالياً. شاركنا قرارك الآن.</p>
+                    </div>
+                  </div>
+                  <a 
+                    href="/elections"
+                    className="h-14 px-10 bg-slate-900 dark:bg-[#0df20d] text-white dark:text-slate-900 rounded-2xl font-black text-lg hover:scale-105 transition-all flex items-center justify-center shadow-lg relative z-10"
+                  >
+                    انتقل لمركز التصويت
+                  </a>
+                </div>
+              </div>
+            )}
 
             {/* Stats Section */}
             <div className="grid grid-cols-1 gap-6 px-4 md:grid-cols-3">
