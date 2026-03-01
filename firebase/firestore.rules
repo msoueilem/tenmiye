@@ -1,42 +1,58 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    
     function isActiveAdmin() {
-      return request.auth != null &&
-             request.auth.token.email != null &&
-             exists(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)) &&
-             get(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)).data.status == 'active';
+      return isSignedIn() &&
+        request.auth.token.email != null &&
+        exists(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)).data.status == 'active';
     }
 
-    // Landing page settings doc(s)
-    match /settings-simple/{document=**} {
-      allow read: if true;
-      allow write: if isActiveAdmin(); // allow dashboard saves for active admins
+    match /users-simple/{uid} {
+      allow read: if isSelf(uid) || isActiveAdmin();
+      allow create, delete: if isActiveAdmin();
+      allow update: if isActiveAdmin() || 
+                    (isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoUrl']));
     }
 
-    // Elections Collection
-    match /elections-simple/{docId} {
+    match /public-members/{uid} {
       allow read: if true;
       allow write: if isActiveAdmin();
     }
 
-    // Votes Collection (Unique ID: electionId_voterId)
+    match /elections-simple/{electionId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
     match /votes-simple/{voteId} {
-      allow read: if isActiveAdmin();
-      // Allow creation only if voter exists and is active (checked via voterId in request)
-      allow create: if request.resource.data.voterId != null &&
-                    get(/databases/$(database)/documents/users-simple/$(request.resource.data.voterId)).data.status == 'active';
+      // Allow voters to check if they have voted, and admins to read all
+      allow read: if isActiveAdmin() || (isSignedIn() && voteId.matches('^[^_]+_' + request.auth.uid + '$'));
+      allow write: if false; 
     }
 
-    // Community Members Collection
-    match /users-simple/{userId} {
-      allow read: if true; // Needed for phone check and nomination search
+    match /nominations-simple/{nominationId} {
+      allow read: if isActiveAdmin();
+      allow write: if false;
+    }
+
+    match /nomination-counts/{countId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /admins-simple/{email} {
+      allow read: if isActiveAdmin() || (isSignedIn() && request.auth.token.email == email);
       allow write: if isActiveAdmin();
-      // Allow limited updates for profile prep (name, photo, password)
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                    .hasOnly(['name', 'photoUrl', 'password', 'votedElections']);
     }
 
     // Public create-only collections (Admins can read/manage)
@@ -50,19 +66,10 @@ service cloud.firestore {
       allow read, update, delete: if isActiveAdmin();
     }
 
-    // Admin user records
-    match /admins-simple/{email} {
-      // Safer than allow read: if true (don’t leak admin list)
-      allow read: if request.auth != null && request.auth.token.email == email;
-
-      // Allow user to create their own record as inactive (optional, if you do self-signup)
-      allow create: if request.auth != null &&
-                    request.auth.token.email == email &&
-                    request.resource.data.status == 'inactive';
-
-      // User can update their own doc; active admins can update any admin doc
-      allow update: if request.auth != null &&
-                    (request.auth.token.email == email || isActiveAdmin());
+    // Landing page settings doc(s)
+    match /settings-simple/{document=**} {
+      allow read: if true;
+      allow write: if isActiveAdmin(); // allow dashboard saves for active admins
     }
 
     // Upload audit log
@@ -71,20 +78,8 @@ service cloud.firestore {
       allow write: if isActiveAdmin();
     }
 
-    // Default deny
-    match /{allPaths=**} {
+    match /{document=**} {
       allow read, write: if false;
     }
   }
 }
-
-// =========================================
-// rules_version = '2';
-
-// service cloud.firestore {
-//   match /databases/{database}/documents {
-//     match /{document=**} {
-//       allow read, write: if false;
-//     }
-//   }
-// }

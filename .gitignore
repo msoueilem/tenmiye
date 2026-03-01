@@ -63,3 +63,6 @@ scripts/
 
 # Mocks
 mocks/
+firebase/storage.rules
+pre-ux-changes.diff
+pre-fix-search.diff
