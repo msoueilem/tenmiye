@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Election, getAllElections } from '@/lib/firebase/queries';
+import { Election } from '@/types/elections';
+import { getAllElections } from '@/features/elections/api.client';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -48,7 +49,7 @@ export default function PublicElectionsPage() {
                   {e.status === 'active' ? '● تصويت جاري الآن' : 'انتهى التصويت'}
                 </div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {e.type === 'choice' ? 'اختيار واحد' : e.type === 'yes-no' ? 'استفتاء' : 'نظام الترشيحات'}
+                  {e.type === 'PICK_MEMBER' ? 'اختيار واحد' : e.type === 'YES_NO' ? 'استفتاء' : 'نظام الترشيحات'}
                 </span>
               </div>
               

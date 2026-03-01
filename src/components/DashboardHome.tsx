@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { User } from 'firebase/auth';
-import { Admin } from '@/lib/firebase/queries';
+import { Admin } from '@/types/users';
 import Link from 'next/link';
 
 export function DashboardHome({ user, admin }: { user: User; admin: Admin }) {

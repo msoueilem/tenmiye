@@ -5,7 +5,9 @@ import { TeamHierarchy } from '@/components/TeamHierarchy';
 import { InitiativesCarousel } from '@/components/InitiativesCarousel';
 import { JoinForm } from '@/components/JoinForm';
 import { ContactForm } from '@/components/ContactForm';
-import { getPublicLandingData } from '@/lib/firebase/queries';
+import { Election } from '@/types/elections';
+import { getPublicLandingData } from '@/features/landing/api.client';
+import { getAllElections } from '@/features/elections/api.client';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

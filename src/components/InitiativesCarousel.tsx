@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { Initiative } from '@/lib/firebase/queries';
+import { Initiative } from '@/types/landing';
 
 interface InitiativesCarouselProps {
   initiatives: Initiative[];

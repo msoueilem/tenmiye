@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext } from 'react';
 import { User } from 'firebase/auth';
-import { Admin } from '@/lib/firebase/queries';
+import { Admin } from '@/types/users';
 
 interface DashboardContextProps {
   user: User | null;

@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { useRouter } from 'next/navigation';
-import { checkAdminStatus, Admin } from '@/lib/firebase/queries';
+import { checkAdminStatus } from '@/features/users/api.client';
+import { Admin } from '@/types/users';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { DashboardProvider } from '@/context/DashboardContext';
 

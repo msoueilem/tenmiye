@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_Arabic, Lexend, Public_Sans } from 'next/font/google';
 import './globals.css'; // Global styles
-import { getPublicLandingData } from '@/lib/firebase/queries';
+import { getPublicLandingData } from '@/features/landing/api.client';
 
 const notoSansArabic = Noto_Sans_Arabic({
   subsets: ['arabic'],

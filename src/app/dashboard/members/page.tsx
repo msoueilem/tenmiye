@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserMember, getAllUsers, updateUser, deleteUser, addUser, uploadImage } from '@/lib/firebase/queries';
+import { UserMember } from '@/types/users';
+import { getAllUsers, updateUser, deleteUser, addUser } from '@/features/users/api.client';
+import { uploadImage } from '@/features/uploads/api.client';
 import { useDashboard } from '@/context/DashboardContext';
 
 export default function MembersPage() {
@@ -73,8 +75,8 @@ export default function MembersPage() {
   const handleAddUser = async () => {
     if (!addForm.name || !addForm.phoneNumber) return;
     setIsSaving(true);
-    const result = await addUser(addForm);
-    if (result) {
+    const newUserId = await addUser(addForm);
+    if (newUserId) {
       setIsAddModalOpen(false);
       setAddModalForm(defaultUserForm);
       setPhotoPreview(null);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Team } from '@/lib/firebase/queries';
+import { Team } from '@/types/landing';
 
 export function TeamHierarchy({ data }: { data: { teams: Team[] } }) {
   if (!data || !data.teams || data.teams.length === 0) return null;

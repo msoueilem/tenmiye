@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Election, getAllElections, createElection, updateElection, deleteElection, uploadImage, ElectionOption, UserMember } from '@/lib/firebase/queries';
+import { Election, ElectionOption } from '@/types/elections';
+import { UserMember } from '@/types/users';
+import { getAllElections, createElection, updateElection, deleteElection } from '@/features/elections/api.client';
+import { uploadImage } from '@/features/uploads/api.client';
 import { useDashboard } from '@/context/DashboardContext';
 import { CandidatePicker } from './components/CandidatePicker';
 
@@ -22,7 +25,7 @@ export default function ElectionsManagementPage() {
   const initialForm: Omit<Election, 'id' | 'createdAt'> = {
     title: '',
     description: '',
-    type: 'choice',
+    type: 'PICK_MEMBER',
     status: 'draft',
     resultsVisibility: 'after_close',
     startTime: '',
@@ -108,7 +111,7 @@ export default function ElectionsManagementPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    if (!form.title || (form.type !== 'nomination' && form.options.length < 2)) {
+    if (!form.title || (form.type !== 'NOMINATION' && form.options.length < 2)) {
       setMessage({ type: 'error', text: 'يرجى إكمال البيانات الأساسية' });
       setIsSaving(false);
       return;
@@ -199,7 +202,7 @@ export default function ElectionsManagementPage() {
             
             <div className="mt-auto space-y-3">
               <div className="flex justify-between text-xs text-slate-400 border-t pt-3 border-slate-100 dark:border-slate-800">
-                <span>{e.type === 'choice' ? 'اختيار' : e.type === 'yes-no' ? 'نعم/لا' : 'ترشيحات'}</span>
+                <span>{e.type === 'PICK_MEMBER' ? 'اختيار' : e.type === 'YES_NO' ? 'نعم/لا' : 'ترشيحات'}</span>
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-xs">schedule</span> 
                   {e.endTime?.toDate ? e.endTime.toDate().toLocaleDateString('ar-MR') : ''}
                 </span>
@@ -265,17 +268,17 @@ export default function ElectionsManagementPage() {
                   <h4 className="font-bold border-b pb-2 text-[#0df20d]">القواعد والظهور</h4>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">نوع التصويت</label>
-                    <select className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none" value={form.type || 'choice'} onChange={e => {
+                    <select className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none" value={form.type || 'PICK_MEMBER'} onChange={e => {
                       const type = e.target.value as Election['type'];
                       let options = form.options;
-                      if (type === 'yes-no') {
+                      if (type === 'YES_NO') {
                         options = [{ id: 'yes', name: 'نعم' }, { id: 'no', name: 'لا' }];
                       }
                       setForm({...form, type, options});
                     }}>
-                      <option value="choice">اختيار (واحد أو متعدد)</option>
-                      <option value="yes-no">نعم / لا</option>
-                      <option value="nomination">نظام الترشيحات (بحث)</option>
+                      <option value="PICK_MEMBER">اختيار (واحد أو متعدد)</option>
+                      <option value="YES_NO">نعم / لا</option>
+                      <option value="NOMINATION">نظام الترشيحات (بحث)</option>
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -300,7 +303,7 @@ export default function ElectionsManagementPage() {
                 </div>
               </div>
 
-              {form.type !== 'yes-no' && (
+              {form.type !== 'YES_NO' && (
                 <div className="space-y-4">
                   <h4 className="font-bold border-b pb-2 text-[#0df20d]">إدارة الخيارات / المرشحين</h4>
                   <div className="max-w-md">

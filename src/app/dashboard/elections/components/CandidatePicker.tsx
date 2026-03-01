@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { UserMember, searchMembers } from '@/lib/firebase/queries';
+import { UserMember } from '@/types/users';
+import { searchMembers } from '@/features/users/api.client';
 
 interface CandidatePickerProps {
   onSelect: (member: UserMember) => void;

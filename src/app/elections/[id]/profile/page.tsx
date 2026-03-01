@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { UserMember, updateVoterProfile, uploadImage } from '@/lib/firebase/queries';
+import { UserMember } from '@/types/users';
+import { updateVoterProfile } from '@/features/users/api.client';
+import { uploadImage } from '@/features/uploads/api.client';
 
 export default function ElectionProfilePage() {
   const { id } = useParams();
@@ -11,7 +13,6 @@ export default function ElectionProfilePage() {
   const [loading, setLoading] = useState(true);
   
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoPreview, setPhotoPreview] = useState('');
   const [saving, setSaving] = useState(false);
@@ -47,7 +48,6 @@ export default function ElectionProfilePage() {
     setSaving(true);
     try {
       const updates: any = { name, photoUrl };
-      if (password) updates.password = password;
       
       await updateVoterProfile(member.id, updates);
       
@@ -91,7 +91,7 @@ export default function ElectionProfilePage() {
               <p className="text-[10px] text-slate-400 font-bold">صورة الملف الشخصي (مربّعة، بحد أقصى 2MB)</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               <div>
                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">الاسم بالكامل</label>
                 <input
@@ -99,16 +99,6 @@ export default function ElectionProfilePage() {
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">كلمة المرور (اختياري)</label>
-                <input
-                  className="w-full h-12 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 font-bold outline-none focus:ring-2 focus:ring-[#0df20d]/20 transition-all"
-                  type="password"
-                  placeholder="اتركها فارغة لعدم التغيير"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
                 />
               </div>
             </div>

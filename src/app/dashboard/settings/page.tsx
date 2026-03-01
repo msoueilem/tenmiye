@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PublicLandingData, getPublicLandingData, updatePublicLandingData, uploadImage, Initiative } from '@/lib/firebase/queries';
+import { PublicLandingData, Initiative } from '@/types/landing';
+import { getPublicLandingData, updatePublicLandingData } from '@/features/landing/api.client';
+import { uploadImage } from '@/features/uploads/api.client';
 import { useDashboard } from '@/context/DashboardContext';
 
 type MessageTarget = 'global' | 'logo' | 'favicon' | 'aspect' | 'initiative-modal' | 'stats' | 'achievements' | 'contact';
