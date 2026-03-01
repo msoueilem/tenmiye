@@ -1,0 +1,14 @@
+site_name: Will Group
+site_description: Documentation for the Will Group simple landing page and dashboard.
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Architecture & System: architecture.md
