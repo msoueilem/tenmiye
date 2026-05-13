@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { FirebaseService } from '../../common/firebase/firebase.service';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import * as crypto from 'crypto';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 
@@ -41,17 +41,13 @@ export class AuthService {
     const otpDoc = await this.firebase.db.collection('whatsappOtps').doc(phone).get();
 
     if (!otpDoc.exists) {
-      throw new UnauthorizedException('Invalid OTP');
+      throw new UnauthorizedException('Invalid or expired OTP');
     }
 
     const otp = otpDoc.data() as { code: string; used: boolean; expiresAt: Timestamp };
 
-    if (otp.used || otp.expiresAt.toMillis() <= Date.now()) {
-      throw new UnauthorizedException('OTP expired or already used');
-    }
-
-    if (otp.code !== code) {
-      throw new UnauthorizedException('Invalid OTP');
+    if (otp.used || otp.expiresAt.toMillis() <= Date.now() || otp.code !== code) {
+      throw new UnauthorizedException('Invalid or expired OTP');
     }
 
     await this.firebase.db.collection('whatsappOtps').doc(phone).update({ used: true });
@@ -61,6 +57,10 @@ export class AuthService {
       .where('whatsappNumber', '==', phone)
       .limit(1)
       .get();
+
+    if (userSnapshot.empty) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
 
     const userDoc = userSnapshot.docs[0];
     const payload: JwtPayload = {
