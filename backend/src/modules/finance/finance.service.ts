@@ -46,13 +46,19 @@ export class FinanceService {
       throw new NotFoundException(`Payment channel ${dto.paymentChannelId} not found`);
     }
 
-    const channel = channelDoc.data() as { requiresCollector: boolean };
+    const data = channelDoc.data();
+    const requiresCollector = data?.requiresCollector === true;
 
-    if (channel.requiresCollector && dto.collectedByUserId !== user.userId) {
-      throw new ForbiddenException('You can only record contributions you collected');
+    if (requiresCollector) {
+      if (!dto.collectedByUserId) {
+        throw new BadRequestException('collectedByUserId is required for this payment channel');
+      }
+      if (dto.collectedByUserId !== user.userId) {
+        throw new ForbiddenException('You can only record contributions you collected');
+      }
     }
 
-    if (!channel.requiresCollector && !dto.screenshotUrl) {
+    if (!requiresCollector && !dto.screenshotUrl) {
       throw new BadRequestException('screenshotUrl is required for this payment channel');
     }
 
