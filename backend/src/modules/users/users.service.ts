@@ -6,7 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 @Injectable()
 export class UsersService {
-  constructor(private firebase: FirebaseService) {}
+  constructor(private readonly firebase: FirebaseService) {}
 
   async findAll(): Promise<{ id: string; [key: string]: unknown }[]> {
     const snapshot = await this.firebase.db.collection('users').get();
@@ -34,7 +34,13 @@ export class UsersService {
     if (!doc.exists) {
       throw new NotFoundException(`User ${id} not found`);
     }
-    await this.firebase.db.collection('users').doc(id).update({ ...dto });
+    const payload = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== undefined),
+    );
+    await this.firebase.db.collection('users').doc(id).update({
+      ...payload,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
   }
 
   async remove(id: string): Promise<void> {
