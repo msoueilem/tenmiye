@@ -33,7 +33,7 @@
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf .next",
-    "backend": "cd backend && npm run start:dev"
+    "backend": "npm --prefix backend run start:dev"
   },
   "dependencies": {
     "@google/genai": "^1.17.0",
