@@ -279,7 +279,8 @@ Collections: `paymentChannels`, `contributions`, `expenses`
 | `GET /blog/posts` | none (public) | — |
 | `GET /blog/posts/:id` | none (public) | — |
 | `POST /blog/posts` | JWT + Permissions | `WRITE_BLOG` |
-| `PATCH /blog/posts/:id` | JWT only | service checks `WRITE_BLOG` OR `MODERATE_BLOG` (either is sufficient) |
+| `PATCH /blog/posts/:id/content` | JWT + Permissions | `WRITE_BLOG` |
+| `PATCH /blog/posts/:id/status` | JWT + Permissions | `MODERATE_BLOG` |
 | `DELETE /blog/posts/:id` | JWT + Permissions | `MODERATE_BLOG` |
 
 Collection: `blogPosts`
