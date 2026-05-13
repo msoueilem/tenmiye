@@ -21,85 +21,93 @@ export class ElectionsScheduler {
       .get();
 
     for (const stageDoc of stagesSnapshot.docs) {
-      const stage = stageDoc.data() as {
-        processId: string;
-        closesAt: Timestamp;
-      };
+      try {
+        const stage = stageDoc.data() as {
+          processId: string;
+          closesAt: Timestamp;
+        };
 
-      const optionsSnapshot = await this.firebase.db
-        .collection('electionOptions')
-        .where('stageId', '==', stageDoc.id)
-        .where('outcome', '==', 'PENDING')
-        .where('tier', '==', 'SHORTLIST')
-        .get();
-
-      const TARGET = 5;
-      const count = optionsSnapshot.size;
-
-      if (count === TARGET) {
-        const batch = this.firebase.db.batch();
-        for (const opt of optionsSnapshot.docs) {
-          batch.update(opt.ref, { outcome: 'ELECTED' });
-        }
-        batch.update(stageDoc.ref, { status: 'CLOSED' });
-        batch.update(
-          this.firebase.db.collection('electionProcesses').doc(stage.processId),
-          { status: 'COMPLETED' },
-        );
-        await batch.commit();
-      } else if (count > TARGET) {
-        await this.firebase.db.runTransaction(async (tx) => {
-          tx.update(stageDoc.ref, { status: 'CLOSED' });
-          const newStageRef = this.firebase.db.collection('electionStages').doc();
-          tx.set(newStageRef, {
-            stageType: 'FINAL_VOTE',
-            status: 'ACTIVE',
-            processId: stage.processId,
-            createdAt: FieldValue.serverTimestamp(),
-          });
-        });
-      } else {
-        // count < TARGET
-        const needed = TARGET - count;
-
-        const reserveSnapshot = await this.firebase.db
+        const optionsSnapshot = await this.firebase.db
           .collection('electionOptions')
           .where('stageId', '==', stageDoc.id)
-          .where('tier', '==', 'RESERVE')
-          .orderBy('rank', 'asc')
-          .limit(needed)
+          .where('outcome', '==', 'PENDING')
+          .where('tier', '==', 'SHORTLIST')
           .get();
 
-        const totalAvailable = count + reserveSnapshot.size;
+        const TARGET = 5;
+        const count = optionsSnapshot.size;
 
-        if (totalAvailable >= TARGET) {
+        if (count === TARGET) {
           const batch = this.firebase.db.batch();
           for (const opt of optionsSnapshot.docs) {
             batch.update(opt.ref, { outcome: 'ELECTED' });
           }
-          for (const opt of reserveSnapshot.docs) {
-            batch.update(opt.ref, { tier: 'SHORTLIST', outcome: 'ELECTED' });
-          }
+          batch.update(stageDoc.ref, { status: 'CLOSED' });
           batch.update(
             this.firebase.db.collection('electionProcesses').doc(stage.processId),
             { status: 'COMPLETED' },
           );
           await batch.commit();
+        } else if (count > TARGET) {
+          await this.firebase.db.runTransaction(async (tx) => {
+            tx.update(stageDoc.ref, { status: 'CLOSED' });
+            const newStageRef = this.firebase.db.collection('electionStages').doc();
+            tx.set(newStageRef, {
+              stageType: 'FINAL_VOTE',
+              status: 'ACTIVE',
+              processId: stage.processId,
+              createdAt: FieldValue.serverTimestamp(),
+            });
+          });
         } else {
-          const batch = this.firebase.db.batch();
-          for (const opt of [...optionsSnapshot.docs, ...reserveSnapshot.docs]) {
-            batch.update(opt.ref, { outcome: 'CANCELLED' });
+          // count < TARGET
+          const needed = TARGET - count;
+
+          const reserveSnapshot = await this.firebase.db
+            .collection('electionOptions')
+            .where('stageId', '==', stageDoc.id)
+            .where('outcome', '==', 'PENDING')
+            .where('tier', '==', 'RESERVE')
+            .orderBy('rank', 'asc')
+            .limit(needed)
+            .get();
+
+          const totalAvailable = count + reserveSnapshot.size;
+
+          if (totalAvailable >= TARGET) {
+            const batch = this.firebase.db.batch();
+            for (const opt of optionsSnapshot.docs) {
+              batch.update(opt.ref, { outcome: 'ELECTED' });
+            }
+            for (const opt of reserveSnapshot.docs) {
+              batch.update(opt.ref, { tier: 'SHORTLIST', outcome: 'ELECTED' });
+            }
+            batch.update(stageDoc.ref, { status: 'CLOSED' });
+            batch.update(
+              this.firebase.db.collection('electionProcesses').doc(stage.processId),
+              { status: 'COMPLETED' },
+            );
+            await batch.commit();
+          } else {
+            const batch = this.firebase.db.batch();
+            for (const opt of [...optionsSnapshot.docs, ...reserveSnapshot.docs]) {
+              batch.update(opt.ref, { outcome: 'CANCELLED' });
+            }
+            batch.update(stageDoc.ref, { status: 'CLOSED' });
+            batch.update(
+              this.firebase.db.collection('electionProcesses').doc(stage.processId),
+              { status: 'CANCELLED' },
+            );
+            await batch.commit();
           }
-          batch.update(stageDoc.ref, { status: 'CLOSED' });
-          batch.update(
-            this.firebase.db.collection('electionProcesses').doc(stage.processId),
-            { status: 'CANCELLED' },
-          );
-          await batch.commit();
         }
+      } catch (err: unknown) {
+        this.logger.error(`Failed to process withdrawal stage ${stageDoc.id}`, err);
       }
     }
 
-    this.logger.log(`Processed ${stagesSnapshot.size} withdrawal stage(s)`);
+    if (stagesSnapshot.size > 0) {
+      this.logger.log(`Processed ${stagesSnapshot.size} withdrawal stage(s)`);
+    }
   }
 }
