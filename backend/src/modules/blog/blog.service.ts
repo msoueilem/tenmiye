@@ -31,6 +31,7 @@ export class BlogService {
       status: dto.status ?? 'draft',
       authorId,
       createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     return { id: ref.id };
   }
