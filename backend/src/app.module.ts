@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { FirebaseModule } from './common/firebase/firebase.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { BoardsModule } from './modules/boards/boards.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { UsersModule } from './modules/users/users.module';
     FirebaseModule,
     AuthModule,
     UsersModule,
+    BoardsModule,
   ],
 })
 export class AppModule {}
