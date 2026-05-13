@@ -1,17 +1,17 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
+import { IsDateString, IsIn, IsNotEmpty, IsNumber, IsPositive, IsString, MinLength } from 'class-validator';
 
 export class CreateExpenseDto {
   @IsString()
   @IsNotEmpty()
+  @MinLength(2)
   description!: string;
 
   @IsNumber()
   @IsPositive()
   amount!: number;
 
-  @IsString()
-  @IsNotEmpty()
-  category!: string;
+  @IsIn(['activities', 'salary', 'equipment', 'administrative', 'other'])
+  category!: 'activities' | 'salary' | 'equipment' | 'administrative' | 'other';
 
   @IsDateString()
   date!: string;

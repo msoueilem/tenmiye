@@ -1,16 +1,21 @@
-import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsDateString, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateRoleDto {
   @IsString()
   @IsNotEmpty()
-  boardId!: string;
+  @MinLength(2)
+  title!: string;
 
   @IsString()
   @IsNotEmpty()
-  title!: string;
+  userId!: string;
 
   @IsString({ each: true })
   @IsArray()
   @IsOptional()
   permissions?: string[];
+
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
 }

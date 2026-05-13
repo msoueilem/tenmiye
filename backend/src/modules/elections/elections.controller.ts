@@ -18,9 +18,8 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
-import { ApiBearerAuth, ApiOperation, ApiTags, PartialType } from '@nestjs/swagger';
-
-class UpdateElectionDto extends PartialType(CreateElectionDto) {}
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { UpdateElectionDto } from './dto/update-election.dto';
 
 @ApiTags('elections')
 @ApiBearerAuth()
@@ -44,8 +43,8 @@ export class ElectionsController {
   @ApiOperation({ summary: 'Create a new election' })
   @Post()
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
-  create(@Body() dto: CreateElectionDto) {
-    return this.elections.create(dto);
+  create(@Body() dto: CreateElectionDto, @Req() req: { user: JwtPayload }) {
+    return this.elections.create(dto, req.user);
   }
 
   @ApiOperation({ summary: 'Update an election by ID' })

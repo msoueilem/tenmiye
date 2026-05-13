@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
-import { UpdateContentDto } from './dto/update-content.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -46,12 +46,12 @@ export class BlogController {
     return this.blog.create(dto, req.user.userId);
   }
 
-  @ApiOperation({ summary: 'Update blog post content by ID' })
-  @Patch(':id/content')
+  @ApiOperation({ summary: 'Update a blog post by ID' })
+  @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.WRITE_BLOG)
-  updateContent(@Param('id') id: string, @Body() dto: UpdateContentDto) {
-    return this.blog.updateContent(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdatePostDto) {
+    return this.blog.update(id, dto);
   }
 
   @ApiOperation({ summary: 'Update blog post status by ID' })

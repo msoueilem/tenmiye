@@ -15,9 +15,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/enums/permission.enum';
-import { ApiBearerAuth, ApiOperation, ApiTags, PartialType } from '@nestjs/swagger';
-
-class UpdateBoardDto extends PartialType(CreateBoardDto) {}
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { UpdateBoardDto } from './dto/update-board.dto';
 
 @ApiTags('boards')
 @ApiBearerAuth()

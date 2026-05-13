@@ -15,7 +15,7 @@ export class CreateContributionDto {
 
   @IsString()
   @IsOptional()
-  screenshotUrl?: string;
+  screenshotFileId?: string;
 
   @IsString()
   @IsOptional()

@@ -59,8 +59,11 @@ export class FinanceController {
   @ApiOperation({ summary: 'Verify a contribution by ID' })
   @Patch('contributions/:id/verify')
   @RequirePermissions(Permission.VERIFY_CONTRIBUTIONS)
-  verifyContribution(@Param('id') id: string) {
-    return this.finance.verifyContribution(id);
+  verifyContribution(
+    @Param('id') id: string,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return this.finance.verifyContribution(id, req.user);
   }
 
   @ApiOperation({ summary: 'Get all expenses' })

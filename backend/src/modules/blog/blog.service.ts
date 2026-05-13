@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { CreatePostDto } from './dto/create-post.dto';
-import { UpdateContentDto } from './dto/update-content.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -10,10 +10,7 @@ export class BlogService {
   constructor(private readonly firebase: FirebaseService) {}
 
   async findAll(): Promise<{ id: string; [key: string]: unknown }[]> {
-    const snapshot = await this.firebase.db
-      .collection('blogPosts')
-      .where('status', '==', 'published')
-      .get();
+    const snapshot = await this.firebase.db.collection('blogPosts').get();
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
@@ -26,9 +23,22 @@ export class BlogService {
   }
 
   async create(dto: CreatePostDto, authorId: string): Promise<{ id: string }> {
+    if (dto.featureImageId) {
+      const fileDoc = await this.firebase.db.collection('files').doc(dto.featureImageId).get();
+      if (!fileDoc.exists || fileDoc.data()?.deleted === true) {
+        throw new BadRequestException(`File ${dto.featureImageId} not found`);
+      }
+      if (fileDoc.data()?.category !== 'blog-feature') {
+        throw new BadRequestException(`File ${dto.featureImageId} is not a blog feature image`);
+      }
+    }
+
     const ref = await this.firebase.db.collection('blogPosts').add({
-      ...dto,
-      status: dto.status ?? 'draft',
+      title: dto.title,
+      content: dto.content,
+      tags: dto.tags ?? [],
+      featureImageId: dto.featureImageId ?? null,
+      status: 'draft',
       authorId,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -36,13 +46,27 @@ export class BlogService {
     return { id: ref.id };
   }
 
-  async updateContent(id: string, dto: UpdateContentDto): Promise<void> {
+  async update(id: string, dto: UpdatePostDto): Promise<void> {
     const doc = await this.firebase.db.collection('blogPosts').doc(id).get();
     if (!doc.exists) {
       throw new NotFoundException(`Post ${id} not found`);
     }
+
+    if (dto.featureImageId) {
+      const fileDoc = await this.firebase.db.collection('files').doc(dto.featureImageId).get();
+      if (!fileDoc.exists || fileDoc.data()?.deleted === true) {
+        throw new BadRequestException(`File ${dto.featureImageId} not found`);
+      }
+      if (fileDoc.data()?.category !== 'blog-feature') {
+        throw new BadRequestException(`File ${dto.featureImageId} is not a blog feature image`);
+      }
+    }
+
+    const payload = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== undefined),
+    );
     await this.firebase.db.collection('blogPosts').doc(id).update({
-      content: dto.content,
+      ...payload,
       updatedAt: FieldValue.serverTimestamp(),
     });
   }
