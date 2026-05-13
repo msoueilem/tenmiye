@@ -9,6 +9,7 @@ export class CreateRoleDto {
   @IsNotEmpty()
   title!: string;
 
+  @IsString({ each: true })
   @IsArray()
   @IsOptional()
   permissions?: string[];

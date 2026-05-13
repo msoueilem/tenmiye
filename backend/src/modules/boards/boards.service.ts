@@ -56,8 +56,9 @@ export class BoardsService {
     if (!boardDoc.exists) {
       throw new NotFoundException(`Board ${boardId} not found`);
     }
+    const { boardId: _dtoBoardId, ...roleData } = dto;
     const ref = await this.firebase.db.collection('roles').add({
-      ...dto,
+      ...roleData,
       boardId,
       createdAt: FieldValue.serverTimestamp(),
     });
