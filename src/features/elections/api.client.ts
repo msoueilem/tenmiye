@@ -1,62 +1,112 @@
-import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, deleteDoc, orderBy, serverTimestamp, arrayUnion } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
-import { Election, Vote } from '@/types/elections';
+import { config } from '@/lib/config';
+import { memberFetch } from '@/lib/memberApi';
+import { BackendElection, ElectionResults } from '@/types/elections';
 
-export async function getAllElections(): Promise<Election[]> {
-  if (!db) return [];
+export async function getAllElections(): Promise<BackendElection[]> {
   try {
-    const electionsRef = collection(db, 'elections-simple');
-    const q = query(electionsRef, orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Election));
-  } catch (error) {
-    console.error('Error fetching elections:', error);
+    const res = await fetch(`${config.apiUrl}/elections`);
+    if (!res.ok) return [];
+    return res.json() as Promise<BackendElection[]>;
+  } catch {
     return [];
   }
 }
 
-export async function getElectionById(id: string): Promise<Election | null> {
-  if (!db) return null;
-  const docRef = doc(db, 'elections-simple', id);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Election : null;
-}
-
-export async function createElection(data: Omit<Election, 'id' | 'createdAt'>): Promise<string | null> {
-  if (!db) return null;
+export async function getElectionById(id: string): Promise<BackendElection | null> {
   try {
-    const electionsRef = collection(db, 'elections-simple');
-    const newDoc = doc(electionsRef);
-    await setDoc(newDoc, {
-      ...data,
-      createdAt: serverTimestamp(),
-      stats: data.options.reduce((acc, opt) => ({ ...acc, [opt.id]: 0 }), {})
-    });
-    return newDoc.id;
-  } catch (error) {
-    console.error('Error creating election:', error);
+    const res = await fetch(`${config.apiUrl}/elections/${id}`);
+    if (!res.ok) return null;
+    return res.json() as Promise<BackendElection>;
+  } catch {
     return null;
   }
 }
 
-export async function updateElection(id: string, data: Partial<Election>): Promise<void> {
-  if (!db) return;
-  const docRef = doc(db, 'elections-simple', id);
-  await updateDoc(docRef, data);
+export async function getElectionResults(id: string): Promise<ElectionResults | null> {
+  try {
+    const res = await fetch(`${config.apiUrl}/elections/${id}/results`);
+    if (!res.ok) return null;
+    return res.json() as Promise<ElectionResults>;
+  } catch {
+    return null;
+  }
 }
 
-export async function deleteElection(id: string): Promise<void> {
-  if (!db) return;
-  const docRef = doc(db, 'elections-simple', id);
-  await deleteDoc(docRef);
+export async function castVoteApi(
+  electionId: string,
+  selections: string[],
+  token: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await memberFetch(`/elections/${electionId}/votes`, token, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selections }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { message?: string };
+      return { ok: false, error: json.message ?? 'حدث خطأ أثناء التصويت' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'تعذر الاتصال بالخادم' };
+  }
 }
 
+export async function checkMyVote(electionId: string, token: string): Promise<boolean> {
+  try {
+    const res = await memberFetch('/me/votes', token);
+    if (!res.ok) return false;
+    const votes = (await res.json()) as Array<{ electionId: string }>;
+    return votes.some((v) => v.electionId === electionId);
+  } catch {
+    return false;
+  }
+}
 
+export async function createElectionApi(
+  data: Pick<BackendElection, 'title' | 'description' | 'type' | 'startTime' | 'endTime'>,
+  token: string,
+): Promise<{ id: string } | null> {
+  try {
+    const res = await memberFetch('/elections', token, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) return null;
+    return res.json() as Promise<{ id: string }>;
+  } catch {
+    return null;
+  }
+}
 
-export async function getUserVote(electionId: string, voterId: string): Promise<Vote | null> {
-  if (!db) return null;
-  const voteId = `${electionId}_${voterId}`;
-  const docRef = doc(db, 'votes-simple', voteId);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Vote : null;
+export async function updateElectionApi(
+  id: string,
+  data: Partial<Pick<BackendElection, 'title' | 'description' | 'type' | 'status' | 'startTime' | 'endTime'>>,
+  token: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await memberFetch(`/elections/${id}`, token, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { message?: string };
+      return { ok: false, error: json.message };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'تعذر الاتصال بالخادم' };
+  }
+}
+
+export async function deleteElectionApi(id: string, token: string): Promise<boolean> {
+  try {
+    const res = await memberFetch(`/elections/${id}`, token, { method: 'DELETE' });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

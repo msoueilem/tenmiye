@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getMemberByPhone } from '@/features/users/api.client';
 import { getElectionById } from '@/features/elections/api.client';
-import { Election } from '@/types/elections';
+import { BackendElection } from '@/types/elections';
 import { UserMember } from '@/types/users';
 import { signInWithCustomToken, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
@@ -13,7 +13,7 @@ import { getVoterTokenAction } from '@/features/users/actions';
 export default function ElectionLoginPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [election, setElection] = useState<Election | null>(null);
+  const [election, setElection] = useState<BackendElection | null>(null);
   
   // Step 1: Phone, Step 2: Auth
   const [step, setStep] = useState<'phone' | 'auth'>('phone');
