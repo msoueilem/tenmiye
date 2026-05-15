@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 const PHONE_REGEX = /^[234]\d{7}$/;
 const PHONE_MESSAGE = 'Must be 8 digits starting with 2, 3, or 4';
@@ -53,4 +53,8 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   profilePictureId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  outsidePlatform?: boolean;
 }

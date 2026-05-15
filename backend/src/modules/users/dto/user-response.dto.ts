@@ -17,6 +17,7 @@ export class UserResponseDto {
   @Expose() approvedBy!: string | null;
   @Expose() approvedAt!: unknown;
   @Expose() lastLoginAt!: unknown;
+  @Expose() outsidePlatform!: boolean;
   @Expose() createdAt!: unknown;
   @Expose() updatedAt!: unknown;
   // passwordHash is intentionally absent — never exposed

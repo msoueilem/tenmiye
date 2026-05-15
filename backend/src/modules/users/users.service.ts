@@ -109,6 +109,7 @@ export class UsersService {
       roleId: await this.getDefaultRoleId(),
       tierId,
       profilePictureId: dto.profilePictureId ?? null,
+      outsidePlatform: dto.outsidePlatform ?? false,
       status: 'pending',
       approvedBy: null,
       approvedAt: null,
