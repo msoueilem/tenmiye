@@ -1,135 +1,103 @@
 'use client';
 
-import React, { useState, use, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase/client';
-import { submitVoteAction } from '@/features/elections/actions';
-import { useElection } from '@/features/elections/hooks/useElection';
-import { useMyVote } from '@/features/elections/hooks/useMyVote';
-import { useNominationTop } from '@/features/elections/hooks/useNominationTop';
-import { usePublicMembersByIds } from '@/features/members/hooks/usePublicMembersByIds';
-import { PublicMember } from '@/types/elections';
-
-// UI Components
+import { useMemberAuth } from '@/context/MemberAuthContext';
+import { memberFetch } from '@/lib/memberApi';
+import {
+  getElectionById,
+  getElectionResults,
+  castVoteApi,
+  checkMyVote,
+} from '@/features/elections/api.client';
+import { BackendElection, ElectionResults, PublicMember } from '@/types/elections';
 import { Card } from '@/components/ui/Card';
 import { AlertBox } from '@/components/ui/AlertBox';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-
-// Feature Components
 import { VoteOptionsYesNo } from '@/features/elections/components/VoteOptionsYesNo';
-import { VoteOptionsPickMember } from '@/features/elections/components/VoteOptionsPickMember';
-import { VoteOptionsNomination } from '@/features/elections/components/VoteOptionsNomination';
 import { ResultsYesNo } from '@/features/elections/components/ResultsYesNo';
-import { ResultsPickMember } from '@/features/elections/components/ResultsPickMember';
-import { ResultsNomination } from '@/features/elections/components/ResultsNomination';
+
+function resultsToStats(results: ElectionResults['results']): Record<string, number> {
+  return results.reduce<Record<string, number>>((acc, r) => {
+    acc[r.selection] = r.count;
+    return acc;
+  }, {});
+}
 
 export default function VotePage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
-  const electionId = resolvedParams.id;
+  const { id: electionId } = use(params);
   const router = useRouter();
+  const { getAccessToken, user } = useMemberAuth();
 
-  const { election, loading: electionLoading } = useElection(electionId);
-  const { hasVoted, user, loading: voteLoading } = useMyVote(electionId);
-  const { topNominations } = useNominationTop(electionId);
+  const [election, setElection] = useState<BackendElection | null>(null);
+  const [results, setResults] = useState<ElectionResults | null>(null);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [selections, setSelections] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
-  // For NOMINATION search
+  // Member search for board/committee elections
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PublicMember[]>([]);
-  const searchReqRef = React.useRef(0);
 
-  // Collect UIDs to fetch member profiles for results/voting UI
-  const uidsToFetch = useMemo(() => {
-    if (!election) return [];
-    const uids = new Set<string>();
-    if (election.type === 'PICK_MEMBER' && election.config?.pickMember?.candidateUids) {
-      election.config.pickMember.candidateUids.forEach((uid: string) => uids.add(uid));
-    }
-    if (election.type === 'NOMINATION') {
-      topNominations.forEach((nom: any) => uids.add(nom.nomineeUid));
-      selections.forEach(uid => uids.add(uid));
-    }
-    return Array.from(uids);
-  }, [election, topNominations, selections]);
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      const [el, res] = await Promise.all([
+        getElectionById(electionId),
+        getElectionResults(electionId),
+      ]);
+      if (!mounted) return;
+      setElection(el);
+      setResults(res);
 
-  const { members } = usePublicMembersByIds(uidsToFetch);
-
-  const handleSearch = useCallback(async (qStr: string) => {
-    if (!db) return;
-    
-    searchReqRef.current += 1;
-    const currentReqId = searchReqRef.current;
-
-    const trimmed = qStr.trim();
-    if (trimmed.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    try {
-      const q = query(
-        collection(db, 'public-members'),
-        where('status', '==', 'active'),
-        orderBy('name'),
-        where('name', '>=', trimmed),
-        where('name', '<=', trimmed + '\uf8ff')
-      );
-      const snap = await getDocs(q);
-      
-      // Only apply results if this request is still the latest
-      if (searchReqRef.current === currentReqId) {
-        setSearchResults(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PublicMember));
+      const token = await getAccessToken();
+      if (token && el) {
+        const voted = await checkMyVote(electionId, token);
+        if (mounted) setHasVoted(voted);
       }
-    } catch (err) {
-      console.error('Search error:', err);
+      if (mounted) setLoading(false);
     }
-  }, []);
+    void load();
+    return () => { mounted = false; };
+  }, [electionId, getAccessToken]);
 
-  const toggleSelection = (id: string, max: number) => {
-    setSelections(prev => {
-      if (prev.includes(id)) return prev.filter(x => x !== id);
-      if (prev.length >= max) return prev;
-      return [...prev, id];
-    });
+  const handleSearch = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    if (trimmed.length < 2) { setSearchResults([]); return; }
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await memberFetch(`/me/members/search?q=${encodeURIComponent(trimmed)}`, token);
+      if (!res.ok) return;
+      setSearchResults(await res.json() as PublicMember[]);
+    } catch { /* ignore */ }
+  }, [getAccessToken]);
+
+  const toggleMember = (uid: string) => {
+    setSelections((prev) => (prev.includes(uid) ? prev.filter((x) => x !== uid) : [uid]));
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      router.push(`/elections/${electionId}/login`);
+    const token = await getAccessToken();
+    if (!token) {
+      router.push(`/dashboard/login`);
       return;
     }
-
     setSubmitting(true);
     setError('');
-
-    try {
-      if (!auth?.currentUser) throw new Error('Authentication not initialized');
-      const idToken = await auth.currentUser.getIdToken(true);
-      const result = await submitVoteAction({
-        electionId,
-        selections,
-        idToken,
-      });
-
-      if (!result.success) {
-        setError(result.error || 'حدث خطأ غير معروف');
-      } else {
-        setSuccess(true);
-        router.push(`/elections/${electionId}/thanks`);
-      }
-    } catch (err) {
-      setError('تعذر الاتصال بالخادم.');
-    } finally {
-      setSubmitting(false);
+    const result = await castVoteApi(electionId, selections, token);
+    setSubmitting(false);
+    if (!result.ok) {
+      setError(result.error ?? 'حدث خطأ');
+    } else {
+      router.push(`/elections/${electionId}/thanks`);
     }
   };
 
-  if (electionLoading || voteLoading) {
+  if (loading) {
     return <div className="p-8 text-center text-slate-500 font-medium">جاري التحميل...</div>;
   }
 
@@ -137,93 +105,141 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     return <div className="p-8 text-center text-red-500 font-bold">الانتخابات غير موجودة.</div>;
   }
 
-  const isVotingDisabled = !user || hasVoted || success || submitting || election.status !== 'active';
+  const isActive = election.status === 'active';
+  const isVotingDisabled = !user || hasVoted || submitting || !isActive;
+  const stats = results ? resultsToStats(results.results) : {};
+  const isGeneralVote = election.type === 'general_vote';
 
   return (
     <div className="max-w-4xl mx-auto p-4 flex flex-col gap-8">
-      {/* Header Card */}
+      {/* Header */}
       <Card>
-        <h1 className="text-2xl font-bold mb-2 text-slate-800">{election.title || 'تصويت'}</h1>
-        <p className="text-slate-600 mb-4">{election.description}</p>
-        
+        <h1 className="text-2xl font-bold mb-2 text-slate-800">{election.title}</h1>
+        {election.description && <p className="text-slate-600 mb-4">{election.description}</p>}
         <div className="flex flex-col gap-2">
-          {election.status !== 'active' && (
-            <AlertBox variant="info">هذه الانتخابات غير نشطة حالياً.</AlertBox>
-          )}
+          {!isActive && <AlertBox variant="info">هذه الانتخابات غير نشطة حالياً.</AlertBox>}
           {hasVoted && <AlertBox variant="success">لقد قمت بالتصويت في هذه الانتخابات مسبقاً.</AlertBox>}
-          {success && <AlertBox variant="success">تم إرسال تصويتك بنجاح!</AlertBox>}
+          {!user && isActive && <AlertBox variant="info">يجب تسجيل الدخول للمشاركة في التصويت.</AlertBox>}
           {error && <AlertBox variant="error">{error}</AlertBox>}
         </div>
       </Card>
 
-      {/* Voting Area Card */}
+      {/* Voting area */}
       <Card>
         <h2 className="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">خيارات التصويت</h2>
-        
-        {election.type === 'YES_NO' && (
-          <VoteOptionsYesNo 
-            disabled={isVotingDisabled} 
-            selections={selections} 
-            setSelections={setSelections} 
-          />
-        )}
 
-        {election.type === 'PICK_MEMBER' && (
-          <VoteOptionsPickMember
+        {isGeneralVote ? (
+          <VoteOptionsYesNo
             disabled={isVotingDisabled}
             selections={selections}
-            onToggle={toggleSelection}
-            candidateUids={election.config?.pickMember?.candidateUids || []}
-            maxSelections={election.config?.pickMember?.maxSelections || 1}
-            members={members}
+            setSelections={setSelections}
           />
-        )}
-
-        {election.type === 'NOMINATION' && (
-          <VoteOptionsNomination
+        ) : (
+          <MemberSearchVote
             disabled={isVotingDisabled}
             selections={selections}
-            onToggle={toggleSelection}
-            minPicks={election.config?.nomination?.minPicks || 1}
-            maxPicks={election.config?.nomination?.maxPicks || 1}
+            onToggle={toggleMember}
             searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            setSearchQuery={(q) => { setSearchQuery(q); void handleSearch(q); }}
             searchResults={searchResults}
-            onSearch={handleSearch}
-            members={members}
           />
         )}
 
-        <PrimaryButton 
-          onClick={handleSubmit} 
-          disabled={isVotingDisabled || (!user ? false : selections.length === 0)}
-          loading={submitting}
+        <div className="mt-4">
+          <PrimaryButton
+            onClick={handleSubmit}
+            disabled={isVotingDisabled || (!user ? false : selections.length === 0)}
+            loading={submitting}
+          >
+            {!user ? 'تسجيل الدخول للتصويت' : 'تأكيد التصويت'}
+          </PrimaryButton>
+        </div>
+      </Card>
+
+      {/* Results */}
+      {results && results.results.length > 0 && (
+        <Card>
+          <h2 className="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">النتائج</h2>
+          {isGeneralVote ? (
+            <ResultsYesNo stats={stats} />
+          ) : (
+            <ResultsList results={results.results} />
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function MemberSearchVote({
+  disabled,
+  selections,
+  onToggle,
+  searchQuery,
+  setSearchQuery,
+  searchResults,
+}: {
+  disabled: boolean;
+  selections: string[];
+  onToggle: (uid: string) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  searchResults: PublicMember[];
+}) {
+  return (
+    <div className="flex flex-col gap-3 mb-4">
+      <input
+        type="text"
+        placeholder="ابحث عن عضو بالاسم..."
+        value={searchQuery}
+        disabled={disabled}
+        className="h-10 rounded-lg border border-slate-200 px-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50"
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+      {searchResults.map((m) => (
+        <button
+          key={m.id}
+          disabled={disabled}
+          onClick={() => onToggle(m.id)}
+          className={`flex items-center gap-3 rounded-lg border p-3 text-right transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+            selections.includes(m.id)
+              ? 'border-green-500 bg-green-50'
+              : 'border-slate-200 hover:border-slate-400'
+          }`}
         >
-          {!user ? 'تسجيل الدخول للتصويت' : 'تأكيد التصويت'}
-        </PrimaryButton>
-      </Card>
+          <span className="flex-1 font-medium text-slate-900">{m.name}</span>
+          {selections.includes(m.id) && (
+            <span className="text-green-600 text-sm font-bold">✓ محدد</span>
+          )}
+        </button>
+      ))}
+      {selections.length > 0 && searchResults.length === 0 && (
+        <p className="text-sm text-green-700 font-medium">تم اختيار عضو</p>
+      )}
+    </div>
+  );
+}
 
-      {/* Results Panel Card */}
-      <Card>
-        <h2 className="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">النتائج المباشرة</h2>
-        
-        {election.type === 'YES_NO' && <ResultsYesNo stats={election.stats} />}
-        
-        {election.type === 'PICK_MEMBER' && (
-          <ResultsPickMember 
-            candidateUids={election.config?.pickMember?.candidateUids || []} 
-            stats={election.stats} 
-            members={members} 
-          />
-        )}
-
-        {election.type === 'NOMINATION' && (
-          <ResultsNomination 
-            topNominations={topNominations} 
-            members={members} 
-          />
-        )}
-      </Card>
+function ResultsList({ results }: { results: { selection: string; count: number }[] }) {
+  const total = results.reduce((s, r) => s + r.count, 0);
+  return (
+    <div className="flex flex-col gap-3">
+      {results.map((r) => (
+        <div key={r.selection} className="flex flex-col gap-1">
+          <div className="flex justify-between text-sm">
+            <span className="font-mono text-xs text-slate-600 truncate max-w-xs">{r.selection}</span>
+            <span className="font-bold text-slate-800">
+              {r.count} ({total ? Math.round((r.count / total) * 100) : 0}%)
+            </span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-slate-100">
+            <div
+              className="h-2 rounded-full bg-green-500 transition-all"
+              style={{ width: `${total ? (r.count / total) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

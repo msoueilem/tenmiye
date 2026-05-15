@@ -55,6 +55,11 @@ service cloud.firestore {
       allow write: if isActiveAdmin();
     }
 
+    match /adminAccounts/{docId} {
+      allow read: if isSignedIn() && resource.data.googleEmail == request.auth.token.email;
+      allow write: if false;
+    }
+
     // Public create-only collections (Admins can read/manage)
     match /join-requests-simple/{document=**} {
       allow create: if true;

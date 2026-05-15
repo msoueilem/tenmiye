@@ -32,7 +32,8 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "backend": "npm --prefix backend run start:dev"
   },
   "dependencies": {
     "@google/genai": "^1.17.0",

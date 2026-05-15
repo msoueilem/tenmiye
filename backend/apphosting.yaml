@@ -1,0 +1,29 @@
+runConfig:
+  runtime: nodejs22
+  concurrency: 100
+  minInstances: 0
+  maxInstances: 4
+
+env:
+  - variable: PORT
+    value: "8080"
+  - variable: JWT_SECRET
+    secret: JWT_SECRET
+  - variable: FIREBASE_PROJECT_ID
+    secret: FIREBASE_PROJECT_ID
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: FIREBASE_CLIENT_EMAIL
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY
+  - variable: FIREBASE_WEB_API_KEY
+    secret: FIREBASE_WEB_API_KEY
+  - variable: FIREBASE_STORAGE_BUCKET
+    secret: FIREBASE_STORAGE_BUCKET
+  - variable: GOOGLE_CLIENT_ID
+    secret: GOOGLE_CLIENT_ID
+  - variable: GOOGLE_CLIENT_SECRET
+    secret: GOOGLE_CLIENT_SECRET
+  - variable: GOOGLE_CALLBACK_URL
+    secret: GOOGLE_CALLBACK_URL
+  - variable: FRONTEND_URL
+    secret: FRONTEND_URL

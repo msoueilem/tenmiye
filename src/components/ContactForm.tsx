@@ -1,37 +1,56 @@
 'use client';
 
 import React, { useState } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
+import { config } from '@/lib/config';
+
+const PHONE_RE = /^[234]\d{7}$/;
 
 export function ContactForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!db) return;
-
-    setLoading(true);
     setError('');
+    setPhoneError('');
 
     const formData = new FormData(e.currentTarget);
-    const data = {
-      name: formData.get('name'),
-      email: formData.get('email'),
-      whatsapp: formData.get('whatsapp'),
-      message: formData.get('message'),
-      createdAt: serverTimestamp(),
-    };
+    const rawPhone = (formData.get('phone') as string).replace(/\s/g, '');
 
+    if (rawPhone && !PHONE_RE.test(rawPhone)) {
+      setPhoneError('رقم الهاتف يجب أن يكون 8 أرقام ويبدأ بـ 2 أو 3 أو 4');
+      return;
+    }
+
+    const body: Record<string, string> = {
+      name: formData.get('name') as string,
+      body: formData.get('message') as string,
+    };
+    const email = formData.get('email') as string;
+    if (email) body.email = email;
+    if (rawPhone) body.phone = rawPhone;
+
+    setLoading(true);
     try {
-      await addDoc(collection(db, 'messages-simple'), data);
+      const res = await fetch(`${config.apiUrl}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const msg = Array.isArray(json.message) ? json.message[0] : json.message;
+        setError(msg || 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.');
+        return;
+      }
+
       setSuccess(true);
-      e.currentTarget.reset();
-    } catch (err) {
-      console.error('Error saving contact message:', err);
-      setError('حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.');
+      (e.target as HTMLFormElement).reset();
+    } catch {
+      setError('حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.');
     } finally {
       setLoading(false);
     }
@@ -51,7 +70,7 @@ export function ContactForm() {
         </p>
         <button
           onClick={() => setSuccess(false)}
-          className="text-primary mt-4 underline transition-colors"
+          className="text-primary mt-4 cursor-pointer underline transition-colors"
         >
           إرسال رسالة أخرى
         </button>
@@ -67,10 +86,11 @@ export function ContactForm() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="contact-name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             الاسم الكامل
           </label>
           <input
+            id="contact-name"
             name="name"
             required
             className="bg-background-light dark:bg-background-dark focus:ring-primary/50 h-12 w-full rounded-lg border border-slate-200 px-4 text-slate-900 focus:ring-2 focus:outline-none dark:border-slate-600 dark:text-white"
@@ -79,36 +99,44 @@ export function ContactForm() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="contact-email" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             البريد الإلكتروني
           </label>
           <input
+            id="contact-email"
             name="email"
-            required
             className="bg-background-light dark:bg-background-dark focus:ring-primary/50 h-12 w-full rounded-lg border border-slate-200 px-4 text-slate-900 focus:ring-2 focus:outline-none dark:border-slate-600 dark:text-white"
             type="email"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            رقم الواتساب
+          <label htmlFor="contact-phone" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            رقم الواتساب (اختياري)
           </label>
-          <input
-            name="whatsapp"
-            required
-            className="bg-background-light dark:bg-background-dark focus:ring-primary/50 h-12 w-full rounded-lg border border-slate-200 px-4 text-slate-900 focus:ring-2 focus:outline-none dark:border-slate-600 dark:text-white"
-            dir="ltr"
-            placeholder="+222..."
-            type="tel"
-          />
+          <div className="relative">
+            <input
+              id="contact-phone"
+              name="phone"
+              className="bg-background-light dark:bg-background-dark focus:ring-primary/50 h-12 w-full rounded-lg border border-slate-200 px-4 pl-20 text-left text-slate-900 focus:ring-2 focus:outline-none dark:border-slate-600 dark:text-white"
+              dir="ltr"
+              placeholder="20 12 34 56"
+              type="tel"
+              maxLength={11}
+            />
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center rounded-l-lg border-r border-slate-200 bg-slate-50 px-3 text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
+              +222
+            </div>
+          </div>
+          {phoneError && <p className="text-sm text-red-500">{phoneError}</p>}
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="contact-message" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             الرسالة
           </label>
           <textarea
+            id="contact-message"
             name="message"
             required
             className="bg-background-light dark:bg-background-dark focus:ring-primary/50 w-full resize-none rounded-lg border border-slate-200 p-4 text-slate-900 focus:ring-2 focus:outline-none dark:border-slate-600 dark:text-white"
@@ -120,7 +148,7 @@ export function ContactForm() {
 
         <button
           disabled={loading}
-          className="border-primary text-deep-green hover:bg-primary mt-2 h-12 rounded-lg border bg-white font-bold transition-all hover:text-white disabled:opacity-50"
+          className="border-primary text-deep-green hover:bg-primary mt-2 h-12 cursor-pointer rounded-lg border bg-white font-bold transition-all hover:text-white disabled:opacity-50"
           type="submit"
         >
           {loading ? 'جاري الإرسال...' : 'إرسال الرسالة'}

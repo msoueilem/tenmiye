@@ -47,7 +47,7 @@ export default function ElectionProfilePage() {
     if (!member) return;
     setSaving(true);
     try {
-      const updates: any = { name, photoUrl };
+      const updates: { name: string; photoUrl: string } = { name, photoUrl };
       
       await updateVoterProfile(member.id, updates);
       

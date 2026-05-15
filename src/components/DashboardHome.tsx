@@ -25,7 +25,7 @@ export function DashboardHome({ user, admin }: { user: User; admin: Admin }) {
                 <p className="text-2xl font-bold">250</p>
               </div>
             </div>
-            <Link href="/dashboard/members" className="text-sm text-blue-600 dark:text-blue-400 font-medium hover:underline">عرض الكل</Link>
+            <Link href="/admin/members" className="text-sm text-blue-600 dark:text-blue-400 font-medium hover:underline">عرض الكل</Link>
           </div>
 
           <div className="bg-white dark:bg-[#1a331a] p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -38,7 +38,7 @@ export function DashboardHome({ user, admin }: { user: User; admin: Admin }) {
                 <p className="text-2xl font-bold">1</p>
               </div>
             </div>
-            <Link href="/dashboard/elections" className="text-sm text-[#0b3d0b] dark:text-[#d4af37] font-medium hover:underline">عرض التفاصيل</Link>
+            <Link href="/admin/elections" className="text-sm text-[#0b3d0b] dark:text-[#d4af37] font-medium hover:underline">عرض التفاصيل</Link>
           </div>
 
           <div className="bg-white dark:bg-[#1a331a] p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -51,7 +51,7 @@ export function DashboardHome({ user, admin }: { user: User; admin: Admin }) {
                 <p className="text-2xl font-bold">8</p>
               </div>
             </div>
-            <Link href="/dashboard/settings" className="text-sm text-purple-600 dark:text-purple-400 font-medium hover:underline">إدارة المبادرات</Link>
+            <Link href="/admin/settings" className="text-sm text-purple-600 dark:text-purple-400 font-medium hover:underline">إدارة المبادرات</Link>
           </div>
         </div>
 

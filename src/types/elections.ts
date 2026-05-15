@@ -55,3 +55,23 @@ export interface PublicMember {
   photoUrl?: string;
   status?: string;
 }
+
+// Backend election types (from NestJS API — electionProcesses collection)
+export type BackendElectionType = 'board_election' | 'committee_election' | 'general_vote';
+export type BackendElectionStatus = 'pending' | 'active' | 'completed' | 'cancelled';
+
+export interface BackendElection {
+  id: string;
+  title: string;
+  description?: string;
+  type: BackendElectionType;
+  status: BackendElectionStatus;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+}
+
+export interface ElectionResults {
+  electionId: string;
+  results: { selection: string; count: number }[];
+}
