@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { appConfig } from './common/config/app.config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -19,6 +21,7 @@ import { MessagesModule } from './modules/messages/messages.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
     ScheduleModule.forRoot(),
     FirebaseModule,
     AuthModule,
@@ -34,5 +37,6 @@ import { MessagesModule } from './modules/messages/messages.module';
     RegistrationsModule,
     MessagesModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
@@ -12,6 +13,7 @@ import { Permission } from '../../common/enums/permission.enum';
 export class MessagesController {
   constructor(private messages: MessagesService) {}
 
+  @Throttle({ default: { ttl: 600_000, limit: 10 } })
   @ApiOperation({ summary: 'Submit a contact message — no auth required' })
   @Post()
   create(@Body() dto: CreateMessageDto) {

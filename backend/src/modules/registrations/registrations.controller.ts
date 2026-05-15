@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { IsIn } from 'class-validator';
@@ -20,6 +21,7 @@ class UpdateStatusDto {
 export class RegistrationsController {
   constructor(private registrations: RegistrationsService) {}
 
+  @Throttle({ default: { ttl: 600_000, limit: 10 } })
   @ApiOperation({ summary: 'Submit a join request — no auth required' })
   @Post()
   create(@Body() dto: CreateRegistrationDto) {

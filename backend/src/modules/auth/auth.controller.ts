@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -18,6 +19,7 @@ export class AuthController {
 
   // ─── SMS OTP ────────────────────────────────────────────────────────────────
 
+  @Throttle({ default: { ttl: 600_000, limit: 3 } })
   @ApiOperation({ summary: 'Send SMS OTP — returns sessionInfo' })
   @Post('phone/request-otp')
   requestOtp(@Body() dto: RequestOtpDto) {
