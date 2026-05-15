@@ -14,14 +14,14 @@ export function DashboardSidebar() {
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
-    router.push('/signin');
+    router.push('/admin/signin');
   };
 
   const navItems = [
-    { name: 'لوحة التحكم', icon: 'dashboard', href: '/dashboard' },
-    { name: 'الأعضاء', icon: 'group', href: '/dashboard/members' },
-    { name: 'إدارة الانتخابات', icon: 'how_to_vote', href: '/dashboard/elections' },
-    { name: 'إعدادات المجموعة', icon: 'settings', href: '/dashboard/settings' },
+    { name: 'لوحة التحكم', icon: 'dashboard', href: '/admin' },
+    { name: 'الأعضاء', icon: 'group', href: '/admin/members' },
+    { name: 'إدارة الانتخابات', icon: 'how_to_vote', href: '/admin/elections' },
+    { name: 'إعدادات المجموعة', icon: 'settings', href: '/admin/settings' },
   ];
 
   return (

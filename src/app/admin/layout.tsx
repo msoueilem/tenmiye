@@ -32,7 +32,7 @@ export default function DashboardLayout({
           console.error('Error checking admin status:', err);
         }
       } else {
-        router.push('/signin');
+        router.push('/admin/signin');
       }
       setLoading(false);
     });
@@ -43,7 +43,7 @@ export default function DashboardLayout({
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
-    router.push('/signin');
+    router.push('/admin/signin');
   };
 
   if (loading) {

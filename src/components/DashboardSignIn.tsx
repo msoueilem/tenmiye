@@ -14,7 +14,7 @@ export function DashboardSignIn() {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        router.push('/dashboard');
+        router.push('/admin');
       }
     });
     return () => unsubscribe();
@@ -28,7 +28,7 @@ export function DashboardSignIn() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      router.push('/dashboard');
+      router.push('/admin');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(
