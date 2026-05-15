@@ -22,47 +22,53 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UpdateElectionDto } from './dto/update-election.dto';
 
 @ApiTags('elections')
-@ApiBearerAuth()
 @Controller('elections')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ElectionsController {
   constructor(private readonly elections: ElectionsService) {}
 
-  @ApiOperation({ summary: 'Get all elections' })
+  @ApiOperation({ summary: 'Get all elections — no auth required' })
   @Get()
   findAll() {
     return this.elections.findAll();
   }
 
-  @ApiOperation({ summary: 'Get an election by ID' })
+  @ApiOperation({ summary: 'Get an election by ID — no auth required' })
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.elections.findOne(id);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new election' })
   @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
   create(@Body() dto: CreateElectionDto, @Req() req: { user: JwtPayload }) {
     return this.elections.create(dto, req.user);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an election by ID' })
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
   update(@Param('id') id: string, @Body() dto: UpdateElectionDto) {
     return this.elections.update(id, dto);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an election by ID' })
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
   remove(@Param('id') id: string) {
     return this.elections.remove(id);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Submit a nomination for an election' })
   @Post(':id/nominations')
+  @UseGuards(JwtAuthGuard)
   submitNomination(
     @Param('id') id: string,
     @Body() dto: SubmitNominationDto,
@@ -71,8 +77,10 @@ export class ElectionsController {
     return this.elections.submitNomination(id, dto, req.user);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Cast a vote in an election' })
   @Post(':id/votes')
+  @UseGuards(JwtAuthGuard)
   castVote(
     @Param('id') id: string,
     @Body() dto: CastVoteDto,

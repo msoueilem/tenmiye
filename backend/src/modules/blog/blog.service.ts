@@ -9,16 +9,17 @@ import { FieldValue } from 'firebase-admin/firestore';
 export class BlogService {
   constructor(private readonly firebase: FirebaseService) {}
 
-  async findAll(): Promise<{ id: string; [key: string]: unknown }[]> {
-    const snapshot = await this.firebase.db.collection('blogPosts').get();
+  async findAll(publishedOnly = true): Promise<{ id: string; [key: string]: unknown }[]> {
+    const col = this.firebase.db.collection('blogPosts');
+    const query = publishedOnly ? col.where('status', '==', 'published') : col;
+    const snapshot = await query.get();
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
-  async findOne(id: string): Promise<{ id: string; [key: string]: unknown }> {
+  async findOne(id: string, publishedOnly = true): Promise<{ id: string; [key: string]: unknown }> {
     const doc = await this.firebase.db.collection('blogPosts').doc(id).get();
-    if (!doc.exists) {
-      throw new NotFoundException(`Post ${id} not found`);
-    }
+    if (!doc.exists) throw new NotFoundException(`Post ${id} not found`);
+    if (publishedOnly && doc.data()?.status !== 'published') throw new NotFoundException(`Post ${id} not found`);
     return { id: doc.id, ...doc.data() };
   }
 

@@ -9,6 +9,7 @@ export const appConfig = () => ({
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL ?? '',
     privateKey: (process.env.FIREBASE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
     webApiKey: process.env.FIREBASE_WEB_API_KEY ?? '',
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET ?? '',
   },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID ?? '',
