@@ -1,24 +1,40 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ListUsersDto } from './dto/list-users.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { FieldValue } from 'firebase-admin/firestore';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly firebase: FirebaseService) {}
 
-  async findAll(): Promise<{ id: string; [key: string]: unknown }[]> {
-    const snapshot = await this.firebase.db.collection('users').get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  async findAll(query: ListUsersDto): Promise<{ data: UserResponseDto[]; nextCursor: string | null }> {
+    let ref = this.firebase.db.collection('users').orderBy('createdAt', 'desc').limit(query.limit);
+
+    if (query.cursor) {
+      const cursorDoc = await this.firebase.db.collection('users').doc(query.cursor).get();
+      if (cursorDoc.exists) ref = ref.startAfter(cursorDoc);
+    }
+
+    const snapshot = await ref.get();
+    const data = snapshot.docs.map((doc) =>
+      plainToInstance(UserResponseDto, { id: doc.id, ...doc.data() }, { excludeExtraneousValues: true }),
+    );
+
+    const nextCursor = snapshot.docs.length === query.limit
+      ? (snapshot.docs[snapshot.docs.length - 1].id)
+      : null;
+
+    return { data, nextCursor };
   }
 
-  async findOne(id: string): Promise<{ id: string; [key: string]: unknown }> {
+  async findOne(id: string): Promise<UserResponseDto> {
     const doc = await this.firebase.db.collection('users').doc(id).get();
-    if (!doc.exists) {
-      throw new NotFoundException(`User ${id} not found`);
-    }
-    return { id: doc.id, ...doc.data() };
+    if (!doc.exists) throw new NotFoundException(`User ${id} not found`);
+    return plainToInstance(UserResponseDto, { id: doc.id, ...doc.data() }, { excludeExtraneousValues: true });
   }
 
   async create(dto: CreateUserDto): Promise<{ id: string }> {
@@ -29,6 +45,15 @@ export class UsersService {
       .get();
     if (!existing.empty) {
       throw new BadRequestException(`A user with WhatsApp number '${dto.whatsappNumber}' already exists`);
+    }
+
+    const dupPhone = await this.firebase.db
+      .collection('users')
+      .where('phoneNumber', '==', dto.phoneNumber)
+      .limit(1)
+      .get();
+    if (!dupPhone.empty) {
+      throw new BadRequestException(`A user with phone number '${dto.phoneNumber}' already exists`);
     }
 
     if (dto.nationalId) {
@@ -76,7 +101,7 @@ export class UsersService {
       fullNameAr: dto.fullNameAr ?? null,
       fullNameFr: dto.fullNameFr ?? null,
       whatsappNumber: dto.whatsappNumber,
-      phoneNumber: dto.phoneNumber ?? null,
+      phoneNumber: dto.phoneNumber,
       nationalId: dto.nationalId ?? null,
       city: dto.city ?? null,
       region: dto.region ?? null,

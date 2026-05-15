@@ -6,12 +6,14 @@ import {
   Param,
   Post,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ListUsersDto } from './dto/list-users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -25,10 +27,10 @@ import { Permission } from '../../common/enums/permission.enum';
 export class UsersController {
   constructor(private users: UsersService) {}
 
-  @ApiOperation({ summary: 'Get all users' })
+  @ApiOperation({ summary: 'Get paginated users — pass nextCursor from previous response to get next page' })
   @Get()
-  findAll() {
-    return this.users.findAll();
+  findAll(@Query() query: ListUsersDto) {
+    return this.users.findAll(query);
   }
 
   @ApiOperation({ summary: 'Get a user by ID' })
