@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { memberFetch, parseApiError } from '@/lib/memberApi';
 
 interface MeProfile {
   id: string;
@@ -117,9 +117,16 @@ export default function ProfilePage() {
       const form = new FormData();
       form.append('file', file);
       const res = await memberFetch('/me/profile-picture', token, { method: 'POST', body: form });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setSaveError(await parseApiError(res, 'فشل رفع الصورة.'));
+        setSaveStatus('error');
+        return;
+      }
       const { url } = (await res.json()) as { url: string };
       setPhotoUrl(url);
+    } catch {
+      setSaveError('حدث خطأ في الاتصال.');
+      setSaveStatus('error');
     } finally {
       setUploading(false);
     }
@@ -146,9 +153,7 @@ export default function ProfilePage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({})) as { message?: string | string[] };
-        const m = json.message;
-        setSaveError(Array.isArray(m) ? m[0] : (m ?? 'حدث خطأ أثناء الحفظ.'));
+        setSaveError(await parseApiError(res, 'حدث خطأ أثناء الحفظ.'));
         setSaveStatus('error');
         return;
       }

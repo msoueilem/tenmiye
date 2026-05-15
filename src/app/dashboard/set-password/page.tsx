@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 import { config } from '@/lib/config';
+import { parseApiError } from '@/lib/memberApi';
 
 export default function SetPasswordPage() {
   const { user, loading, getAccessToken } = useMemberAuth();
@@ -33,9 +34,7 @@ export default function SetPasswordPage() {
         body: JSON.stringify({ password }),
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({})) as { message?: string | string[] };
-        const m = json.message;
-        setError(Array.isArray(m) ? m[0] : m ?? 'حدث خطأ.');
+        setError(await parseApiError(res, 'حدث خطأ.'));
         return;
       }
       setDone(true);

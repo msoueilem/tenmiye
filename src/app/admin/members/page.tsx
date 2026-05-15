@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { memberFetch, parseApiError } from '@/lib/memberApi';
 
 interface BackendUser {
   id: string;
@@ -165,9 +165,7 @@ export default function MembersPage() {
         });
 
     if (!res.ok) {
-      const json = await res.json().catch(() => ({})) as { message?: string | string[] };
-      const msg = Array.isArray(json.message) ? json.message[0] : json.message;
-      setFormError(msg ?? 'حدث خطأ أثناء الحفظ');
+      setFormError(await parseApiError(res, 'حدث خطأ أثناء الحفظ'));
       setIsSaving(false);
       return;
     }

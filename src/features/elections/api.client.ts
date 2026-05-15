@@ -1,5 +1,5 @@
 import { config } from '@/lib/config';
-import { memberFetch } from '@/lib/memberApi';
+import { memberFetch, parseApiError } from '@/lib/memberApi';
 import { BackendElection, ElectionResults } from '@/types/elections';
 
 export async function getAllElections(): Promise<BackendElection[]> {
@@ -44,8 +44,7 @@ export async function castVoteApi(
       body: JSON.stringify({ selections }),
     });
     if (!res.ok) {
-      const json = await res.json().catch(() => ({})) as { message?: string };
-      return { ok: false, error: json.message ?? 'حدث خطأ أثناء التصويت' };
+      return { ok: false, error: await parseApiError(res, 'حدث خطأ أثناء التصويت') };
     }
     return { ok: true };
   } catch {
@@ -93,8 +92,7 @@ export async function updateElectionApi(
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      const json = await res.json().catch(() => ({})) as { message?: string };
-      return { ok: false, error: json.message };
+      return { ok: false, error: await parseApiError(res, 'حدث خطأ أثناء التعديل') };
     }
     return { ok: true };
   } catch {
