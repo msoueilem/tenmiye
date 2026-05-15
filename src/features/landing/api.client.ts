@@ -1,7 +1,6 @@
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { PublicLandingData } from '@/types/landing';
 import { config } from '@/lib/config';
+import { memberFetch } from '@/lib/memberApi';
 
 export async function getPublicLandingData(): Promise<PublicLandingData | null> {
   try {
@@ -14,14 +13,15 @@ export async function getPublicLandingData(): Promise<PublicLandingData | null> 
 }
 
 export async function updatePublicLandingData(
-  data: Partial<PublicLandingData>
+  data: Partial<PublicLandingData>,
+  token: string,
 ): Promise<void> {
-  if (!db) return;
-  const docRef = doc(db, 'settings-simple', 'public');
-  
-  const cleanData = Object.fromEntries(
-    Object.entries(data).filter(([_, v]) => v !== undefined)
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined),
   );
-  
-  await updateDoc(docRef, cleanData);
+  await memberFetch('/settings', token, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(clean),
+  });
 }

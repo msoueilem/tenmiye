@@ -5,11 +5,13 @@ import { PublicLandingData, Initiative } from '@/types/landing';
 import { getPublicLandingData, updatePublicLandingData } from '@/features/landing/api.client';
 import { uploadImage } from '@/features/uploads/api.client';
 import { useDashboard } from '@/context/DashboardContext';
+import { useMemberAuth } from '@/context/MemberAuthContext';
 
 type MessageTarget = 'global' | 'logo' | 'favicon' | 'aspect' | 'initiative-modal' | 'stats' | 'achievements' | 'contact';
 
 export default function SettingsPage() {
   const { user, admin } = useDashboard();
+  const { getAccessToken } = useMemberAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<PublicLandingData | null>(null);
@@ -292,7 +294,9 @@ export default function SettingsPage() {
         } : undefined
       };
 
-      await updatePublicLandingData(updatedData);
+      const token = await getAccessToken();
+      if (!token) throw new Error('انتهت الجلسة');
+      await updatePublicLandingData(updatedData, token);
 
       setData(updatedData);
       setInitialData(updatedData);

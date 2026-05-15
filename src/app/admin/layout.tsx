@@ -8,6 +8,7 @@ import { checkAdminStatus } from '@/features/users/api.client';
 import { Admin } from '@/types/users';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { DashboardProvider } from '@/context/DashboardContext';
+import { MemberAuthProvider } from '@/context/MemberAuthContext';
 
 export default function DashboardLayout({
   children,
@@ -81,14 +82,16 @@ export default function DashboardLayout({
 
   if (admin && admin.status === 'active') {
     return (
-      <DashboardProvider user={user} admin={admin}>
-        <div className="flex h-screen overflow-hidden bg-[#f8fcf8] dark:bg-[#102210] text-slate-900 dark:text-slate-100" dir="rtl">
-          <DashboardSidebar />
-          <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-            {children}
-          </main>
-        </div>
-      </DashboardProvider>
+      <MemberAuthProvider>
+        <DashboardProvider user={user} admin={admin}>
+          <div className="flex h-screen overflow-hidden bg-[#f8fcf8] dark:bg-[#102210] text-slate-900 dark:text-slate-100" dir="rtl">
+            <DashboardSidebar />
+            <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+              {children}
+            </main>
+          </div>
+        </DashboardProvider>
+      </MemberAuthProvider>
     );
   }
 
