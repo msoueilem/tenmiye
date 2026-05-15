@@ -10,18 +10,40 @@ import { serializeDoc } from '../../common/utils/firestore';
 export class BlogService {
   constructor(private readonly firebase: FirebaseService) {}
 
+  private async resolveFeatureImageUrl(featureImageId: string | null | undefined): Promise<string | null> {
+    if (!featureImageId) return null;
+    const fileDoc = await this.firebase.db.collection('files').doc(featureImageId).get();
+    if (!fileDoc.exists) return null;
+    return (fileDoc.data() as { url?: string }).url ?? null;
+  }
+
   async findAll(publishedOnly = true): Promise<{ id: string; [key: string]: unknown }[]> {
     const col = this.firebase.db.collection('blogPosts');
     const query = publishedOnly ? col.where('status', '==', 'published') : col;
     const snapshot = await query.get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) }));
+
+    const posts = snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) } as Record<string, unknown> & { id: string }));
+    const imageIds = [...new Set(posts.map((p) => p['featureImageId'] as string | null | undefined).filter(Boolean))] as string[];
+    const imageMap: Record<string, string | null> = {};
+    await Promise.all(imageIds.map(async (imgId) => {
+      imageMap[imgId] = await this.resolveFeatureImageUrl(imgId);
+    }));
+
+    return posts.map((p) => ({
+      ...p,
+      featureImageUrl: imageMap[p['featureImageId'] as string] ?? null,
+    }));
   }
 
   async findOne(id: string, publishedOnly = true): Promise<{ id: string; [key: string]: unknown }> {
     const doc = await this.firebase.db.collection('blogPosts').doc(id).get();
     if (!doc.exists) throw new NotFoundException(`Post ${id} not found`);
     if (publishedOnly && doc.data()?.status !== 'published') throw new NotFoundException(`Post ${id} not found`);
-    return { id: doc.id, ...serializeDoc(doc.data()) };
+    const data = { id: doc.id, ...serializeDoc(doc.data()) } as Record<string, unknown> & { id: string };
+    return {
+      ...data,
+      featureImageUrl: await this.resolveFeatureImageUrl(data['featureImageId'] as string | null),
+    };
   }
 
   async create(dto: CreatePostDto, authorId: string): Promise<{ id: string }> {
