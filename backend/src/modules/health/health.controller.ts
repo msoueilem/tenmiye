@@ -1,7 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 
+@SkipThrottle()
 @ApiTags('health')
 @Controller('health')
 export class HealthController {

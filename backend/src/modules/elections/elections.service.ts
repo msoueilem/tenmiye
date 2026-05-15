@@ -114,6 +114,28 @@ export class ElectionsService {
     await batch.commit();
   }
 
+  async getResults(electionId: string): Promise<{ electionId: string; results: { selection: string; count: number }[] }> {
+    const election = await this.firebase.db.collection('electionProcesses').doc(electionId).get();
+    if (!election.exists) throw new NotFoundException(`Election ${electionId} not found`);
+
+    const snapshot = await this.firebase.db
+      .collection('votes')
+      .where('electionId', '==', electionId)
+      .get();
+
+    const tally: Record<string, number> = {};
+    for (const doc of snapshot.docs) {
+      const { selection } = doc.data() as { selection: string };
+      tally[selection] = (tally[selection] ?? 0) + 1;
+    }
+
+    const results = Object.entries(tally)
+      .map(([selection, count]) => ({ selection, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return { electionId, results };
+  }
+
   async castVote(
     electionId: string,
     dto: CastVoteDto,

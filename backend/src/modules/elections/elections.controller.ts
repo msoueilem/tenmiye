@@ -38,6 +38,12 @@ export class ElectionsController {
     return this.elections.findOne(id);
   }
 
+  @ApiOperation({ summary: 'Get vote tally for an election — no auth required' })
+  @Get(':id/results')
+  getResults(@Param('id') id: string) {
+    return this.elections.getResults(id);
+  }
+
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new election' })
   @Post()

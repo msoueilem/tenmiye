@@ -26,10 +26,19 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 export class BlogController {
   constructor(private readonly blog: BlogService) {}
 
-  @ApiOperation({ summary: 'Get all blog posts' })
+  @ApiOperation({ summary: 'Get published blog posts — no auth required' })
   @Get()
   findAll() {
     return this.blog.findAll();
+  }
+
+  @ApiOperation({ summary: 'Get all blog posts including drafts — writers and moderators only' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.WRITE_BLOG)
+  @Get('all')
+  findAllAdmin() {
+    return this.blog.findAll(false);
   }
 
   @ApiOperation({ summary: 'Get a blog post by ID' })
