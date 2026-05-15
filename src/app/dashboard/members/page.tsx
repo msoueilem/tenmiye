@@ -143,8 +143,8 @@ export default function MembersPage() {
   function openEdit(member: Member) {
     setEditing(member);
     setForm({
-      fullName: member.fullName,
-      phoneNumber: member.phoneNumber,
+      fullName: member.fullName ?? '',
+      phoneNumber: member.phoneNumber ?? '',
       whatsappNumber: member.whatsappNumber ?? '',
       nationalId: member.nationalId ?? '',
       city: member.city ?? '',
