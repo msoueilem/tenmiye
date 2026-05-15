@@ -26,17 +26,21 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   const [user, setUser] = useState<MemberUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const applyToken = useCallback((token: string) => {
-    const payload = JSON.parse(atob(token.split('.')[1])) as MemberUser & { exp: number };
-    setAccessToken(token);
-    setUser({ userId: payload.userId, permissions: payload.permissions ?? [] });
-  }, []);
-
   const clearSession = useCallback(() => {
     setAccessToken(null);
     setUser(null);
     localStorage.removeItem(REFRESH_KEY);
   }, []);
+
+  const applyToken = useCallback((token: string) => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1])) as MemberUser & { exp: number };
+      setAccessToken(token);
+      setUser({ userId: payload.userId, permissions: payload.permissions ?? [] });
+    } catch {
+      clearSession();
+    }
+  }, [clearSession]);
 
   const refreshSession = useCallback(async (): Promise<string | null> => {
     const stored = localStorage.getItem(REFRESH_KEY);
@@ -89,8 +93,12 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   // Returns a valid access token, refreshing if the current one is within 60s of expiry
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (!accessToken) return refreshSession();
-    const { exp } = JSON.parse(atob(accessToken.split('.')[1])) as { exp: number };
-    if (exp * 1000 - Date.now() < 60_000) return refreshSession();
+    try {
+      const { exp } = JSON.parse(atob(accessToken.split('.')[1])) as { exp: number };
+      if (exp * 1000 - Date.now() < 60_000) return refreshSession();
+    } catch {
+      return refreshSession();
+    }
     return accessToken;
   }, [accessToken, refreshSession]);
 
