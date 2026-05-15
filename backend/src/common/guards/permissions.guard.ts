@@ -30,10 +30,6 @@ export class PermissionsGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    if (user.type === 'member') {
-      throw new ForbiddenException();
-    }
-
     const hasAll = required.every((perm) => user.permissions.includes(perm));
     if (!hasAll) {
       throw new ForbiddenException();

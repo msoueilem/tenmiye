@@ -101,27 +101,22 @@ export async function deleteAdmin(email: string): Promise<void> {
 export async function checkAdminStatus(user: User): Promise<Admin | null> {
   if (!db || !user.email) return null;
 
-  const adminDocRef = doc(db, 'admins-simple', user.email);
-  const adminSnap = await getDoc(adminDocRef);
+  const snap = await getDocs(
+    query(collection(db, 'adminAccounts'), where('googleEmail', '==', user.email))
+  );
 
-  if (adminSnap.exists()) {
-    const adminData = adminSnap.data() as Admin;
-    await updateDoc(adminDocRef, {
-      lastLogin: serverTimestamp(),
-    });
-    return { ...adminData, email: user.email };
-  } else {
-    const newAdmin: Partial<Admin> = {
-      userId: user.uid,
-      name: user.displayName,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      role: 'editor',
-      status: 'inactive',
-      createdAt: serverTimestamp(),
-      lastLogin: serverTimestamp(),
-    };
-    await setDoc(adminDocRef, newAdmin);
-    return newAdmin as Admin;
-  }
+  if (snap.empty) return null;
+
+  const data = snap.docs[0].data();
+  return {
+    userId: user.uid,
+    name: user.displayName ?? null,
+    email: user.email,
+    phoneNumber: user.phoneNumber ?? null,
+    role: 'super-admin',
+    status: 'active',
+    permissions: (data.permissions as string[]) ?? [],
+    createdAt: data.createdAt ?? null,
+    lastLogin: null,
+  };
 }

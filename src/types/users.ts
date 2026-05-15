@@ -23,6 +23,7 @@ export interface Admin {
   phoneNumber: string | null;
   role: 'super-admin' | 'editor';
   status: 'active' | 'inactive' | 'blocked';
+  permissions: string[];
   createdAt: any;
   lastLogin: any;
 }

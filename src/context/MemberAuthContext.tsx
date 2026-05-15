@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { config } from '@/lib/config';
+import { auth } from '@/lib/firebase/client';
+import { signOut } from 'firebase/auth';
 
 const REFRESH_KEY = 'member_refresh_token';
 
@@ -76,6 +78,8 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   const login = useCallback((token: string, refreshToken: string) => {
     localStorage.setItem(REFRESH_KEY, refreshToken);
     applyToken(token);
+    // Evict any active Firebase admin session
+    if (auth) signOut(auth).catch(() => {});
   }, [applyToken]);
 
   const logout = useCallback(async () => {
