@@ -93,14 +93,37 @@ export class MeController {
     return { id: docRef.id, url };
   }
 
-  @ApiOperation({ summary: "Get the authenticated member's vote history" })
+  @ApiOperation({ summary: "Get the authenticated member's vote history enriched with election title" })
   @Get('votes')
   async getMyVotes(@CurrentUser() user: JwtPayload) {
     const snapshot = await this.firebase.db
       .collection('votes')
-      .where('userId', '==', user.userId)
+      .where('voterId', '==', user.userId)
       .orderBy('createdAt', 'desc')
       .get();
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    if (snapshot.empty) return [];
+
+    // Fetch unique election titles in one batch
+    const electionIds = [...new Set(snapshot.docs.map((d) => d.data().electionId as string))];
+    const electionDocs = await Promise.all(
+      electionIds.map((id) => this.firebase.db.collection('electionProcesses').doc(id).get()),
+    );
+    const electionTitles: Record<string, string> = {};
+    for (const doc of electionDocs) {
+      if (doc.exists) electionTitles[doc.id] = (doc.data() as { title?: string }).title ?? doc.id;
+    }
+
+    return snapshot.docs.map((d) => {
+      const data = d.data() as { electionId: string; selection?: string; nomineeId?: string; createdAt: unknown };
+      return {
+        id: d.id,
+        electionId: data.electionId,
+        electionTitle: electionTitles[data.electionId] ?? data.electionId,
+        selection: data.selection ?? null,
+        nomineeId: data.nomineeId ?? null,
+        createdAt: data.createdAt,
+      };
+    });
   }
 }
