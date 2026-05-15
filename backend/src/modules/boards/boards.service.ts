@@ -4,6 +4,7 @@ import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { FieldValue } from 'firebase-admin/firestore';
+import { serializeDoc } from '../../common/utils/firestore';
 
 @Injectable()
 export class BoardsService {
@@ -11,7 +12,7 @@ export class BoardsService {
 
   async findAll(): Promise<{ id: string; [key: string]: unknown }[]> {
     const snapshot = await this.firebase.db.collection('boards').get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) }));
   }
 
   async findOne(id: string): Promise<{ id: string; [key: string]: unknown }> {
@@ -19,7 +20,7 @@ export class BoardsService {
     if (!doc.exists) {
       throw new NotFoundException(`Board ${id} not found`);
     }
-    return { id: doc.id, ...doc.data() };
+    return { id: doc.id, ...serializeDoc(doc.data()) };
   }
 
   async create(dto: CreateBoardDto): Promise<{ id: string }> {

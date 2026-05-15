@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { FieldValue } from 'firebase-admin/firestore';
+import { serializeDoc } from '../../common/utils/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 
@@ -135,7 +136,7 @@ export class FilesService {
     }
 
     const snapshot = await query.get();
-    const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as FileRecord);
+    const data = snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) }) as FileRecord);
     const nextCursor = snapshot.docs.length === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
 
     return { data, nextCursor };

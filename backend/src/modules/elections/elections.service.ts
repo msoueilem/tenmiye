@@ -5,6 +5,7 @@ import { UpdateElectionDto } from './dto/update-election.dto';
 import { SubmitNominationDto } from './dto/submit-nomination.dto';
 import { CastVoteDto } from './dto/cast-vote.dto';
 import { FieldValue } from 'firebase-admin/firestore';
+import { serializeDoc } from '../../common/utils/firestore';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 
 @Injectable()
@@ -13,7 +14,7 @@ export class ElectionsService {
 
   async findAll(): Promise<{ id: string; [key: string]: unknown }[]> {
     const snapshot = await this.firebase.db.collection('electionProcesses').get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) }));
   }
 
   async findOne(id: string): Promise<{ id: string; [key: string]: unknown }> {
@@ -21,7 +22,7 @@ export class ElectionsService {
     if (!doc.exists) {
       throw new NotFoundException(`Election ${id} not found`);
     }
-    return { id: doc.id, ...doc.data() };
+    return { id: doc.id, ...serializeDoc(doc.data()) };
   }
 
   async create(dto: CreateElectionDto, user: JwtPayload): Promise<{ id: string }> {

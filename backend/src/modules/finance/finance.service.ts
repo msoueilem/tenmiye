@@ -9,6 +9,7 @@ import { CreatePaymentChannelDto } from './dto/create-payment-channel.dto';
 import { CreateContributionDto } from './dto/create-contribution.dto';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { serializeDoc } from '../../common/utils/firestore';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 
 @Injectable()
@@ -17,7 +18,7 @@ export class FinanceService {
 
   async findAllPaymentChannels(): Promise<{ id: string; [key: string]: unknown }[]> {
     const snapshot = await this.firebase.db.collection('paymentChannels').get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) }));
   }
 
   async createPaymentChannel(dto: CreatePaymentChannelDto): Promise<{ id: string }> {
@@ -42,7 +43,7 @@ export class FinanceService {
 
   async findAllContributions(): Promise<{ id: string; [key: string]: unknown }[]> {
     const snapshot = await this.firebase.db.collection('contributions').get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) }));
   }
 
   async createContribution(
@@ -114,7 +115,7 @@ export class FinanceService {
 
   async findAllExpenses(): Promise<{ id: string; [key: string]: unknown }[]> {
     const snapshot = await this.firebase.db.collection('expenses').get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...serializeDoc(doc.data()) }));
   }
 
   async createExpense(dto: CreateExpenseDto, user: JwtPayload): Promise<{ id: string }> {

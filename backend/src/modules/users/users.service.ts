@@ -6,6 +6,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ListUsersDto } from './dto/list-users.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { FieldValue } from 'firebase-admin/firestore';
+import { serializeDoc } from '../../common/utils/firestore';
 
 @Injectable()
 export class UsersService {
@@ -21,7 +22,7 @@ export class UsersService {
 
     const snapshot = await ref.get();
     const data = snapshot.docs.map((doc) =>
-      plainToInstance(UserResponseDto, { id: doc.id, ...doc.data() }, { excludeExtraneousValues: true }),
+      plainToInstance(UserResponseDto, { id: doc.id, ...serializeDoc(doc.data()) }, { excludeExtraneousValues: true }),
     );
 
     const nextCursor = snapshot.docs.length === query.limit
@@ -34,7 +35,7 @@ export class UsersService {
   async findOne(id: string): Promise<UserResponseDto> {
     const doc = await this.firebase.db.collection('users').doc(id).get();
     if (!doc.exists) throw new NotFoundException(`User ${id} not found`);
-    return plainToInstance(UserResponseDto, { id: doc.id, ...doc.data() }, { excludeExtraneousValues: true });
+    return plainToInstance(UserResponseDto, { id: doc.id, ...serializeDoc(doc.data()) }, { excludeExtraneousValues: true });
   }
 
   async create(dto: CreateUserDto): Promise<{ id: string }> {
