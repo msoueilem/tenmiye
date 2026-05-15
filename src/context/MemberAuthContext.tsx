@@ -1,9 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { config } from '@/lib/config';
 
 const REFRESH_KEY = 'member_refresh_token';
-const API = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 export interface MemberUser {
   userId: string;
@@ -42,7 +42,7 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
     const stored = localStorage.getItem(REFRESH_KEY);
     if (!stored) return null;
     try {
-      const res = await fetch(`${API()}/auth/refresh`, {
+      const res = await fetch(`${config.apiUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: stored }),
@@ -77,7 +77,7 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   const logout = useCallback(async () => {
     const stored = localStorage.getItem(REFRESH_KEY);
     if (stored) {
-      await fetch(`${API()}/auth/logout`, {
+      await fetch(`${config.apiUrl}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: stored }),

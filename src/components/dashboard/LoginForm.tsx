@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
+import { config } from '@/lib/config';
 
 const PHONE_RE = /^[234]\d{7}$/;
-const API = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 type Step =
   | 'phone'
@@ -41,7 +41,7 @@ export function LoginForm() {
   async function post<T>(path: string, body: unknown, token?: string): Promise<{ ok: boolean; data: T }> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API()}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const res = await fetch(`${config.apiUrl}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({})) as T;
     return { ok: res.ok, data };
   }

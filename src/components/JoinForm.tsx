@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { config } from '@/lib/config';
 
 const PHONE_RE = /^[234]\d{7}$/;
 
@@ -31,8 +32,7 @@ export function JoinForm() {
 
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
-      const res = await fetch(`${apiUrl}/registrations`, {
+      const res = await fetch(`${config.apiUrl}/registrations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

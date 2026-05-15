@@ -1,11 +1,11 @@
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { PublicLandingData } from '@/types/landing';
+import { config } from '@/lib/config';
 
 export async function getPublicLandingData(): Promise<PublicLandingData | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
   try {
-    const res = await fetch(`${apiUrl}/settings/public`, { cache: 'no-store' });
+    const res = await fetch(`${config.apiUrl}/settings/public`, { cache: 'no-store' });
     if (!res.ok) return null;
     return res.json() as Promise<PublicLandingData>;
   } catch {

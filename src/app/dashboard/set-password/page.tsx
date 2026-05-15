@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-
-const API = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+import { config } from '@/lib/config';
 
 export default function SetPasswordPage() {
   const { user, loading, getAccessToken } = useMemberAuth();
@@ -28,7 +27,7 @@ export default function SetPasswordPage() {
     setSubmitting(true);
     try {
       const token = await getAccessToken();
-      const res = await fetch(`${API()}/auth/phone/set-password`, {
+      const res = await fetch(`${config.apiUrl}/auth/phone/set-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ password }),
