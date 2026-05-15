@@ -42,6 +42,21 @@ export class AuthService {
     private config: ConfigService<AppConfig, true>,
   ) {}
 
+  // ─── Phone check (pre-login) ─────────────────────────────────────────────────
+
+  async checkPhone(phone: string): Promise<{ isMember: boolean; hasPassword: boolean }> {
+    const snapshot = await this.firebase.db
+      .collection('users')
+      .where('phoneNumber', '==', phone)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return { isMember: false, hasPassword: false };
+
+    const data = snapshot.docs[0].data() as UserData;
+    return { isMember: true, hasPassword: !!data.passwordHash };
+  }
+
   // ─── SMS OTP ────────────────────────────────────────────────────────────────
 
   async requestOtp(phone: string): Promise<{ sessionInfo: string }> {

@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { CheckPhoneDto } from './dto/check-phone.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
@@ -16,6 +17,14 @@ import { JwtPayload } from '../../common/strategies/jwt.strategy';
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
+
+  // ─── Phone check (pre-login) ─────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Check if phone is a registered member and whether they have a password' })
+  @Post('phone/check')
+  checkPhone(@Body() dto: CheckPhoneDto) {
+    return this.auth.checkPhone(dto.phone);
+  }
 
   // ─── SMS OTP ────────────────────────────────────────────────────────────────
 
