@@ -1,9 +1,14 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 
 @ApiTags('auth')
@@ -11,29 +16,65 @@ import { JwtPayload } from '../../common/strategies/jwt.strategy';
 export class AuthController {
   constructor(private auth: AuthService) {}
 
-  @ApiOperation({ summary: 'Request WhatsApp OTP' })
-  @Post('whatsapp/request-otp')
+  // ─── SMS OTP ────────────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Send SMS OTP — returns sessionInfo' })
+  @Post('phone/request-otp')
   requestOtp(@Body() dto: RequestOtpDto) {
     return this.auth.requestOtp(dto.phone);
   }
 
-  @ApiOperation({ summary: 'Verify WhatsApp OTP and receive JWT' })
-  @Post('whatsapp/verify-otp')
+  @ApiOperation({ summary: 'Verify SMS OTP — returns JWT + requiresPasswordSetup flag' })
+  @Post('phone/verify-otp')
   verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.auth.verifyOtp(dto.phone, dto.code);
+    return this.auth.verifyOtp(dto.sessionInfo, dto.code);
   }
+
+  // ─── Password ────────────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Set password after first SMS login (one-time)' })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('phone/set-password')
+  setPassword(@CurrentUser() user: JwtPayload, @Body() dto: SetPasswordDto) {
+    return this.auth.setPassword(user.userId, dto.password);
+  }
+
+  @ApiOperation({ summary: 'Reset forgotten password — requires a fresh OTP verification' })
+  @Post('phone/reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.sessionInfo, dto.code, dto.newPassword);
+  }
+
+  @ApiOperation({ summary: 'Login with phone + password (after password is set)' })
+  @Post('login')
+  login(@Body() dto: LoginDto) {
+    return this.auth.loginWithPassword(dto.phone, dto.password);
+  }
+
+  @ApiOperation({ summary: 'Exchange refresh token for a new token pair (rotates refresh token)' })
+  @Post('refresh')
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.auth.refresh(dto.refreshToken);
+  }
+
+  @ApiOperation({ summary: 'Logout — revokes the refresh token' })
+  @Post('logout')
+  logout(@Body() dto: RefreshTokenDto) {
+    return this.auth.logout(dto.refreshToken);
+  }
+
+  // ─── Google OAuth ────────────────────────────────────────────────────────────
 
   @ApiOperation({ summary: 'Initiate Google Authentication' })
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  googleAuth() {
-    // redirects to Google consent — handled by Passport
-  }
+  googleAuth() {}
 
   @ApiOperation({ summary: 'Google Authentication Callback' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  googleCallback(@Req() req: { user: JwtPayload }) {
-    return this.auth.signJwt(req.user);
+  googleCallback(@CurrentUser() user: JwtPayload) {
+    return this.auth.signJwt(user);
   }
 }

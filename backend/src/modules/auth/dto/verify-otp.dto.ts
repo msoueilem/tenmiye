@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString, Length } from 'class-validator';
 export class VerifyOtpDto {
   @IsString()
   @IsNotEmpty()
-  phone!: string;
+  sessionInfo!: string;
 
   @IsString()
   @Length(6, 6)
