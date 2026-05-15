@@ -11,24 +11,16 @@ interface Message {
   email?: string;
   phone?: string;
   read: boolean;
-  createdAt?: { seconds: number } | string | null;
+  createdAt?: string | null;
 }
 
 type FilterStatus = 'all' | 'unread' | 'read';
 
 function formatDate(createdAt: Message['createdAt']): string {
   if (!createdAt) return '—';
-  if (typeof createdAt === 'object' && 'seconds' in createdAt) {
-    return new Date(createdAt.seconds * 1000).toLocaleDateString('ar-MR', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  }
-  if (typeof createdAt === 'string') {
-    return new Date(createdAt).toLocaleDateString('ar-MR', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  }
-  return '—';
+  return new Date(createdAt).toLocaleDateString('ar-MR', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  });
 }
 
 export default function MessagesPage() {

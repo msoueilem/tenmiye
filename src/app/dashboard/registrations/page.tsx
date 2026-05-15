@@ -11,24 +11,16 @@ interface Registration {
   city?: string;
   message?: string;
   status: 'pending' | 'approved' | 'rejected';
-  createdAt?: { seconds: number } | string | null;
+  createdAt?: string | null;
 }
 
 type FilterStatus = 'all' | 'pending' | 'approved' | 'rejected';
 
 function formatDate(createdAt: Registration['createdAt']): string {
   if (!createdAt) return '—';
-  if (typeof createdAt === 'object' && 'seconds' in createdAt) {
-    return new Date(createdAt.seconds * 1000).toLocaleDateString('ar-MR', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  }
-  if (typeof createdAt === 'string') {
-    return new Date(createdAt).toLocaleDateString('ar-MR', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  }
-  return '—';
+  return new Date(createdAt).toLocaleDateString('ar-MR', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  });
 }
 
 function statusBadge(status: Registration['status']) {
