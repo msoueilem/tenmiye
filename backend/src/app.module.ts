@@ -10,6 +10,11 @@ import { ElectionsModule } from './modules/elections/elections.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { HealthModule } from './modules/health/health.module';
+import { FilesModule } from './modules/files/files.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { MeModule } from './modules/me/me.module';
+import { RegistrationsModule } from './modules/registrations/registrations.module';
+import { MessagesModule } from './modules/messages/messages.module';
 
 @Module({
   imports: [
@@ -23,6 +28,11 @@ import { HealthModule } from './modules/health/health.module';
     FinanceModule,
     BlogModule,
     HealthModule,
+    FilesModule,
+    SettingsModule,
+    MeModule,
+    RegistrationsModule,
+    MessagesModule,
   ],
 })
 export class AppModule {}
