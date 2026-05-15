@@ -118,14 +118,22 @@ export class UsersService {
     return { id: ref.id };
   }
 
-  async update(id: string, dto: UpdateUserDto): Promise<void> {
+  async update(id: string, dto: UpdateUserDto | { phoneNumber?: string; [key: string]: unknown }): Promise<void> {
     const doc = await this.firebase.db.collection('users').doc(id).get();
-    if (!doc.exists) {
-      throw new NotFoundException(`User ${id} not found`);
+    if (!doc.exists) throw new NotFoundException(`User ${id} not found`);
+
+    if (dto.phoneNumber) {
+      const dup = await this.firebase.db
+        .collection('users')
+        .where('phoneNumber', '==', dto.phoneNumber)
+        .limit(1)
+        .get();
+      if (!dup.empty && dup.docs[0].id !== id) {
+        throw new BadRequestException(`Phone number '${dto.phoneNumber}' is already in use`);
+      }
     }
-    const payload = Object.fromEntries(
-      Object.entries(dto).filter(([, v]) => v !== undefined),
-    );
+
+    const payload = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
     await this.firebase.db.collection('users').doc(id).update({
       ...payload,
       updatedAt: FieldValue.serverTimestamp(),
