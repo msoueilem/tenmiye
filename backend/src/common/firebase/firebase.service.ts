@@ -1,15 +1,17 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
+import { AppConfig } from '../config/app.config';
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
-  // assigned in onModuleInit before any request is served
   db!: admin.firestore.Firestore;
+  auth!: admin.auth.Auth;
+
+  constructor(private config: ConfigService<AppConfig, true>) {}
 
   onModuleInit() {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    const { projectId, clientEmail, privateKey } = this.config.get('firebase', { infer: true });
 
     if (!projectId || !clientEmail || !privateKey) {
       throw new Error(
@@ -19,14 +21,11 @@ export class FirebaseService implements OnModuleInit {
 
     if (!admin.apps.length) {
       admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey: privateKey.replace(/\\n/g, '\n'),
-        }),
+        credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
       });
     }
 
     this.db = admin.firestore();
+    this.auth = admin.auth();
   }
 }

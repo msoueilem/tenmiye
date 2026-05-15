@@ -1,7 +1,9 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AppConfig } from './common/config/app.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,8 +16,11 @@ async function bootstrap() {
     }),
   );
 
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
+  const appConfig = app.get(ConfigService<AppConfig, true>);
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+    origin: appConfig.get('frontendUrl', { infer: true }),
   });
 
   const config = new DocumentBuilder()
@@ -28,7 +33,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(process.env.PORT ?? 8080);
+  await app.listen(appConfig.get('port', { infer: true }));
 }
 
 bootstrap().catch((err) => {
