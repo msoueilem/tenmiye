@@ -55,8 +55,23 @@ export default function DashboardBlogPage() {
 
   if (loading) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0df20d] border-t-transparent" />
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-6 h-8 w-28 animate-pulse rounded-lg bg-white/10" />
+        <ul className="flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="rounded-xl border border-white/10 bg-[#071a07] p-5">
+              <div className="flex items-start gap-4">
+                <div className="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-full bg-white/10" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-white/10" />
+                  <div className="h-3 w-full animate-pulse rounded bg-white/5" />
+                  <div className="h-3 w-4/5 animate-pulse rounded bg-white/5" />
+                </div>
+                <div className="h-7 w-14 shrink-0 animate-pulse rounded-lg bg-white/10" />
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -96,7 +111,7 @@ export default function DashboardBlogPage() {
                 </div>
                 <Link
                   href={`/blog/${p.id}`}
-                  className="shrink-0 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:bg-white/10"
+                  className="shrink-0 cursor-pointer rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:bg-white/10"
                 >
                   قراءة
                 </Link>

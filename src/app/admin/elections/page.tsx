@@ -165,7 +165,7 @@ export default function ElectionsManagementPage() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-[#0df20d] hover:bg-[#0be00b] text-slate-900 font-bold py-2.5 px-5 rounded-lg shadow-sm transition-all"
+          className="flex cursor-pointer items-center gap-2 bg-[#0df20d] hover:bg-[#0be00b] text-slate-900 font-bold py-2.5 px-5 rounded-lg shadow-sm transition-all"
         >
           <span className="material-symbols-outlined">add</span>
           إنشاء عملية تصويت
@@ -180,10 +180,10 @@ export default function ElectionsManagementPage() {
                 {statusLabel(e.status)}
               </span>
               <div className="flex gap-1">
-                <button onClick={() => openEdit(e)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors">
+                <button onClick={() => openEdit(e)} className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-600 transition-colors">
                   <span className="material-symbols-outlined text-[20px]">edit</span>
                 </button>
-                <button onClick={() => void handleDelete(e.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors">
+                <button onClick={() => void handleDelete(e.id)} className="cursor-pointer p-1.5 text-slate-400 hover:text-red-600 transition-colors">
                   <span className="material-symbols-outlined text-[20px]">delete</span>
                 </button>
               </div>
@@ -199,21 +199,21 @@ export default function ElectionsManagementPage() {
               </div>
               <div className="flex gap-2">
                 {e.status === 'pending' && (
-                  <button onClick={() => void handleUpdateStatus(e.id, 'active')} className="flex-1 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">
+                  <button onClick={() => void handleUpdateStatus(e.id, 'active')} className="flex-1 cursor-pointer py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">
                     إطلاق
                   </button>
                 )}
                 {e.status === 'active' && (
-                  <button onClick={() => void handleUpdateStatus(e.id, 'completed')} className="flex-1 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">
+                  <button onClick={() => void handleUpdateStatus(e.id, 'completed')} className="flex-1 cursor-pointer py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">
                     إغلاق
                   </button>
                 )}
                 {e.status === 'completed' && (
-                  <button onClick={() => void handleUpdateStatus(e.id, 'active')} className="flex-1 py-2 bg-slate-600 text-white rounded-lg text-xs font-bold">
+                  <button onClick={() => void handleUpdateStatus(e.id, 'active')} className="flex-1 cursor-pointer py-2 bg-slate-600 text-white rounded-lg text-xs font-bold">
                     إعادة فتح
                   </button>
                 )}
-                <button onClick={() => void openResults(e)} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg flex items-center justify-center">
+                <button onClick={() => void openResults(e)} className="cursor-pointer px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">bar_chart</span>
                 </button>
               </div>
@@ -232,7 +232,7 @@ export default function ElectionsManagementPage() {
           <div className="bg-white dark:bg-[#1a331a] w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 flex justify-between items-center">
               <h3 className="font-black text-xl">{editingId ? 'تعديل الانتخابات' : 'إنشاء عملية تصويت'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsModalOpen(false)} className="cursor-pointer text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -303,11 +303,11 @@ export default function ElectionsManagementPage() {
               <button
                 onClick={() => void handleSave()}
                 disabled={isSaving}
-                className="flex-1 h-11 bg-[#0df20d] text-slate-900 rounded-lg font-bold hover:bg-[#0be00b] shadow-lg shadow-[#0df20d]/20 transition-all disabled:opacity-50"
+                className="flex-1 h-11 cursor-pointer bg-[#0df20d] text-slate-900 rounded-lg font-bold hover:bg-[#0be00b] shadow-lg shadow-[#0df20d]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? 'جاري الحفظ...' : 'حفظ'}
               </button>
-              <button onClick={() => setIsModalOpen(false)} className="px-8 h-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all">
+              <button onClick={() => setIsModalOpen(false)} className="cursor-pointer px-8 h-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all">
                 إلغاء
               </button>
             </div>
@@ -324,7 +324,7 @@ export default function ElectionsManagementPage() {
                 <span className="material-symbols-outlined text-[#0df20d]">analytics</span>
                 نتائج: {resultsElection.title}
               </h3>
-              <button onClick={() => setResultsElection(null)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setResultsElection(null)} className="cursor-pointer text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -361,7 +361,7 @@ export default function ElectionsManagementPage() {
             </div>
 
             <div className="p-6 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setResultsElection(null)} className="w-full h-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all">
+              <button onClick={() => setResultsElection(null)} className="w-full cursor-pointer h-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all">
                 إغلاق
               </button>
             </div>

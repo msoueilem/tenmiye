@@ -218,7 +218,7 @@ export default function MembersPage() {
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 bg-[#0df20d] hover:bg-[#0be00b] text-slate-900 font-bold py-2.5 px-5 rounded-lg shadow-sm transition-all"
+          className="flex cursor-pointer items-center gap-2 bg-[#0df20d] hover:bg-[#0be00b] text-slate-900 font-bold py-2.5 px-5 rounded-lg shadow-sm transition-all"
         >
           <span className="material-symbols-outlined">person_add</span>
           إضافة عضو
@@ -270,16 +270,16 @@ export default function MembersPage() {
                 <td className="p-4">{statusBadge(u.status)}</td>
                 <td className="p-4">
                   <div className="flex gap-1">
-                    <button onClick={() => setViewingUser(u)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors">
+                    <button onClick={() => setViewingUser(u)} className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-600 transition-colors">
                       <span className="material-symbols-outlined text-[18px]">visibility</span>
                     </button>
-                    <button onClick={() => openEdit(u)} className="p-1.5 text-slate-400 hover:text-amber-600 transition-colors">
+                    <button onClick={() => openEdit(u)} className="cursor-pointer p-1.5 text-slate-400 hover:text-amber-600 transition-colors">
                       <span className="material-symbols-outlined text-[18px]">edit</span>
                     </button>
-                    <button onClick={() => void toggleStatus(u)} className="p-1.5 text-slate-400 hover:text-green-600 transition-colors">
+                    <button onClick={() => void toggleStatus(u)} className="cursor-pointer p-1.5 text-slate-400 hover:text-green-600 transition-colors">
                       <span className="material-symbols-outlined text-[18px]">{u.status === 'active' ? 'block' : 'check_circle'}</span>
                     </button>
-                    <button onClick={() => void handleDelete(u.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors">
+                    <button onClick={() => void handleDelete(u.id)} className="cursor-pointer p-1.5 text-slate-400 hover:text-red-600 transition-colors">
                       <span className="material-symbols-outlined text-[18px]">delete</span>
                     </button>
                   </div>
@@ -295,7 +295,7 @@ export default function MembersPage() {
 
       {nextCursor && (
         <div className="mt-4 flex justify-center">
-          <button onClick={() => void loadMore()} disabled={loadingMore} className="rounded-lg bg-slate-100 dark:bg-slate-800 px-6 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50">
+          <button onClick={() => void loadMore()} disabled={loadingMore} className="cursor-pointer rounded-lg bg-slate-100 dark:bg-slate-800 px-6 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
             {loadingMore ? 'جاري التحميل...' : 'تحميل المزيد'}
           </button>
         </div>
@@ -307,7 +307,7 @@ export default function MembersPage() {
           <div className="bg-white dark:bg-[#1a331a] w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <h3 className="font-black text-xl">{viewingUser.fullName}</h3>
-              <button onClick={() => setViewingUser(null)} className="text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined">close</span></button>
+              <button onClick={() => setViewingUser(null)} className="cursor-pointer text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="p-6 space-y-3 text-sm">
               {([
@@ -328,7 +328,7 @@ export default function MembersPage() {
               ))}
             </div>
             <div className="p-6 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setViewingUser(null)} className="w-full h-10 bg-slate-100 dark:bg-slate-800 rounded-lg font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">إغلاق</button>
+              <button onClick={() => setViewingUser(null)} className="w-full cursor-pointer h-10 bg-slate-100 dark:bg-slate-800 rounded-lg font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">إغلاق</button>
             </div>
           </div>
         </div>
@@ -340,7 +340,7 @@ export default function MembersPage() {
           <div className="bg-white dark:bg-[#1a331a] w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <h3 className="font-black text-xl">{editingUser ? 'تعديل عضو' : 'إضافة عضو جديد'}</h3>
-              <button onClick={() => { setEditingUser(null); setIsAddOpen(false); }} className="text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined">close</span></button>
+              <button onClick={() => { setEditingUser(null); setIsAddOpen(false); }} className="cursor-pointer text-slate-400 hover:text-slate-600"><span className="material-symbols-outlined">close</span></button>
             </div>
             <div className="p-6 space-y-4 overflow-y-auto max-h-[65vh]">
               {formError && <p className="text-sm text-red-500 font-bold">{formError}</p>}
@@ -377,10 +377,10 @@ export default function MembersPage() {
               </div>
             </div>
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-3">
-              <button onClick={() => void handleSave()} disabled={isSaving} className="flex-1 h-11 bg-[#0df20d] text-slate-900 rounded-lg font-bold hover:bg-[#0be00b] disabled:opacity-50 transition-all">
+              <button onClick={() => void handleSave()} disabled={isSaving} className="flex-1 cursor-pointer h-11 bg-[#0df20d] text-slate-900 rounded-lg font-bold hover:bg-[#0be00b] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                 {isSaving ? 'جاري الحفظ...' : 'حفظ'}
               </button>
-              <button onClick={() => { setEditingUser(null); setIsAddOpen(false); }} className="px-8 h-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all">إلغاء</button>
+              <button onClick={() => { setEditingUser(null); setIsAddOpen(false); }} className="cursor-pointer px-8 h-11 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all">إلغاء</button>
             </div>
           </div>
         </div>

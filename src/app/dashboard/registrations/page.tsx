@@ -114,8 +114,32 @@ export default function RegistrationsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0df20d] border-t-transparent" />
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-6 h-8 w-48 animate-pulse rounded-lg bg-white/10" />
+        <div className="mb-4 flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-8 w-16 animate-pulse rounded-full bg-white/10" />
+          ))}
+        </div>
+        <ul className="flex flex-col gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <li key={i} className="rounded-xl border border-white/10 bg-[#071a07] p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-40 animate-pulse rounded bg-white/10" />
+                    <div className="h-5 w-14 animate-pulse rounded-full bg-white/10" />
+                  </div>
+                  <div className="h-3 w-56 animate-pulse rounded bg-white/5" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-8 w-14 animate-pulse rounded-lg bg-white/10" />
+                  <div className="h-8 w-14 animate-pulse rounded-lg bg-white/10" />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -139,7 +163,7 @@ export default function RegistrationsPage() {
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${
+            className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${
               filter === f.value
                 ? 'bg-[#0df20d] text-slate-900'
                 : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -190,14 +214,14 @@ export default function RegistrationsPage() {
                   <button
                     disabled={acting[r.id]}
                     onClick={() => void updateStatus(r.id, 'approved')}
-                    className="rounded-lg bg-[#0df20d]/15 px-3 py-1.5 text-sm font-bold text-[#0df20d] transition-colors hover:bg-[#0df20d]/25 disabled:opacity-50"
+                    className="cursor-pointer rounded-lg bg-[#0df20d]/15 px-3 py-1.5 text-sm font-bold text-[#0df20d] transition-colors hover:bg-[#0df20d]/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     قبول
                   </button>
                   <button
                     disabled={acting[r.id]}
                     onClick={() => void updateStatus(r.id, 'rejected')}
-                    className="rounded-lg bg-red-400/10 px-3 py-1.5 text-sm font-bold text-red-400 transition-colors hover:bg-red-400/20 disabled:opacity-50"
+                    className="cursor-pointer rounded-lg bg-red-400/10 px-3 py-1.5 text-sm font-bold text-red-400 transition-colors hover:bg-red-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     رفض
                   </button>
@@ -213,7 +237,7 @@ export default function RegistrationsPage() {
           <button
             onClick={() => void loadMore()}
             disabled={loadingMore}
-            className="rounded-lg bg-white/5 px-6 py-2.5 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 disabled:opacity-50"
+            className="cursor-pointer rounded-lg bg-white/5 px-6 py-2.5 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loadingMore ? 'جاري التحميل...' : 'تحميل المزيد'}
           </button>

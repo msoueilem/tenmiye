@@ -58,8 +58,20 @@ export default function DashboardElectionsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0df20d] border-t-transparent" />
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-6 h-8 w-32 animate-pulse rounded-lg bg-white/10" />
+        <ul className="flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="flex items-start gap-4 rounded-xl border border-white/10 bg-[#071a07] p-5">
+              <div className="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-full bg-white/10" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-1/3 animate-pulse rounded bg-white/5" />
+              </div>
+              <div className="h-8 w-16 shrink-0 animate-pulse rounded-lg bg-white/10" />
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -114,7 +126,7 @@ export default function DashboardElectionsPage() {
 
               <Link
                 href={`/elections/${e.id}`}
-                className={`shrink-0 rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+                className={`shrink-0 cursor-pointer rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
                   e.status === 'active' && !e.hasVoted
                     ? 'bg-[#0df20d] text-slate-900 hover:bg-[#0be00b]'
                     : 'bg-white/5 text-slate-400 hover:bg-white/10'
