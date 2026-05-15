@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Patch, Post, Body, UseGuards,
+  Controller, Get, Patch, Post, Body, UseGuards, Query,
   UseInterceptors, UploadedFile, BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -91,6 +91,24 @@ export class MeController {
     await this.users.update(user.userId, { profilePictureId: docRef.id });
 
     return { id: docRef.id, url };
+  }
+
+  @ApiOperation({ summary: 'Search active members by name prefix — for board/committee election nomination UI' })
+  @Get('members/search')
+  async searchMembers(@Query('q') q: string) {
+    if (!q || q.trim().length < 2) return [];
+    const trimmed = q.trim();
+    const snapshot = await this.firebase.db
+      .collection('users')
+      .where('status', '==', 'active')
+      .where('fullName', '>=', trimmed)
+      .where('fullName', '<=', trimmed + '')
+      .limit(20)
+      .get();
+    return snapshot.docs.map((d) => {
+      const data = d.data() as { fullName: string; fullNameAr?: string | null };
+      return { id: d.id, name: data.fullName, fullNameAr: data.fullNameAr ?? null };
+    });
   }
 
   @ApiOperation({ summary: "Get the authenticated member's vote history enriched with election title" })

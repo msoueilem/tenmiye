@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { useMemberAuth } from '@/context/MemberAuthContext';
+import { memberFetch } from '@/lib/memberApi';
 import {
   getElectionById,
   getElectionResults,
@@ -66,20 +65,16 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
   }, [electionId, getAccessToken]);
 
   const handleSearch = useCallback(async (q: string) => {
-    if (!db) return;
     const trimmed = q.trim();
     if (trimmed.length < 2) { setSearchResults([]); return; }
     try {
-      const snap = await getDocs(query(
-        collection(db, 'public-members'),
-        where('status', '==', 'active'),
-        orderBy('name'),
-        where('name', '>=', trimmed),
-        where('name', '<=', trimmed + ''),
-      ));
-      setSearchResults(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as PublicMember));
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await memberFetch(`/me/members/search?q=${encodeURIComponent(trimmed)}`, token);
+      if (!res.ok) return;
+      setSearchResults(await res.json() as PublicMember[]);
     } catch { /* ignore */ }
-  }, []);
+  }, [getAccessToken]);
 
   const toggleMember = (uid: string) => {
     setSelections((prev) => (prev.includes(uid) ? prev.filter((x) => x !== uid) : [uid]));
