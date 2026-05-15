@@ -28,7 +28,7 @@ export default function PublicElectionsPage() {
     async function load() {
       const data = await getAllElections();
       if (mounted) {
-        setElections(data.filter((e) => e.status === 'active' || e.status === 'completed'));
+        setElections((data ?? []).filter((e) => e.status === 'active' || e.status === 'completed'));
         setLoading(false);
       }
     }

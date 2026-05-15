@@ -50,6 +50,7 @@ export default function ElectionsManagementPage() {
   const { getAccessToken } = useMemberAuth();
   const [elections, setElections] = useState<BackendElection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,7 +66,13 @@ export default function ElectionsManagementPage() {
 
   async function fetchElections() {
     setLoading(true);
-    setElections(await getAllElections());
+    setFetchError('');
+    const result = await getAllElections();
+    if (result === null) {
+      setFetchError('تعذّر تحميل الانتخابات. تحقق من الاتصال بالخادم.');
+    } else {
+      setElections(result);
+    }
     setLoading(false);
   }
 
@@ -221,7 +228,10 @@ export default function ElectionsManagementPage() {
           </div>
         ))}
 
-        {elections.length === 0 && (
+        {fetchError && (
+          <div className="col-span-full py-20 text-center text-red-500 font-medium">{fetchError}</div>
+        )}
+        {!fetchError && elections.length === 0 && (
           <div className="col-span-full py-20 text-center text-slate-400">لا توجد عمليات تصويت.</div>
         )}
       </div>

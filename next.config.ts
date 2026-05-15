@@ -1,5 +1,9 @@
 import type { NextConfig } from 'next';
 
+if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_API_URL) {
+  throw new Error('Missing required environment variable: NEXT_PUBLIC_API_URL');
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   typescript: {

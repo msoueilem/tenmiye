@@ -122,8 +122,9 @@ export default function ProfilePage() {
         setSaveStatus('error');
         return;
       }
-      const { url } = (await res.json()) as { url: string };
+      const { id, url } = (await res.json()) as { id: string; url: string };
       setPhotoUrl(url);
+      setProfile((prev) => prev ? { ...prev, profilePictureId: id } : prev);
     } catch {
       setSaveError('حدث خطأ في الاتصال.');
       setSaveStatus('error');

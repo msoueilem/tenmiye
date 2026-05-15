@@ -2,13 +2,13 @@ import { config } from '@/lib/config';
 import { memberFetch, parseApiError } from '@/lib/memberApi';
 import { BackendElection, ElectionResults } from '@/types/elections';
 
-export async function getAllElections(): Promise<BackendElection[]> {
+export async function getAllElections(): Promise<BackendElection[] | null> {
   try {
     const res = await fetch(`${config.apiUrl}/elections`);
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     return res.json() as Promise<BackendElection[]>;
   } catch {
-    return [];
+    return null;
   }
 }
 

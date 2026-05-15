@@ -18,6 +18,9 @@ interface BackendUser {
   tierId: string;
   profilePictureId?: string | null;
   status: 'active' | 'pending' | 'blocked';
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  lastLoginAt?: string | null;
   createdAt?: unknown;
 }
 

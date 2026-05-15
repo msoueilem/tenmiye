@@ -34,6 +34,7 @@ export default function DashboardElectionsPage() {
     let mounted = true;
     async function load() {
       const all = await getAllElections();
+      if (all === null) { setError('تعذّر تحميل الانتخابات.'); setLoading(false); return; }
       const visible = all.filter(
         (e) => e.status === 'active' || e.status === 'completed',
       );
