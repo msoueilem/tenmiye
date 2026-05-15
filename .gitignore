@@ -66,3 +66,6 @@ mocks/
 firebase/storage.rules
 pre-ux-changes.diff
 pre-fix-search.diff
+
+# Claude MCP
+.mcp.json
