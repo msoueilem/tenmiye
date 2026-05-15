@@ -1,28 +1,15 @@
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { PublicLandingData } from '@/types/landing';
 
 export async function getPublicLandingData(): Promise<PublicLandingData | null> {
-  if (!db) {
-    console.warn(
-      'Firebase is not initialized. Please check your environment variables.'
-    );
-    return null;
-  }
-
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
   try {
-    const docRef = doc(db, 'settings-simple', 'public');
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      return docSnap.data() as PublicLandingData;
-    } else {
-      console.log('No such document!');
-      return null;
-    }
-  } catch (error) {
-    console.error('Error fetching public landing data:', error);
-    throw error;
+    const res = await fetch(`${apiUrl}/settings/public`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return res.json() as Promise<PublicLandingData>;
+  } catch {
+    return null;
   }
 }
 

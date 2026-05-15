@@ -1,37 +1,54 @@
 'use client';
 
 import React, { useState } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
+
+const PHONE_RE = /^[234]\d{7}$/;
 
 export function JoinForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!db) return;
-
-    setLoading(true);
     setError('');
+    setPhoneError('');
 
     const formData = new FormData(e.currentTarget);
-    const data = {
-      fullName: formData.get('fullName'),
-      whatsapp: formData.get('whatsapp'),
-      location: formData.get('location'),
-      committed: formData.get('commitment') === 'on',
-      createdAt: serverTimestamp(),
+    const rawPhone = (formData.get('phone') as string).replace(/\s/g, '');
+
+    if (!PHONE_RE.test(rawPhone)) {
+      setPhoneError('رقم الهاتف يجب أن يكون 8 أرقام ويبدأ بـ 2 أو 3 أو 4');
+      return;
+    }
+
+    const body = {
+      fullName: formData.get('fullName') as string,
+      phone: rawPhone,
+      city: formData.get('city') as string || undefined,
     };
 
+    setLoading(true);
     try {
-      await addDoc(collection(db, 'join-requests-simple'), data);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+      const res = await fetch(`${apiUrl}/registrations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const msg = Array.isArray(json.message) ? json.message[0] : json.message;
+        setError(msg || 'حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.');
+        return;
+      }
+
       setSuccess(true);
-      e.currentTarget.reset();
-    } catch (err) {
-      console.error('Error saving join request:', err);
-      setError('حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.');
+      (e.target as HTMLFormElement).reset();
+    } catch {
+      setError('حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.');
     } finally {
       setLoading(false);
     }
@@ -74,10 +91,11 @@ export function JoinForm() {
         className="relative z-10 mt-2 flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-200">
+          <label htmlFor="fullName" className="text-sm font-medium text-slate-200">
             الاسم الكامل
           </label>
           <input
+            id="fullName"
             name="fullName"
             required
             className="focus:ring-primary h-12 w-full rounded-lg border border-white/20 bg-white/10 px-4 text-white placeholder-white/40 focus:ring-2 focus:outline-none"
@@ -87,30 +105,34 @@ export function JoinForm() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-200">
+          <label htmlFor="phone" className="text-sm font-medium text-slate-200">
             رقم الواتساب (موريتانيا)
           </label>
           <div className="relative">
             <input
-              name="whatsapp"
+              id="phone"
+              name="phone"
               required
               className="focus:ring-primary h-12 w-full rounded-lg border border-white/20 bg-white/10 px-4 pl-20 text-left text-white placeholder-white/40 focus:ring-2 focus:outline-none"
               dir="ltr"
-              placeholder="222 1234 5678"
+              placeholder="20 12 34 56"
               type="tel"
+              maxLength={11}
             />
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center rounded-l-lg border-r border-white/20 bg-white/5 px-3 text-slate-300">
               +222
             </div>
           </div>
+          {phoneError && <p className="text-sm text-red-400">{phoneError}</p>}
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-200">
+          <label htmlFor="city" className="text-sm font-medium text-slate-200">
             الموقع / المدينة
           </label>
           <select
-            name="location"
+            id="city"
+            name="city"
             required
             className="focus:ring-primary h-12 w-full rounded-lg border border-white/20 bg-white/10 px-4 text-white focus:ring-2 focus:outline-none [&>option]:text-slate-900"
           >
@@ -127,26 +149,11 @@ export function JoinForm() {
           </select>
         </div>
 
-        <div className="mt-2 flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-4">
-          <input
-            name="commitment"
-            className="text-primary focus:ring-primary h-5 w-5 rounded border-gray-300 bg-white/80"
-            id="commitment"
-            type="checkbox"
-          />
-          <label
-            className="cursor-pointer text-sm text-slate-200"
-            htmlFor="commitment"
-          >
-            هل أنت مستعد للانضمام إلى هذه المنظمة من أجل مساعدة مدينتنا؟
-          </label>
-        </div>
-
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         <button
           disabled={loading}
-          className="bg-primary text-deep-green mt-4 h-12 rounded-lg font-bold shadow-lg shadow-black/20 transition-all hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="bg-primary text-deep-green mt-4 h-12 cursor-pointer rounded-lg font-bold shadow-lg shadow-black/20 transition-all hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
           type="submit"
         >
           {loading ? 'جاري الإرسال...' : 'تأكيد الانضمام'}
