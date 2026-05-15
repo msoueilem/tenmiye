@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { FieldValue } from 'firebase-admin/firestore';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
+import { serializeDoc } from '../../common/utils/firestore';
 
 const COLLECTION = 'join-requests-simple';
 
@@ -33,7 +34,7 @@ export class RegistrationsService {
     }
 
     const snapshot = await query.get();
-    const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const data = snapshot.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }));
     const nextCursor = snapshot.docs.length === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
     return { data, nextCursor };
   }
