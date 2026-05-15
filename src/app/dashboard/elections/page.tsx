@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { getAllElections, checkMyVote } from '@/features/elections/api.client';
+import { getAllElections, getMyVotedElectionIds } from '@/features/elections/api.client';
 import { BackendElection, BackendElectionType, BackendElectionStatus } from '@/types/elections';
 
 function typeLabel(type: BackendElectionType): string {
@@ -33,23 +33,15 @@ export default function DashboardElectionsPage() {
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const all = await getAllElections();
-      if (all === null) { setError('تعذّر تحميل الانتخابات.'); setLoading(false); return; }
-      const visible = all.filter(
-        (e) => e.status === 'active' || e.status === 'completed',
-      );
-
       const token = await getAccessToken();
-      let rows: ElectionRow[] = visible;
+      const [all, votedIds] = await Promise.all([
+        getAllElections(),
+        token ? getMyVotedElectionIds(token) : Promise.resolve(new Set<string>()),
+      ]);
 
-      if (token) {
-        rows = await Promise.all(
-          visible.map(async (e) => ({
-            ...e,
-            hasVoted: await checkMyVote(e.id, token),
-          })),
-        );
-      }
+      if (all === null) { if (mounted) { setError('تعذّر تحميل الانتخابات.'); setLoading(false); } return; }
+      const visible = all.filter((e) => e.status === 'active' || e.status === 'completed');
+      const rows: ElectionRow[] = visible.map((e) => ({ ...e, hasVoted: votedIds.has(e.id) }));
 
       if (mounted) { setElections(rows); setLoading(false); }
     }

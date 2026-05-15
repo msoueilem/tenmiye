@@ -52,15 +52,20 @@ export async function castVoteApi(
   }
 }
 
-export async function checkMyVote(electionId: string, token: string): Promise<boolean> {
+export async function getMyVotedElectionIds(token: string): Promise<Set<string>> {
   try {
     const res = await memberFetch('/me/votes', token);
-    if (!res.ok) return false;
+    if (!res.ok) return new Set();
     const votes = (await res.json()) as Array<{ electionId: string }>;
-    return votes.some((v) => v.electionId === electionId);
+    return new Set(votes.map((v) => v.electionId));
   } catch {
-    return false;
+    return new Set();
   }
+}
+
+export async function checkMyVote(electionId: string, token: string): Promise<boolean> {
+  const ids = await getMyVotedElectionIds(token);
+  return ids.has(electionId);
 }
 
 export async function createElectionApi(
