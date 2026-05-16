@@ -77,7 +77,7 @@ export class FinanceService {
       if (!dto.screenshotFileId) {
         throw new BadRequestException('screenshotFileId is required for this payment channel');
       }
-      const fileDoc = await this.firebase.db.collection('files').doc(dto.screenshotFileId).get();
+      const fileDoc = await this.firebase.db.collection('uploads').doc(dto.screenshotFileId).get();
       if (!fileDoc.exists || fileDoc.data()?.deleted === true) {
         throw new BadRequestException(`File ${dto.screenshotFileId} not found`);
       }

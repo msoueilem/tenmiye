@@ -69,7 +69,7 @@ export class UsersService {
     }
 
     if (dto.profilePictureId) {
-      const fileDoc = await this.firebase.db.collection('files').doc(dto.profilePictureId).get();
+      const fileDoc = await this.firebase.db.collection('uploads').doc(dto.profilePictureId).get();
       if (!fileDoc.exists || fileDoc.data()?.deleted === true) {
         throw new BadRequestException(`Profile picture '${dto.profilePictureId}' does not exist`);
       }
