@@ -12,9 +12,9 @@ export class BlogService {
 
   private async resolveFeatureImageUrl(featureImageId: string | null | undefined): Promise<string | null> {
     if (!featureImageId) return null;
-    const fileDoc = await this.firebase.db.collection('files').doc(featureImageId).get();
+    const fileDoc = await this.firebase.db.collection('uploads').doc(featureImageId).get();
     if (!fileDoc.exists) return null;
-    return (fileDoc.data() as { url?: string }).url ?? null;
+    return (fileDoc.data() as { downloadUrl?: string }).downloadUrl ?? null;
   }
 
   async findAll(publishedOnly = true): Promise<{ id: string; [key: string]: unknown }[]> {
@@ -48,7 +48,7 @@ export class BlogService {
 
   async create(dto: CreatePostDto, authorId: string): Promise<{ id: string }> {
     if (dto.featureImageId) {
-      const fileDoc = await this.firebase.db.collection('files').doc(dto.featureImageId).get();
+      const fileDoc = await this.firebase.db.collection('uploads').doc(dto.featureImageId).get();
       if (!fileDoc.exists || fileDoc.data()?.deleted === true) {
         throw new BadRequestException(`File ${dto.featureImageId} not found`);
       }
@@ -77,7 +77,7 @@ export class BlogService {
     }
 
     if (dto.featureImageId) {
-      const fileDoc = await this.firebase.db.collection('files').doc(dto.featureImageId).get();
+      const fileDoc = await this.firebase.db.collection('uploads').doc(dto.featureImageId).get();
       if (!fileDoc.exists || fileDoc.data()?.deleted === true) {
         throw new BadRequestException(`File ${dto.featureImageId} not found`);
       }
