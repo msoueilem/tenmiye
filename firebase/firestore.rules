@@ -90,6 +90,16 @@ service cloud.firestore {
       allow write: if isActiveAdmin();
     }
 
+    match /blogs/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /announcements/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

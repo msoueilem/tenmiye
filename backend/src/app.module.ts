@@ -20,6 +20,7 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { RegionsModule } from './modules/regions/regions.module';
 import { TiersModule } from './modules/tiers/tiers.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { RolesModule } from './modules/roles/roles.module';
     RegionsModule,
     TiersModule,
     RolesModule,
+    AnnouncementsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
