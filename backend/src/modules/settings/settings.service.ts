@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
-const COLLECTION = 'settings-simple';
+const COLLECTION = 'settings';
 const DOC_ID = 'public';
 
 @Injectable()

@@ -43,7 +43,7 @@ export default async function Home() {
             لا توجد بيانات حالياً - FORCE REFRESH
           </h1>
           <p className="text-slate-500">
-            يرجى إضافة مستند في Firestore بمسار settings-simple/public
+            يرجى إضافة مستند في Firestore بمسار settings/public
           </p>
         </div>
       </div>

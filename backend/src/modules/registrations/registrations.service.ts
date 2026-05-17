@@ -4,7 +4,7 @@ import { FirebaseService } from '../../common/firebase/firebase.service';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
 import { serializeDoc } from '../../common/utils/firestore';
 
-const COLLECTION = 'join-requests-simple';
+const COLLECTION = 'join-requests';
 
 @Injectable()
 export class RegistrationsService {

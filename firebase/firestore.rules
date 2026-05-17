@@ -1,15 +1,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isSelf(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
-    
+
+    // Still references admins-simple until adminAccounts adopts email-as-docId scheme
     function isActiveAdmin() {
       return isSignedIn() &&
         request.auth.token.email != null &&
@@ -17,10 +18,10 @@ service cloud.firestore {
         get(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)).data.status == 'active';
     }
 
-    match /users-simple/{uid} {
+    match /users/{uid} {
       allow read: if isSelf(uid) || isActiveAdmin();
       allow create, delete: if isActiveAdmin();
-      allow update: if isActiveAdmin() || 
+      allow update: if isActiveAdmin() ||
                     (isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoUrl']));
     }
 
@@ -29,18 +30,17 @@ service cloud.firestore {
       allow write: if isActiveAdmin();
     }
 
-    match /elections-simple/{electionId} {
+    match /elections/{electionId} {
       allow read: if true;
       allow write: if isActiveAdmin();
     }
 
-    match /votes-simple/{voteId} {
-      // Allow voters to check if they have voted, and admins to read all
+    match /votes/{voteId} {
       allow read: if isActiveAdmin() || (isSignedIn() && voteId.matches('^[^_]+_' + request.auth.uid + '$'));
-      allow write: if false; 
+      allow write: if false;
     }
 
-    match /nominations-simple/{nominationId} {
+    match /nominations/{nominationId} {
       allow read: if isActiveAdmin();
       allow write: if false;
     }
@@ -60,25 +60,32 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Public create-only collections (Admins can read/manage)
-    match /join-requests-simple/{document=**} {
-      allow create: if true;
-      allow read, update, delete: if isActiveAdmin();
+    match /roles/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
 
-    match /messages-simple/{document=**} {
-      allow create: if true;
-      allow read, update, delete: if isActiveAdmin();
-    }
-
-    // Landing page settings doc(s)
-    match /settings-simple/{document=**} {
+    match /tiers/{docId} {
       allow read: if true;
-      allow write: if isActiveAdmin(); // allow dashboard saves for active admins
+      allow write: if false;
     }
 
-    // Upload audit log
-    match /uploads-simple/{docId} {
+    match /join-requests/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if isActiveAdmin();
+    }
+
+    match /messages/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if isActiveAdmin();
+    }
+
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /uploads/{docId} {
       allow read: if true;
       allow write: if isActiveAdmin();
     }

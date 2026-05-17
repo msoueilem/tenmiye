@@ -4,7 +4,7 @@ import { FirebaseService } from '../../common/firebase/firebase.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { serializeDoc } from '../../common/utils/firestore';
 
-const COLLECTION = 'messages-simple';
+const COLLECTION = 'messages';
 
 @Injectable()
 export class MessagesService {
