@@ -13,8 +13,7 @@ export default function ElectionThanksPage() {
 
   React.useEffect(() => {
     void logout();
-    sessionStorage.removeItem(`voter_session_${id}`);
-  }, [id, logout]);
+  }, [logout]);
 
   return (
     <div className="min-h-screen bg-[#f8fcf8] dark:bg-[#102210] flex flex-col" dir="rtl">

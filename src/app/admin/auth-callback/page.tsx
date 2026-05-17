@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { tokenStore } from '@/lib/api';
 
-export default function AdminAuthCallbackPage() {
+function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -16,7 +16,6 @@ export default function AdminAuthCallbackPage() {
       tokenStore.set('admin', accessToken, refreshToken);
       router.replace('/admin');
     } else {
-      // Tokens missing — something went wrong on the backend side
       router.replace('/admin/signin?error=auth_failed');
     }
   }, [router, searchParams]);
@@ -28,5 +27,13 @@ export default function AdminAuthCallbackPage() {
         <p className="text-slate-600 dark:text-slate-400 text-sm">جارٍ تسجيل الدخول...</p>
       </div>
     </div>
+  );
+}
+
+export default function AdminAuthCallbackPage() {
+  return (
+    <Suspense>
+      <AuthCallbackInner />
+    </Suspense>
   );
 }
