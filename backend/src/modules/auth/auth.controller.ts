@@ -101,6 +101,6 @@ export class AuthController {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
     });
-    res.redirect(`${frontendUrl}/dashboard/auth-callback?${params.toString()}`);
+    res.redirect(`${frontendUrl}/admin/auth-callback?${params.toString()}`);
   }
 }
