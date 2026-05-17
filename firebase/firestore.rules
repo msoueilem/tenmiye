@@ -100,6 +100,16 @@ service cloud.firestore {
       allow write: if isActiveAdmin();
     }
 
+    match /transactions/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /paymentChannels/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
