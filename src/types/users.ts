@@ -1,3 +1,9 @@
+export interface MemberSearchResult {
+  id: string;
+  name: string;
+  fullNameAr: string | null;
+}
+
 export interface UserMember {
   id: string;
   name: string;

@@ -5,10 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { getMemberByPhone } from '@/features/users/api.client';
 import { getElectionById } from '@/features/elections/api.client';
 import { BackendElection } from '@/types/elections';
-import { UserMember } from '@/types/users';
 import { signInWithCustomToken, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { getVoterTokenAction } from '@/features/users/actions';
+
+// TODO Task 7: This page will be fully rewritten to use the backend OTP flow.
+type CheckResult = { isMember: boolean; hasPassword: boolean };
 
 export default function ElectionLoginPage() {
   const { id } = useParams();
@@ -19,7 +21,7 @@ export default function ElectionLoginPage() {
   const [step, setStep] = useState<'phone' | 'auth'>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [member, setMember] = useState<UserMember | null>(null);
+  const [member, setMember] = useState<CheckResult | null>(null);
   
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,15 +58,7 @@ export default function ElectionLoginPage() {
     try {
       const m = await getMemberByPhone(phone);
       if (m) {
-        if (m.status !== 'active') {
-          setError('هذا الحساب غير مفعل. يرجى التواصل مع الإدارة.');
-          setLoading(false);
-          return;
-        } else if (m.votedElections?.includes(id as string)) {
-          setError('لقد قمت بالتصويت في هذه الانتخابات مسبقاً. لا يمكن التصويت أكثر من مرة.');
-          setLoading(false);
-          return;
-        } else {
+        {
           setMember(m);
           
           // Send SMS via Firebase Phone Auth
@@ -187,7 +181,7 @@ export default function ElectionLoginPage() {
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6 text-center">
                 <p className="text-xs text-slate-500 mb-1">تم إرسال رمز التحقق في رسالة نصية (SMS) إلى</p>
                 <p className="font-black text-lg" dir="ltr">{phone.startsWith('+') ? phone : `+222 ${phone}`}</p>
-                <p className="text-sm font-bold mt-2 text-primary">{member?.name}</p>
+                <p className="text-sm font-bold mt-2 text-primary">{phone}</p>
               </div>
 
               <div>
