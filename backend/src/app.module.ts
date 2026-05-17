@@ -17,6 +17,9 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { MeModule } from './modules/me/me.module';
 import { RegistrationsModule } from './modules/registrations/registrations.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { RegionsModule } from './modules/regions/regions.module';
+import { TiersModule } from './modules/tiers/tiers.module';
+import { RolesModule } from './modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -36,6 +39,9 @@ import { MessagesModule } from './modules/messages/messages.module';
     MeModule,
     RegistrationsModule,
     MessagesModule,
+    RegionsModule,
+    TiersModule,
+    RolesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
