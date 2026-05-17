@@ -227,8 +227,12 @@ export class AuthService {
 
   // ─── Google OAuth ────────────────────────────────────────────────────────────
 
-  signJwt(user: JwtPayload): { access_token: string } {
-    return { access_token: this.jwt.sign(user) };
+  async issueAdminSession(user: {
+    userId: string;
+    type: 'admin';
+    permissions: string[];
+  }): Promise<TokenPair> {
+    return this.issueTokenPair(user.userId, user.permissions);
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────

@@ -46,6 +46,20 @@ export class ElectionsController {
   }
 
   @ApiBearerAuth()
+  @ApiOperation({ summary: "Check whether the authenticated user has voted in this election" })
+  @Get(':id/my-vote')
+  @UseGuards(JwtAuthGuard)
+  getMyVote(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
+    return this.elections.getMyVote(id, req.user.userId);
+  }
+
+  @ApiOperation({ summary: 'Get top nominees by nomination count — no auth required' })
+  @Get(':id/nominations/top')
+  getTopNominees(@Param('id') id: string) {
+    return this.elections.getTopNominees(id);
+  }
+
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new election' })
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)

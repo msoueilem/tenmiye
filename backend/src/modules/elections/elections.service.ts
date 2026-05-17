@@ -260,6 +260,42 @@ export class ElectionsService {
     });
   }
 
+  async getMyVote(id: string, userId: string) {
+    const voteRef = this.firebase.db.collection('votes').doc(`${id}_${userId}`);
+    const doc = await voteRef.get();
+    if (!doc.exists) return { voted: false, choices: null };
+    const data = doc.data() as { choices: string[]; castAt: unknown };
+    return { voted: true, choices: data.choices, castAt: data.castAt };
+  }
+
+  async getTopNominees(id: string) {
+    const electionDoc = await this.firebase.db.collection(COL).doc(id).get();
+    if (!electionDoc.exists) throw new NotFoundException(`Election ${id} not found`);
+
+    const data = electionDoc.data() as ElectionData;
+    if (data.type !== 'board') return { nominees: [] };
+
+    // Tally how many nominators included each nominee
+    const nominationsSnap = await this.firebase.db
+      .collection(COL).doc(id)
+      .collection('nominations')
+      .get();
+
+    const tally: Record<string, number> = {};
+    for (const nomDoc of nominationsSnap.docs) {
+      const nominees = (nomDoc.data() as { nominees: string[] }).nominees ?? [];
+      for (const uid of nominees) {
+        tally[uid] = (tally[uid] ?? 0) + 1;
+      }
+    }
+
+    const nominees = Object.entries(tally)
+      .map(([userId, nominationCount]) => ({ userId, nominationCount }))
+      .sort((a, b) => b.nominationCount - a.nominationCount);
+
+    return { nominees };
+  }
+
   // ─── Member operations ─────────────────────────────────────────────────────
 
   async submitNomination(id: string, dto: SubmitNominationDto, userId: string): Promise<void> {

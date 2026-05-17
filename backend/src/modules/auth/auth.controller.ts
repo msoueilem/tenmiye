@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CheckPhoneDto } from './dto/check-phone.dto';
@@ -12,11 +14,15 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
+import { AppConfig } from '../../common/config/app.config';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    private config: ConfigService<AppConfig, true>,
+  ) {}
 
   // ─── Phone check (pre-login) ─────────────────────────────────────────────────
 
@@ -82,10 +88,19 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   googleAuth() {}
 
-  @ApiOperation({ summary: 'Google Authentication Callback' })
+  @ApiOperation({ summary: 'Google Authentication Callback — redirects to frontend with tokens' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  googleCallback(@CurrentUser() user: JwtPayload) {
-    return this.auth.signJwt(user);
+  async googleCallback(
+    @CurrentUser() user: { userId: string; type: 'admin'; permissions: string[] },
+    @Res() res: Response,
+  ) {
+    const tokens = await this.auth.issueAdminSession(user);
+    const frontendUrl = this.config.get('frontendUrl', { infer: true });
+    const params = new URLSearchParams({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+    });
+    res.redirect(`${frontendUrl}/dashboard/auth-callback?${params.toString()}`);
   }
 }

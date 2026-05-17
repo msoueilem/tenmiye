@@ -56,8 +56,8 @@ service cloud.firestore {
     }
 
     match /adminAccounts/{docId} {
-      allow read: if isSignedIn() && resource.data.googleEmail == request.auth.token.email;
-      allow write: if false;
+      allow read: if isActiveAdmin() || (isSignedIn() && resource.data.googleEmail == request.auth.token.email);
+      allow write: if false; // all mutations go through the backend
     }
 
     match /roles/{docId} {

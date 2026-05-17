@@ -21,6 +21,7 @@ import { RegionsModule } from './modules/regions/regions.module';
 import { TiersModule } from './modules/tiers/tiers.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { AdminAccountsModule } from './modules/admin-accounts/admin-accounts.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
     TiersModule,
     RolesModule,
     AnnouncementsModule,
+    AdminAccountsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

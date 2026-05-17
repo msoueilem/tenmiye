@@ -88,16 +88,15 @@ export class MeController {
   async getMyVotes(@CurrentUser() user: JwtPayload) {
     const snapshot = await this.firebase.db
       .collection('votes')
-      .where('voterId', '==', user.userId)
-      .orderBy('createdAt', 'desc')
+      .where('userId', '==', user.userId)
+      .orderBy('castAt', 'desc')
       .get();
 
     if (snapshot.empty) return [];
 
-    // Fetch unique election titles in one batch
     const electionIds = [...new Set(snapshot.docs.map((d) => d.data().electionId as string))];
     const electionDocs = await Promise.all(
-      electionIds.map((id) => this.firebase.db.collection('electionProcesses').doc(id).get()),
+      electionIds.map((id) => this.firebase.db.collection('elections').doc(id).get()),
     );
     const electionTitles: Record<string, string> = {};
     for (const doc of electionDocs) {
@@ -105,14 +104,14 @@ export class MeController {
     }
 
     return snapshot.docs.map((d) => {
-      const data = d.data() as { electionId: string; selection?: string; nomineeId?: string; createdAt: unknown };
+      const data = d.data() as { electionId: string; electionType: string; choices: string[]; castAt: unknown };
       return {
         id: d.id,
         electionId: data.electionId,
         electionTitle: electionTitles[data.electionId] ?? data.electionId,
-        selection: data.selection ?? null,
-        nomineeId: data.nomineeId ?? null,
-        createdAt: data.createdAt,
+        electionType: data.electionType,
+        choices: data.choices,
+        castAt: data.castAt,
       };
     });
   }
