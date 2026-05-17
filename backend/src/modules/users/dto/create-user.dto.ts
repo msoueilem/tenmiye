@@ -44,11 +44,15 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
-  region?: string;
+  regionId?: string;
 
   @IsString()
   @IsOptional()
   tierId?: string;
+
+  @IsString()
+  @IsOptional()
+  joinRequestId?: string;
 
   @IsString()
   @IsOptional()

@@ -78,17 +78,6 @@ export class UsersService {
       }
     }
 
-    if (dto.region) {
-      const regionDoc = await this.firebase.db
-        .collection('regions')
-        .where('slug', '==', dto.region)
-        .limit(1)
-        .get();
-      if (regionDoc.empty) {
-        throw new BadRequestException(`Region '${dto.region}' is not a valid Mauritanian wilaya`);
-      }
-    }
-
     let tierId: string;
     if (dto.tierId) {
       const tierDoc = await this.firebase.db.collection('tiers').doc(dto.tierId).get();
@@ -105,7 +94,8 @@ export class UsersService {
       phoneNumber: dto.phoneNumber,
       nationalId: dto.nationalId ?? null,
       city: dto.city ?? null,
-      region: dto.region ?? null,
+      regionId: dto.regionId ?? null,
+      joinRequestId: dto.joinRequestId ?? null,
       roleId: await this.getDefaultRoleId(),
       tierId,
       profilePictureId: dto.profilePictureId ?? null,
