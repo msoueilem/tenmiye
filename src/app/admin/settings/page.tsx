@@ -4,12 +4,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PublicLandingData, Initiative } from '@/types/landing';
 import { getPublicLandingData, updatePublicLandingData } from '@/features/landing/api.client';
 import { uploadFile } from '@/features/uploads/api.client';
-import { useMemberAuth } from '@/context/MemberAuthContext';
 
 type MessageTarget = 'global' | 'logo' | 'favicon' | 'aspect' | 'initiative-modal' | 'stats' | 'achievements' | 'contact';
 
 export default function SettingsPage() {
-  const { getAccessToken } = useMemberAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<PublicLandingData | null>(null);
@@ -292,9 +290,7 @@ export default function SettingsPage() {
         } : undefined
       };
 
-      const token = await getAccessToken();
-      if (!token) throw new Error('انتهت الجلسة');
-      await updatePublicLandingData(updatedData, token);
+      await updatePublicLandingData(updatedData);
 
       setData(updatedData);
       setInitialData(updatedData);

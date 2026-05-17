@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch, parseApiError } from '@/lib/memberApi';
+import { apiFetch, ApiError } from '@/lib/api';
 
 interface BackendUser {
   id: string;
@@ -48,7 +47,6 @@ function statusBadge(status: BackendUser['status']) {
 }
 
 export default function MembersPage() {
-  const { getAccessToken } = useMemberAuth();
   const [users, setUsers] = useState<BackendUser[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,17 +64,20 @@ export default function MembersPage() {
   const [formError, setFormError] = useState('');
 
   async function fetchPage(cursor?: string) {
-    const token = await getAccessToken();
-    if (!token) { setError('انتهت الجلسة.'); return; }
-
     const params = new URLSearchParams({ limit: '50' });
     if (cursor) params.set('cursor', cursor);
-
-    const res = await memberFetch(`/users?${params}`, token);
-    if (res.status === 403) { setError('ليس لديك صلاحية إدارة الأعضاء.'); return; }
-    if (!res.ok) { setError('تعذّر تحميل الأعضاء.'); return; }
-
-    return res.json() as Promise<{ data: BackendUser[]; nextCursor: string | null }>;
+    try {
+      return await apiFetch<{ data: BackendUser[]; nextCursor: string | null }>(
+        'GET', `/users?${params}`, { tokenType: 'admin' },
+      );
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 403) {
+        setError('ليس لديك صلاحية إدارة الأعضاء.');
+      } else {
+        setError('تعذّر تحميل الأعضاء.');
+      }
+      return null;
+    }
   }
 
   useEffect(() => {
@@ -140,8 +141,6 @@ export default function MembersPage() {
     }
     setIsSaving(true);
     setFormError('');
-    const token = await getAccessToken();
-    if (!token) { setFormError('انتهت الجلسة'); setIsSaving(false); return; }
 
     const payload = {
       fullName: form.fullName.trim(),
@@ -155,49 +154,37 @@ export default function MembersPage() {
       status: form.status,
     };
 
-    const res = editingUser
-      ? await memberFetch(`/users/${editingUser.id}`, token, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-      : await memberFetch('/users', token, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-    if (!res.ok) {
-      setFormError(await parseApiError(res, 'حدث خطأ أثناء الحفظ'));
+    try {
+      if (editingUser) {
+        await apiFetch('PATCH', `/users/${editingUser.id}`, { body: payload, tokenType: 'admin' });
+      } else {
+        await apiFetch('POST', '/users', { body: payload, tokenType: 'admin' });
+      }
+      setEditingUser(null);
+      setIsAddOpen(false);
+      const result = await fetchPage();
+      if (result) { setUsers(result.data); setNextCursor(result.nextCursor); }
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'حدث خطأ أثناء الحفظ');
+    } finally {
       setIsSaving(false);
-      return;
     }
-
-    setIsSaving(false);
-    setEditingUser(null);
-    setIsAddOpen(false);
-    const result = await fetchPage();
-    if (result) { setUsers(result.data); setNextCursor(result.nextCursor); }
   }
 
   async function handleDelete(id: string) {
     if (!confirm('هل أنت متأكد من حذف هذا العضو؟')) return;
-    const token = await getAccessToken();
-    if (!token) return;
-    await memberFetch(`/users/${id}`, token, { method: 'DELETE' });
+    await apiFetch('DELETE', `/users/${id}`, { tokenType: 'admin' }).catch(() => null);
     setUsers((p) => p.filter((u) => u.id !== id));
   }
 
   async function toggleStatus(u: BackendUser) {
     const newStatus = u.status === 'active' ? 'blocked' : 'active';
-    const token = await getAccessToken();
-    if (!token) return;
-    const res = await memberFetch(`/users/${u.id}`, token, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    if (res.ok) setUsers((p) => p.map((x) => x.id === u.id ? { ...x, status: newStatus } : x));
+    try {
+      await apiFetch('PATCH', `/users/${u.id}`, { body: { status: newStatus }, tokenType: 'admin' });
+      setUsers((p) => p.map((x) => x.id === u.id ? { ...x, status: newStatus } : x));
+    } catch {
+      // silently ignore
+    }
   }
 
   if (loading) {

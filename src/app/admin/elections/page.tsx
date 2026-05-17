@@ -9,7 +9,6 @@ import {
   deleteElectionApi,
   getElectionResults,
 } from '@/features/elections/api.client';
-import { useMemberAuth } from '@/context/MemberAuthContext';
 
 type ElectionForm = {
   title: string;
@@ -47,7 +46,6 @@ function statusColors(status: BackendElectionStatus): string {
 }
 
 export default function ElectionsManagementPage() {
-  const { getAccessToken } = useMemberAuth();
   const [elections, setElections] = useState<BackendElection[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
@@ -114,8 +112,6 @@ export default function ElectionsManagementPage() {
     }
 
     setIsSaving(true);
-    const token = await getAccessToken();
-    if (!token) { setMessage({ type: 'error', text: 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً' }); setIsSaving(false); return; }
 
     const payload = {
       title: form.title.trim(),
@@ -127,11 +123,11 @@ export default function ElectionsManagementPage() {
 
     let ok = false;
     if (editingId) {
-      const res = await updateElectionApi(editingId, payload, token);
+      const res = await updateElectionApi(editingId, payload);
       ok = res.ok;
       if (!ok) setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء التعديل' });
     } else {
-      const res = await createElectionApi(payload, token);
+      const res = await createElectionApi(payload);
       ok = !!res;
       if (!ok) setMessage({ type: 'error', text: 'حدث خطأ أثناء الإنشاء' });
     }
@@ -142,16 +138,12 @@ export default function ElectionsManagementPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('هل أنت متأكد من حذف هذه الانتخابات؟')) return;
-    const token = await getAccessToken();
-    if (!token) return;
-    await deleteElectionApi(id, token);
+    await deleteElectionApi(id);
     void fetchElections();
   }
 
   async function handleUpdateStatus(id: string, status: BackendElectionStatus) {
-    const token = await getAccessToken();
-    if (!token) return;
-    await updateElectionApi(id, { status }, token);
+    await updateElectionApi(id, { status });
     void fetchElections();
   }
 

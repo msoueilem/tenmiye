@@ -1,4 +1,5 @@
 import { config } from '@/lib/config';
+import { apiFetch } from '@/lib/api';
 import { memberFetch, parseApiError } from '@/lib/memberApi';
 import { BackendElection, ElectionResults } from '@/types/elections';
 
@@ -70,16 +71,9 @@ export async function checkMyVote(electionId: string, token: string): Promise<bo
 
 export async function createElectionApi(
   data: Pick<BackendElection, 'title' | 'description' | 'type' | 'startTime' | 'endTime'>,
-  token: string,
 ): Promise<{ id: string } | null> {
   try {
-    const res = await memberFetch('/elections', token, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<{ id: string }>;
+    return await apiFetch<{ id: string }>('POST', '/elections', { body: data, tokenType: 'admin' });
   } catch {
     return null;
   }
@@ -88,27 +82,20 @@ export async function createElectionApi(
 export async function updateElectionApi(
   id: string,
   data: Partial<Pick<BackendElection, 'title' | 'description' | 'type' | 'status' | 'startTime' | 'endTime'>>,
-  token: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await memberFetch(`/elections/${id}`, token, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      return { ok: false, error: await parseApiError(res, 'حدث خطأ أثناء التعديل') };
-    }
+    await apiFetch('PATCH', `/elections/${id}`, { body: data, tokenType: 'admin' });
     return { ok: true };
-  } catch {
-    return { ok: false, error: 'تعذر الاتصال بالخادم' };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'حدث خطأ أثناء التعديل';
+    return { ok: false, error: msg };
   }
 }
 
-export async function deleteElectionApi(id: string, token: string): Promise<boolean> {
+export async function deleteElectionApi(id: string): Promise<boolean> {
   try {
-    const res = await memberFetch(`/elections/${id}`, token, { method: 'DELETE' });
-    return res.ok;
+    await apiFetch('DELETE', `/elections/${id}`, { tokenType: 'admin' });
+    return true;
   } catch {
     return false;
   }
