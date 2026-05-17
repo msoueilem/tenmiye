@@ -20,10 +20,10 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const isSignIn = pathname === '/admin/signin';
+  const isPublicAdminRoute = pathname === '/admin/signin' || pathname === '/admin/auth-callback';
 
   useEffect(() => {
-    if (isSignIn || !auth) return;
+    if (isPublicAdminRoute || !auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -43,7 +43,7 @@ export default function DashboardLayout({
     });
 
     return () => unsubscribe();
-  }, [router, isSignIn]);
+  }, [router, isPublicAdminRoute]);
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -51,7 +51,7 @@ export default function DashboardLayout({
     router.push('/admin/signin');
   };
 
-  if (isSignIn) return <>{children}</>;
+  if (isPublicAdminRoute) return <>{children}</>;
 
   if (loading) {
     return (
