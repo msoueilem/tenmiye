@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PublicLandingData, Initiative } from '@/types/landing';
 import { getPublicLandingData, updatePublicLandingData } from '@/features/landing/api.client';
-import { uploadImage } from '@/features/uploads/api.client';
+import { uploadFile } from '@/features/uploads/api.client';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 
 type MessageTarget = 'global' | 'logo' | 'favicon' | 'aspect' | 'initiative-modal' | 'stats' | 'achievements' | 'contact';
@@ -189,9 +189,9 @@ export default function SettingsPage() {
        // We'll upload this one immediately to get a URL for the local list
        // or we could mark it as "to be uploaded". To keep it simple, we upload now.
        setMessage({ type: 'success', target: 'initiative-modal', text: 'جاري رفع الصورة...' });
-       const uploaded = await uploadImage(initiativeImageFile, `settings-simple/init_${Date.now()}`);
+       const uploaded = await uploadFile(initiativeImageFile, { ownerType: 'settings', ownerId: 'public', purpose: 'initiative-image', tokenType: 'admin' });
        if (uploaded) {
-         updatedInitiative.imageUrl = uploaded;
+         updatedInitiative.imageUrl = uploaded.downloadUrl;
        } else {
          setMessage({ type: 'error', target: 'initiative-modal', text: 'فشل في رفع الصورة.' });
          return;
@@ -268,18 +268,18 @@ export default function SettingsPage() {
       let aspectImageUrl = data.currentAspect?.imageUrl;
 
       if (logoFile) {
-        const uploadedLogo = await uploadImage(logoFile, `settings-simple/logo_${Date.now()}`);
-        if (uploadedLogo) logoUrl = uploadedLogo;
+        const uploadedLogo = await uploadFile(logoFile, { ownerType: 'settings', ownerId: 'public', purpose: 'logo', tokenType: 'admin' });
+        if (uploadedLogo) logoUrl = uploadedLogo.downloadUrl;
       }
 
       if (faviconFile) {
-        const uploadedFavicon = await uploadImage(faviconFile, `settings-simple/favicon_${Date.now()}`);
-        if (uploadedFavicon) faviconUrl = uploadedFavicon;
+        const uploadedFavicon = await uploadFile(faviconFile, { ownerType: 'settings', ownerId: 'public', purpose: 'favicon', tokenType: 'admin' });
+        if (uploadedFavicon) faviconUrl = uploadedFavicon.downloadUrl;
       }
 
       if (aspectImageFile) {
-        const uploadedAspect = await uploadImage(aspectImageFile, `settings-simple/aspect_${Date.now()}`);
-        if (uploadedAspect) aspectImageUrl = uploadedAspect;
+        const uploadedAspect = await uploadFile(aspectImageFile, { ownerType: 'settings', ownerId: 'public', purpose: 'aspect-image', tokenType: 'admin' });
+        if (uploadedAspect) aspectImageUrl = uploadedAspect.downloadUrl;
       }
 
       const updatedData = {

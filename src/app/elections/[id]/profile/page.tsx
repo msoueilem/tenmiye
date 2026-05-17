@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { UserMember } from '@/types/users';
 import { updateVoterProfile } from '@/features/users/api.client';
-import { uploadImage } from '@/features/uploads/api.client';
+import { uploadFile } from '@/features/uploads/api.client';
 
 export default function ElectionProfilePage() {
   const { id } = useParams();
@@ -35,10 +35,11 @@ export default function ElectionProfilePage() {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
       if (file.size > 2 * 1024 * 1024) return;
-      const url = await uploadImage(file, `members-simple/profile_${Date.now()}`);
-      if (url) {
-        setPhotoUrl(url);
-        setPhotoPreview(url);
+      // TODO Task 7: use member's userId from JWT instead of member.id from session
+      const result = await uploadFile(file, { ownerType: 'user', ownerId: member?.id ?? 'unknown', purpose: 'profile-picture', tokenType: 'member' });
+      if (result) {
+        setPhotoUrl(result.downloadUrl);
+        setPhotoPreview(result.downloadUrl);
       }
     }
   };
