@@ -231,14 +231,15 @@ export class AuthService {
     userId: string;
     type: 'admin';
     permissions: string[];
+    googleEmail: string;
   }): Promise<TokenPair> {
-    return this.issueTokenPair(user.userId, user.permissions);
+    return this.issueTokenPair(user.userId, user.permissions, user.googleEmail);
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  private async issueTokenPair(userId: string, permissions: string[]): Promise<TokenPair> {
-    const access_token = this.jwt.sign(this.buildPayload(userId, permissions));
+  private async issueTokenPair(userId: string, permissions: string[], googleEmail?: string): Promise<TokenPair> {
+    const access_token = this.jwt.sign(this.buildPayload(userId, permissions, googleEmail));
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(rawToken);
@@ -314,8 +315,13 @@ export class AuthService {
     return data.permissions ?? [];
   }
 
-  private buildPayload(userId: string, permissions: string[] = []): JwtPayload {
-    return { userId, type: 'member', permissions };
+  private buildPayload(userId: string, permissions: string[] = [], googleEmail?: string): JwtPayload {
+    return {
+      userId,
+      type: googleEmail ? 'admin' : 'member',
+      permissions,
+      ...(googleEmail ? { googleEmail } : {}),
+    };
   }
 
   private log(

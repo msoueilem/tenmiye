@@ -32,7 +32,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     _accessToken: string,
     _refreshToken: string,
     profile: Profile,
-  ): Promise<{ userId: string; adminAccountId: string; type: 'admin'; permissions: string[] }> {
+  ): Promise<{ userId: string; adminAccountId: string; type: 'admin'; permissions: string[]; googleEmail: string }> {
     const email = profile.emails?.[0]?.value;
     if (!email) throw new ForbiddenException('No email in Google profile');
 
@@ -50,8 +50,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     return {
       userId: account.userId,
       adminAccountId: account.id,
-      type: 'admin',
+      type: 'admin' as const,
       permissions: account.permissions,
+      googleEmail: email,
     };
   }
 }

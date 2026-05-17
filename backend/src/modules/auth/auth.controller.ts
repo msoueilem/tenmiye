@@ -92,7 +92,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleCallback(
-    @CurrentUser() user: { userId: string; type: 'admin'; permissions: string[] },
+    @CurrentUser() user: { userId: string; type: 'admin'; permissions: string[]; googleEmail: string },
     @Res() res: Response,
   ) {
     const tokens = await this.auth.issueAdminSession(user);

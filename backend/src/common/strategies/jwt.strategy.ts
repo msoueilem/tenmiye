@@ -9,6 +9,7 @@ export interface JwtPayload {
   type: 'member' | 'admin';
   permissions: string[];
   adminAccountId?: string;
+  googleEmail?: string;
 }
 
 @Injectable()
