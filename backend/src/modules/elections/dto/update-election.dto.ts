@@ -4,6 +4,6 @@ import { CreateElectionDto } from './create-election.dto';
 
 export class UpdateElectionDto extends PartialType(CreateElectionDto) {
   @IsOptional()
-  @IsIn(['pending', 'active', 'completed', 'cancelled'])
-  status?: 'pending' | 'active' | 'completed' | 'cancelled';
+  @IsIn(['draft', 'nomination', 'dismissal', 'voting', 'completed', 'cancelled'])
+  status?: 'draft' | 'nomination' | 'dismissal' | 'voting' | 'completed' | 'cancelled';
 }
