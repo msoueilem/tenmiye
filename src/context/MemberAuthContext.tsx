@@ -1,11 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { tokenStore, decodeJwt } from '@/lib/api';
 import { config } from '@/lib/config';
-import { auth } from '@/lib/firebase/client';
-import { signOut } from 'firebase/auth';
-
-const REFRESH_KEY = 'member_refresh_token';
 
 export interface MemberUser {
   userId: string;
@@ -31,21 +28,24 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   const clearSession = useCallback(() => {
     setAccessToken(null);
     setUser(null);
-    localStorage.removeItem(REFRESH_KEY);
+    tokenStore.clear('member');
   }, []);
 
   const applyToken = useCallback((token: string) => {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1])) as MemberUser & { exp: number };
+      const payload = decodeJwt<MemberUser & { exp: number }>(token);
       setAccessToken(token);
       setUser({ userId: payload.userId, permissions: payload.permissions ?? [] });
+      // Keep access token in localStorage so apiFetch can read it
+      const refresh = tokenStore.getRefresh('member');
+      if (refresh) tokenStore.set('member', token, refresh);
     } catch {
       clearSession();
     }
   }, [clearSession]);
 
   const refreshSession = useCallback(async (): Promise<string | null> => {
-    const stored = localStorage.getItem(REFRESH_KEY);
+    const stored = tokenStore.getRefresh('member');
     if (!stored) return null;
     try {
       const res = await fetch(`${config.apiUrl}/auth/refresh`, {
@@ -54,8 +54,11 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
         body: JSON.stringify({ refreshToken: stored }),
       });
       if (!res.ok) { clearSession(); return null; }
-      const { access_token, refresh_token } = await res.json() as { access_token: string; refresh_token: string };
-      localStorage.setItem(REFRESH_KEY, refresh_token);
+      const { access_token, refresh_token } = await res.json() as {
+        access_token: string;
+        refresh_token: string;
+      };
+      tokenStore.set('member', access_token, refresh_token);
       applyToken(access_token);
       return access_token;
     } catch {
@@ -68,22 +71,26 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     let mounted = true;
     async function init() {
-      await refreshSession();
+      // If we have an access token already, apply it directly (avoids a network round-trip)
+      const storedAccess = tokenStore.getAccess('member');
+      if (storedAccess) {
+        applyToken(storedAccess);
+      } else {
+        await refreshSession();
+      }
       if (mounted) setLoading(false);
     }
     void init();
     return () => { mounted = false; };
-  }, [refreshSession]);
+  }, [refreshSession, applyToken]);
 
   const login = useCallback((token: string, refreshToken: string) => {
-    localStorage.setItem(REFRESH_KEY, refreshToken);
+    tokenStore.set('member', token, refreshToken);
     applyToken(token);
-    // Evict any active Firebase admin session
-    if (auth) signOut(auth).catch(() => {});
   }, [applyToken]);
 
   const logout = useCallback(async () => {
-    const stored = localStorage.getItem(REFRESH_KEY);
+    const stored = tokenStore.getRefresh('member');
     if (stored) {
       await fetch(`${config.apiUrl}/auth/logout`, {
         method: 'POST',
@@ -94,11 +101,10 @@ export function MemberAuthProvider({ children }: { children: React.ReactNode }) 
     clearSession();
   }, [clearSession]);
 
-  // Returns a valid access token, refreshing if the current one is within 60s of expiry
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (!accessToken) return refreshSession();
     try {
-      const { exp } = JSON.parse(atob(accessToken.split('.')[1])) as { exp: number };
+      const { exp } = decodeJwt<{ exp: number }>(accessToken);
       if (exp * 1000 - Date.now() < 60_000) return refreshSession();
     } catch {
       return refreshSession();
