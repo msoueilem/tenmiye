@@ -3,18 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
-import { useRouter } from 'next/navigation';
+import { useDashboard } from '@/context/DashboardContext';
 
 export function DashboardSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
+  const { logout } = useDashboard();
 
   const handleLogout = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    router.push('/admin/signin');
+    await logout();
   };
 
   const navItems = [
