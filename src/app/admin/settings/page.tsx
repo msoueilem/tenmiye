@@ -4,13 +4,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PublicLandingData, Initiative } from '@/types/landing';
 import { getPublicLandingData, updatePublicLandingData } from '@/features/landing/api.client';
 import { uploadImage } from '@/features/uploads/api.client';
-import { useDashboard } from '@/context/DashboardContext';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 
 type MessageTarget = 'global' | 'logo' | 'favicon' | 'aspect' | 'initiative-modal' | 'stats' | 'achievements' | 'contact';
 
 export default function SettingsPage() {
-  const { user, admin } = useDashboard();
   const { getAccessToken } = useMemberAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -326,7 +324,7 @@ export default function SettingsPage() {
     );
   };
 
-  if (loading || !user || !admin) {
+  if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>

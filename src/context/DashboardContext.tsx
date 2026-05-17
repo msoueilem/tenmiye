@@ -1,32 +1,36 @@
 'use client';
 
 import React, { createContext, useContext } from 'react';
-import { User } from 'firebase/auth';
-import { Admin } from '@/types/users';
+
+export interface AdminSession {
+  userId: string;
+  permissions: string[];
+  googleEmail: string | null;
+}
 
 interface DashboardContextProps {
-  user: User | null;
-  admin: Admin | null;
+  session: AdminSession | null;
+  logout: () => Promise<void>;
 }
 
 const DashboardContext = createContext<DashboardContextProps>({
-  user: null,
-  admin: null,
+  session: null,
+  logout: async () => {},
 });
 
 export const useDashboard = () => useContext(DashboardContext);
 
 export function DashboardProvider({
   children,
-  user,
-  admin,
+  session,
+  logout,
 }: {
   children: React.ReactNode;
-  user: User | null;
-  admin: Admin | null;
+  session: AdminSession | null;
+  logout: () => Promise<void>;
 }) {
   return (
-    <DashboardContext.Provider value={{ user, admin }}>
+    <DashboardContext.Provider value={{ session, logout }}>
       {children}
     </DashboardContext.Provider>
   );

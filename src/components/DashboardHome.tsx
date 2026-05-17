@@ -1,17 +1,19 @@
 'use client';
 
 import React from 'react';
-import { User } from 'firebase/auth';
-import { Admin } from '@/types/users';
 import Link from 'next/link';
+import { AdminSession } from '@/context/DashboardContext';
+import { Permission } from '@/lib/permissions';
 
-export function DashboardHome({ user, admin }: { user: User; admin: Admin }) {
+export function DashboardHome({ session }: { session: AdminSession }) {
+  const isSuperAdmin = session.permissions.includes(Permission.MANAGE_ACCESS);
+
   return (
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-2">لوحة التحكم</h1>
-          <p className="text-slate-500 dark:text-slate-400">مرحباً بك مجدداً، {user.displayName || 'أيها المسؤول'}. إليك نظرة عامة على النظام.</p>
+          <p className="text-slate-500 dark:text-slate-400">مرحباً بك مجدداً، أيها المسؤول. إليك نظرة عامة على النظام.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -61,22 +63,14 @@ export function DashboardHome({ user, admin }: { user: User; admin: Admin }) {
           </div>
           <div className="p-6">
              <div className="flex items-center gap-6">
-                {user.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt={user.displayName || 'User'} 
-                    className="h-20 w-20 rounded-full border-4 border-[#0b3d0b]/10"
-                  />
-                ) : (
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#0b3d0b]/10 text-[#0b3d0b]">
-                    <span className="material-symbols-outlined text-4xl">person</span>
-                  </div>
-                )}
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#0b3d0b]/10 text-[#0b3d0b]">
+                  <span className="material-symbols-outlined text-4xl">person</span>
+                </div>
                 <div>
-                  <h3 className="text-xl font-bold">{user.displayName || 'أيها المسؤول'}</h3>
-                  <p className="text-slate-500 dark:text-slate-400">{user.email}</p>
+                  <h3 className="text-xl font-bold">أيها المسؤول</h3>
+                  <p className="text-slate-500 dark:text-slate-400">{session.googleEmail ?? ''}</p>
                   <span className="inline-block mt-2 rounded-full bg-[#0b3d0b]/10 px-3 py-1 text-xs font-bold text-[#0b3d0b] dark:text-[#d4af37]">
-                    {admin.role === 'super-admin' ? 'مدير عام' : 'محرر'}
+                    {isSuperAdmin ? 'مدير عام' : 'محرر'}
                   </span>
                 </div>
              </div>
