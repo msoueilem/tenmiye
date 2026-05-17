@@ -60,6 +60,15 @@ export class AuthService {
   // ─── SMS OTP ────────────────────────────────────────────────────────────────
 
   async requestOtp(phone: string): Promise<{ sessionInfo: string }> {
+    // Reject early if the phone doesn't belong to an active member
+    const snap = await this.firebase.db
+      .collection('users')
+      .where('phoneNumber', '==', phone)
+      .limit(1)
+      .get();
+    if (snap.empty) throw new UnauthorizedException('Phone number is not registered');
+    this.assertActive((snap.docs[0].data() as UserData).status);
+
     const apiKey = this.config.get('firebase', { infer: true }).webApiKey;
     if (!apiKey) throw new InternalServerErrorException('FIREBASE_WEB_API_KEY is not configured');
 
