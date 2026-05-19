@@ -101,6 +101,26 @@ const NAV: NavItem[] = [
     permissions: ['WRITE_BLOG', 'MODERATE_BLOG'],
   },
   {
+    label: 'الأدوار',
+    href: '/dashboard/roles',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+      </svg>
+    ),
+    permissions: ['MANAGE_ACCESS'],
+  },
+  {
+    label: 'فئات العضوية',
+    href: '/dashboard/tiers',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    ),
+    permissions: ['MANAGE_SETTINGS'],
+  },
+  {
     label: 'الأعضاء',
     href: '/dashboard/members',
     icon: (

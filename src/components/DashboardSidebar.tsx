@@ -21,6 +21,9 @@ export function DashboardSidebar() {
     { name: 'المدونة', icon: 'article', href: '/admin/blog' },
     { name: 'الشؤون المالية', icon: 'payments', href: '/admin/finance' },
     { name: 'إدارة الانتخابات', icon: 'how_to_vote', href: '/admin/elections' },
+    { name: 'الأدوار', icon: 'badge', href: '/admin/roles' },
+    { name: 'فئات العضوية', icon: 'layers', href: '/admin/tiers' },
+    { name: 'حسابات المشرفين', icon: 'admin_panel_settings', href: '/admin/admin-accounts' },
     { name: 'إعدادات المجموعة', icon: 'settings', href: '/admin/settings' },
   ];
 
