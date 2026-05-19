@@ -36,8 +36,6 @@
     "backend": "npm --prefix backend run start:dev"
   },
   "dependencies": {
-    "@google/genai": "^1.17.0",
-    "@hookform/resolvers": "^5.2.1",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
