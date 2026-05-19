@@ -316,30 +316,28 @@ export class ElectionsService {
       throw new BadRequestException(`You must nominate exactly ${cfg.seatsCount} people`);
     }
 
-    // Check: no duplicate nomination submission this round
-    const existingNomDoc = await this.firebase.db
-      .collection(COL).doc(id)
-      .collection('nominations').doc(userId)
-      .get();
-
-    if (existingNomDoc.exists && (existingNomDoc.data() as { round: number }).round === currentRound) {
-      throw new BadRequestException('You have already submitted nominations for this round');
-    }
-
     // Validate all nominees exist in one batch read
     const nomineeRefs = dto.nominees.map((uid) =>
       this.firebase.db.collection('users').doc(uid),
     );
-    const nomineeDocs = await this.firebase.db.getAll(...nomineeRefs);
-    for (const nomineeDoc of nomineeDocs) {
-      if (!nomineeDoc.exists) {
-        throw new BadRequestException(`User ${nomineeDoc.id} not found`);
+    if (nomineeRefs.length > 0) {
+      const nomineeDocs = await this.firebase.db.getAll(...nomineeRefs);
+      for (const nomineeDoc of nomineeDocs) {
+        if (!nomineeDoc.exists) {
+          throw new BadRequestException(`User ${nomineeDoc.id} not found`);
+        }
       }
     }
 
+    const nomRef = this.firebase.db.collection(COL).doc(id).collection('nominations').doc(userId);
+
     await this.firebase.db.runTransaction(async (tx) => {
+      const existingNomDoc = await tx.get(nomRef);
+      if (existingNomDoc.exists && (existingNomDoc.data() as { round: number }).round === currentRound) {
+        throw new BadRequestException('You have already submitted nominations for this round');
+      }
+
       // Write to subcollection
-      const nomRef = this.firebase.db.collection(COL).doc(id).collection('nominations').doc(userId);
       tx.set(nomRef, {
         nominatorUserId: userId,
         nominees: dto.nominees,
@@ -394,28 +392,26 @@ export class ElectionsService {
   }
 
   async castVote(id: string, dto: CastVoteDto, userId: string): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-
-    const data = doc.data() as ElectionData;
-    if (data.status !== 'voting') throw new BadRequestException('Election is not in the voting phase');
-
-    if (data.type === 'yes_no' && dto.choices.length !== 1) {
-      throw new BadRequestException('Yes/No elections require exactly 1 choice');
-    }
-    if (data.type === 'board') {
-      if (dto.choices.length !== data.boardConfig!.seatsCount) {
-        throw new BadRequestException(`Board elections require exactly ${data.boardConfig!.seatsCount} choices`);
-      }
-    }
-
-    // Composite doc ID enforces one vote per user per election at DB level.
-    // Transaction makes the existence-check + write atomic to prevent duplicate votes.
+    const electionRef = this.firebase.db.collection(COL).doc(id);
     const voteRef = this.firebase.db.collection('votes').doc(`${id}_${userId}`);
 
     await this.firebase.db.runTransaction(async (tx) => {
-      const existing = await tx.get(voteRef);
+      const [electionSnap, existing] = await Promise.all([tx.get(electionRef), tx.get(voteRef)]);
+
+      if (!electionSnap.exists) throw new NotFoundException(`Election ${id} not found`);
       if (existing.exists) throw new ForbiddenException('You have already voted in this election');
+
+      const data = electionSnap.data() as ElectionData;
+      if (data.status !== 'voting') throw new BadRequestException('Election is not in the voting phase');
+
+      if (data.type === 'yes_no' && dto.choices.length !== 1) {
+        throw new BadRequestException('Yes/No elections require exactly 1 choice');
+      }
+      if (data.type === 'board') {
+        if (dto.choices.length !== data.boardConfig!.seatsCount) {
+          throw new BadRequestException(`Board elections require exactly ${data.boardConfig!.seatsCount} choices`);
+        }
+      }
 
       tx.set(voteRef, {
         electionId: id,
