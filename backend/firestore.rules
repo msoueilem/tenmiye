@@ -30,23 +30,23 @@ service cloud.firestore {
       allow write: if isActiveAdmin();
     }
 
-    match /elections/{electionId} {
+    match /boards/{docId} {
       allow read: if true;
       allow write: if isActiveAdmin();
     }
 
+    match /elections/{electionId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+
+      match /nominations/{nomId} {
+        allow read: if isActiveAdmin();
+        allow write: if false; // all nomination writes go through backend Admin SDK
+      }
+    }
+
     match /votes/{voteId} {
       allow read: if isActiveAdmin() || (isSignedIn() && voteId.matches('^[^_]+_' + request.auth.uid + '$'));
-      allow write: if false;
-    }
-
-    match /nominations/{nominationId} {
-      allow read: if isActiveAdmin();
-      allow write: if false;
-    }
-
-    match /nomination-counts/{countId} {
-      allow read: if true;
       allow write: if false;
     }
 
