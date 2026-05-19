@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { apiFetch } from '@/lib/api';
 import {
   getElectionById,
   getElectionResults,
@@ -68,13 +68,10 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     const trimmed = q.trim();
     if (trimmed.length < 2) { setSearchResults([]); return; }
     try {
-      const token = await getAccessToken();
-      if (!token) return;
-      const res = await memberFetch(`/me/members/search?q=${encodeURIComponent(trimmed)}`, token);
-      if (!res.ok) return;
-      setSearchResults(await res.json() as PublicMember[]);
+      const results = await apiFetch<PublicMember[]>('GET', `/me/members/search?q=${encodeURIComponent(trimmed)}`, { tokenType: 'member' });
+      setSearchResults(results);
     } catch { /* ignore */ }
-  }, [getAccessToken]);
+  }, []);
 
   const toggleMember = (uid: string) => {
     setSelections((prev) => (prev.includes(uid) ? prev.filter((x) => x !== uid) : [uid]));

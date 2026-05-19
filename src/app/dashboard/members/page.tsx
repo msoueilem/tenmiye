@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch, parseApiError } from '@/lib/memberApi';
+import { apiFetch, ApiError } from '@/lib/api';
 
 const LIMIT = 25;
 const CAN_MANAGE = 'MANAGE_USERS';
@@ -67,7 +67,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const INPUT_CLS = 'w-full rounded-xl border border-white/10 bg-[#071a07] px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none focus:border-[#0df20d]/40 focus:ring-1 focus:ring-[#0df20d]/20';
 
 export default function MembersPage() {
-  const { getAccessToken, user } = useMemberAuth();
+  const { user } = useMemberAuth();
   const canManage = user?.permissions.includes(CAN_MANAGE) ?? false;
 
   const [rows, setRows] = useState<Member[]>([]);
@@ -86,15 +86,18 @@ export default function MembersPage() {
   const [formSaving, setFormSaving] = useState(false);
 
   const fetchPage = useCallback(async (cursor?: string) => {
-    const token = await getAccessToken();
-    if (!token) { setError('انتهت الجلسة.'); return; }
     const params = new URLSearchParams({ limit: String(LIMIT) });
     if (cursor) params.set('cursor', cursor);
-    const res = await memberFetch(`/users?${params}`, token);
-    if (res.status === 403) { setError('ليس لديك صلاحية الوصول لهذه الصفحة.'); return; }
-    if (!res.ok) { setError('تعذّر تحميل الأعضاء.'); return; }
-    return res.json() as Promise<{ data: Member[]; nextCursor: string | null }>;
-  }, [getAccessToken]);
+    try {
+      return await apiFetch<{ data: Member[]; nextCursor: string | null }>('GET', `/users?${params}`, { tokenType: 'member' });
+    } catch (e: unknown) {
+      if (e instanceof ApiError && e.status === 403) {
+        setError('ليس لديك صلاحية الوصول لهذه الصفحة.');
+      } else {
+        setError('تعذّر تحميل الأعضاء.');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -121,15 +124,10 @@ export default function MembersPage() {
 
   async function updateStatus(id: string, status: 'active' | 'blocked') {
     setActing((prev) => ({ ...prev, [id]: true }));
-    const token = await getAccessToken();
-    if (token) {
-      const res = await memberFetch(`/users/${id}`, token, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) setRows((prev) => prev.map((m) => m.id === id ? { ...m, status } : m));
-    }
+    try {
+      await apiFetch(`PATCH`, `/users/${id}`, { body: { status }, tokenType: 'member' });
+      setRows((prev) => prev.map((m) => m.id === id ? { ...m, status } : m));
+    } catch { /* silently ignore — row stays unchanged */ }
     setActing((prev) => ({ ...prev, [id]: false }));
   }
 
@@ -168,8 +166,6 @@ export default function MembersPage() {
   async function submitForm() {
     setFormSaving(true);
     setFormError('');
-    const token = await getAccessToken();
-    if (!token) { setFormError('انتهت الجلسة.'); setFormSaving(false); return; }
 
     const body: Record<string, unknown> = {
       fullName: form.fullName,
@@ -181,34 +177,22 @@ export default function MembersPage() {
     if (form.city) body.city = form.city;
     if (form.region) body.region = form.region;
 
-    if (modal === 'add') {
-      if (!form.whatsappNumber) { setFormError('رقم واتساب مطلوب.'); setFormSaving(false); return; }
-      body.whatsappNumber = form.whatsappNumber;
-      const res = await memberFetch('/users', token, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        const { id } = await res.json() as { id: string };
+    try {
+      if (modal === 'add') {
+        if (!form.whatsappNumber) { setFormError('رقم واتساب مطلوب.'); setFormSaving(false); return; }
+        body.whatsappNumber = form.whatsappNumber;
+        const { id } = await apiFetch<{ id: string }>('POST', '/users', { body, tokenType: 'member' });
         const newMember: Member = { id, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsidePlatform: form.outsidePlatform, status: 'pending', createdAt: new Date().toISOString() };
         setRows((prev) => [newMember, ...prev]);
         closeModal();
-      } else {
-        setFormError(await parseApiError(res, 'تعذّر إضافة العضو.'));
-      }
-    } else if (modal === 'edit' && editing) {
-      const res = await memberFetch(`/users/${editing.id}`, token, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
+      } else if (modal === 'edit' && editing) {
+        await apiFetch('PATCH', `/users/${editing.id}`, { body, tokenType: 'member' });
         setRows((prev) => prev.map((m) => m.id === editing.id ? { ...m, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber || m.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsidePlatform: form.outsidePlatform } : m));
         closeModal();
-      } else {
-        setFormError(await parseApiError(res, 'تعذّر تحديث بيانات العضو.'));
       }
+    } catch (e: unknown) {
+      const fallback = modal === 'add' ? 'تعذّر إضافة العضو.' : 'تعذّر تحديث بيانات العضو.';
+      setFormError(e instanceof ApiError ? e.message : fallback);
     }
     setFormSaving(false);
   }

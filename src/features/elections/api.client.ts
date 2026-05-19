@@ -1,6 +1,5 @@
 import { config } from '@/lib/config';
-import { apiFetch } from '@/lib/api';
-import { memberFetch, parseApiError } from '@/lib/memberApi';
+import { apiFetch, ApiError } from '@/lib/api';
 import { Election, ElectionResults } from '@/types/elections';
 
 export async function getAllElections(): Promise<Election[] | null> {
@@ -36,28 +35,19 @@ export async function getElectionResults(id: string): Promise<ElectionResults | 
 export async function castVoteApi(
   electionId: string,
   selections: string[],
-  token: string,
+  _token: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await memberFetch(`/elections/${electionId}/votes`, token, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selections }),
-    });
-    if (!res.ok) {
-      return { ok: false, error: await parseApiError(res, 'حدث خطأ أثناء التصويت') };
-    }
+    await apiFetch('POST', `/elections/${electionId}/votes`, { body: { selections }, tokenType: 'member' });
     return { ok: true };
-  } catch {
-    return { ok: false, error: 'تعذر الاتصال بالخادم' };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof ApiError ? e.message : 'تعذر الاتصال بالخادم' };
   }
 }
 
-export async function getMyVotedElectionIds(token: string): Promise<Set<string>> {
+export async function getMyVotedElectionIds(_token: string): Promise<Set<string>> {
   try {
-    const res = await memberFetch('/me/votes', token);
-    if (!res.ok) return new Set();
-    const votes = (await res.json()) as Array<{ electionId: string }>;
+    const votes = await apiFetch<Array<{ electionId: string }>>('GET', '/me/votes', { tokenType: 'member' });
     return new Set(votes.map((v) => v.electionId));
   } catch {
     return new Set();
