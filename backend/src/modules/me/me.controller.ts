@@ -74,7 +74,7 @@ export class MeController {
       .collection('users')
       .where('status', '==', 'active')
       .where('fullName', '>=', trimmed)
-      .where('fullName', '<=', trimmed + '')
+      .where('fullName', '<=', trimmed + '￿')
       .limit(20)
       .get();
     return snapshot.docs.map((d) => {
