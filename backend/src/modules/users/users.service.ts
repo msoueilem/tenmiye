@@ -73,7 +73,7 @@ export class UsersService {
       if (!fileDoc.exists || fileDoc.data()?.deleted === true) {
         throw new BadRequestException(`Profile picture '${dto.profilePictureId}' does not exist`);
       }
-      if (fileDoc.data()?.category !== 'user-profile') {
+      if (fileDoc.data()?.purpose !== 'profile-picture') {
         throw new BadRequestException(`File '${dto.profilePictureId}' is not a user profile picture`);
       }
     }
