@@ -326,10 +326,15 @@ export class ElectionsService {
       throw new BadRequestException('You have already submitted nominations for this round');
     }
 
-    // Validate each nominee exists
-    for (const nomineeId of dto.nominees) {
-      const userDoc = await this.firebase.db.collection('users').doc(nomineeId).get();
-      if (!userDoc.exists) throw new BadRequestException(`User ${nomineeId} not found`);
+    // Validate all nominees exist in one batch read
+    const nomineeRefs = dto.nominees.map((uid) =>
+      this.firebase.db.collection('users').doc(uid),
+    );
+    const nomineeDocs = await this.firebase.db.getAll(...nomineeRefs);
+    for (const nomineeDoc of nomineeDocs) {
+      if (!nomineeDoc.exists) {
+        throw new BadRequestException(`User ${nomineeDoc.id} not found`);
+      }
     }
 
     await this.firebase.db.runTransaction(async (tx) => {
