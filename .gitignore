@@ -69,3 +69,9 @@ pre-fix-search.diff
 
 # Claude MCP
 .mcp.json
+
+# Claude Superpowers Skill
+docs/superpowers/
+
+# TypeScript build info
+*.tsbuildinfo
