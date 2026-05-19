@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, tokenStore } from '@/lib/api';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 
-type Step = 'phone' | 'otp' | 'password' | 'set-password';
+type Step = 'phone' | 'otp' | 'password' | 'set-password' | 'forgot-otp' | 'forgot-set';
 
 interface PhoneCheckResult {
   isMember: boolean;
@@ -126,6 +126,45 @@ function MemberSignInForm() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await apiFetch<{ sessionInfo: string }>('POST', '/auth/phone/request-otp', {
+        body: { phone },
+      });
+      setSessionInfo(result.sessionInfo);
+      setOtpCode('');
+      setStep('forgot-otp');
+    } catch {
+      setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpCode.length < 6) return;
+    setLoading(true);
+    setError('');
+    try {
+      const result = await apiFetch<TokenPair & { requiresPasswordSetup: boolean }>(
+        'POST',
+        '/auth/phone/verify-otp',
+        { body: { sessionInfo, code: otpCode } },
+      );
+      setPendingTokens({ access_token: result.access_token, refresh_token: result.refresh_token });
+      setNewPassword('');
+      setConfirmPassword('');
+      setStep('forgot-set');
+    } catch {
+      setError('رمز التحقق غير صحيح أو منتهي الصلاحية.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword !== confirmPassword) {
@@ -230,6 +269,14 @@ function MemberSignInForm() {
               </button>
               <button
                 type="button"
+                onClick={handleForgotPassword}
+                disabled={loading}
+                className="w-full text-sm text-[#0df20d]/70 font-bold hover:text-[#0df20d] disabled:opacity-50"
+              >
+                نسيت كلمة المرور؟
+              </button>
+              <button
+                type="button"
                 onClick={() => { setStep('phone'); setPassword(''); setError(''); }}
                 className="w-full text-sm text-slate-400 font-bold hover:text-slate-600"
               >
@@ -312,6 +359,81 @@ function MemberSignInForm() {
               </button>
             </form>
           )}
+          {step === 'forgot-otp' && (
+            <form onSubmit={handleForgotOtpSubmit} className="space-y-6">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
+                <p className="text-xs text-slate-500 mb-1">تم إرسال رمز التحقق إلى</p>
+                <p className="font-black text-lg" dir="ltr">{phoneDisplay}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">رمز التحقق</label>
+                <input
+                  className="w-full h-14 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 text-center font-black text-xl tracking-[0.5em] outline-none focus:ring-4 focus:ring-[#0df20d]/10"
+                  type="text"
+                  placeholder="000000"
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value)}
+                  maxLength={6}
+                  dir="ltr"
+                  autoFocus
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading || otpCode.length < 6}
+                className="w-full h-14 bg-[#0df20d] text-slate-900 rounded-2xl font-black text-lg hover:bg-[#0be00b] transition-all shadow-lg shadow-[#0df20d]/20 disabled:opacity-50"
+              >
+                {loading ? 'جاري التحقق...' : 'تأكيد'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStep('password'); setOtpCode(''); setError(''); }}
+                className="w-full text-sm text-slate-400 font-bold hover:text-slate-600"
+              >
+                العودة
+              </button>
+            </form>
+          )}
+
+          {step === 'forgot-set' && (
+            <form onSubmit={handleSetPasswordSubmit} className="space-y-6">
+              <div className="p-4 bg-[#0df20d]/5 rounded-2xl border border-[#0df20d]/20 text-center">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">أدخل كلمة مرور جديدة لحسابك</p>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">كلمة المرور الجديدة</label>
+                <input
+                  className="w-full h-14 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 font-bold text-lg outline-none focus:ring-4 focus:ring-[#0df20d]/10 transition-all"
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  autoFocus
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">تأكيد كلمة المرور</label>
+                <input
+                  className="w-full h-14 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 font-bold text-lg outline-none focus:ring-4 focus:ring-[#0df20d]/10 transition-all"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading || !newPassword || newPassword !== confirmPassword}
+                className="w-full h-14 bg-[#0df20d] text-slate-900 rounded-2xl font-black text-lg hover:bg-[#0be00b] transition-all shadow-lg shadow-[#0df20d]/20 disabled:opacity-50"
+              >
+                {loading ? 'جاري الحفظ...' : 'حفظ وتسجيل الدخول'}
+              </button>
+            </form>
+          )}
+
         </div>
       </div>
     </div>
