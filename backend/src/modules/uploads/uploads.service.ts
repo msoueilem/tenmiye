@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { serializeDoc } from '../../common/utils/firestore';
@@ -58,10 +58,9 @@ export class UploadsService {
     const bucket = this.firebase.storage.bucket();
     const fileRef = bucket.file(storagePath);
     await fileRef.save(file.buffer, { metadata: { contentType: file.mimetype } });
-    await fileRef.makePublic();
 
-    const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
-    const now = FieldValue.serverTimestamp();
+    const { url: downloadUrl, expiresAt: urlExpiresAt } = await this.generateSignedUrl(storagePath);
+    const nowTs = Timestamp.now();
 
     const docRef = await this.firebase.db.collection(COLLECTION).add({
       originalName: file.originalname,
@@ -70,7 +69,7 @@ export class UploadsService {
       sizeBytes: file.size,
       storagePath,
       downloadUrl,
-      urlExpiresAt: null,
+      urlExpiresAt: Timestamp.fromDate(urlExpiresAt),
       storageDeleted: false,
       storageDeletedAt: null,
       ownerType: ctx.ownerType,
@@ -80,7 +79,7 @@ export class UploadsService {
       validationStatus: 'passed',
       validationErrors: null,
       uploadedBy: ctx.uploadedBy,
-      uploadedAt: now,
+      uploadedAt: FieldValue.serverTimestamp(),
       deleted: false,
       deletedAt: null,
       deletedBy: null,
@@ -92,9 +91,9 @@ export class UploadsService {
       thumbnailPath: null,
       thumbnailUrl: null,
       referenceCount: 0,
-      history: [{ action: 'uploaded', by: ctx.uploadedBy, at: now, note: null }],
-      createdAt: now,
-      updatedAt: now,
+      history: [{ action: 'uploaded', by: ctx.uploadedBy, at: nowTs, note: null }],
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       updatedBy: null,
     });
 
@@ -123,18 +122,18 @@ export class UploadsService {
 
     await this.firebase.storage.bucket().file(storagePath).delete({ ignoreNotFound: true });
 
-    const now = FieldValue.serverTimestamp();
+    const nowTs = Timestamp.now();
     await docRef.update({
       deleted: true,
-      deletedAt: now,
+      deletedAt: FieldValue.serverTimestamp(),
       deletedBy,
       deletionReason,
       deletionNote: deletionNote ?? null,
       storageDeleted: true,
-      storageDeletedAt: now,
+      storageDeletedAt: FieldValue.serverTimestamp(),
       status: 'deleted',
-      history: [...history, { action: 'deleted', by: deletedBy, at: now, note: deletionNote ?? null }],
-      updatedAt: now,
+      history: [...history, { action: 'deleted', by: deletedBy, at: nowTs, note: deletionNote ?? null }],
+      updatedAt: FieldValue.serverTimestamp(),
       updatedBy: deletedBy,
     });
   }
@@ -151,19 +150,19 @@ export class UploadsService {
 
     const result = await this.upload(file, ctx);
 
-    const now = FieldValue.serverTimestamp();
+    const nowTs = Timestamp.now();
     const { storagePath: oldPath, history = [] } = oldDoc.data() as { storagePath: string; history: unknown[] };
 
     await oldDocRef.update({
       replacedBy: result.id,
-      replacedAt: now,
+      replacedAt: FieldValue.serverTimestamp(),
       status: 'deleted',
       deleted: true,
-      deletedAt: now,
+      deletedAt: FieldValue.serverTimestamp(),
       deletedBy: ctx.uploadedBy,
       deletionReason: 'replaced' as DeletionReason,
-      history: [...history, { action: 'deleted', by: ctx.uploadedBy, at: now, note: 'replaced by new upload' }],
-      updatedAt: now,
+      history: [...history, { action: 'deleted', by: ctx.uploadedBy, at: nowTs, note: 'replaced by new upload' }],
+      updatedAt: FieldValue.serverTimestamp(),
       updatedBy: ctx.uploadedBy,
     });
 
@@ -173,9 +172,32 @@ export class UploadsService {
   }
 
   async findById(uploadId: string): Promise<UploadRecord> {
-    const doc = await this.firebase.db.collection(COLLECTION).doc(uploadId).get();
+    const docRef = this.firebase.db.collection(COLLECTION).doc(uploadId);
+    const doc = await docRef.get();
     if (!doc.exists) throw new NotFoundException(`Upload ${uploadId} not found`);
+
+    const data = doc.data() as { storagePath: string; urlExpiresAt: Timestamp | null; deleted: boolean };
+
+    if (!data.deleted && data.urlExpiresAt && data.urlExpiresAt.toMillis() <= Date.now()) {
+      const { url, expiresAt } = await this.generateSignedUrl(data.storagePath);
+      await docRef.update({
+        downloadUrl: url,
+        urlExpiresAt: Timestamp.fromDate(expiresAt),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return { id: doc.id, ...serializeDoc(doc.data()), downloadUrl: url } as UploadRecord;
+    }
+
     return { id: doc.id, ...serializeDoc(doc.data()) } as UploadRecord;
+  }
+
+  private async generateSignedUrl(storagePath: string): Promise<{ url: string; expiresAt: Date }> {
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const [url] = await this.firebase.storage
+      .bucket()
+      .file(storagePath)
+      .getSignedUrl({ action: 'read', expires: expiresAt });
+    return { url, expiresAt };
   }
 
   async findAll(

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { instanceToPlain } from 'class-transformer';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { CreateBoardDto } from './dto/create-board.dto';
@@ -34,7 +35,7 @@ export class BoardsService {
       status: dto.status ?? 'upcoming',
       mandates: dto.mandates ?? [],
       obligations: dto.obligations ?? [],
-      achievements: dto.achievements ?? [],
+      achievements: instanceToPlain(dto.achievements ?? []),
       electionId: dto.electionId ?? null,
       predecessorBoardId: dto.predecessorBoardId ?? null,
       createdAt: FieldValue.serverTimestamp(),
@@ -56,7 +57,7 @@ export class BoardsService {
     if (dto.status !== undefined) payload.status = dto.status;
     if (dto.mandates !== undefined) payload.mandates = dto.mandates;
     if (dto.obligations !== undefined) payload.obligations = dto.obligations;
-    if (dto.achievements !== undefined) payload.achievements = dto.achievements;
+    if (dto.achievements !== undefined) payload.achievements = instanceToPlain(dto.achievements);
     if (dto.electionId !== undefined) payload.electionId = dto.electionId;
     if (dto.predecessorBoardId !== undefined) payload.predecessorBoardId = dto.predecessorBoardId;
     if (dto.termStartDate !== undefined) payload.termStartDate = Timestamp.fromDate(new Date(dto.termStartDate));
