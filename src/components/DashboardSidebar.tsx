@@ -16,6 +16,10 @@ export function DashboardSidebar() {
   const navItems = [
     { name: 'لوحة التحكم', icon: 'dashboard', href: '/admin' },
     { name: 'الأعضاء', icon: 'group', href: '/admin/members' },
+    { name: 'مجالس الإدارة', icon: 'corporate_fare', href: '/admin/boards' },
+    { name: 'الإعلانات', icon: 'campaign', href: '/admin/announcements' },
+    { name: 'المدونة', icon: 'article', href: '/admin/blog' },
+    { name: 'الشؤون المالية', icon: 'payments', href: '/admin/finance' },
     { name: 'إدارة الانتخابات', icon: 'how_to_vote', href: '/admin/elections' },
     { name: 'إعدادات المجموعة', icon: 'settings', href: '/admin/settings' },
   ];
