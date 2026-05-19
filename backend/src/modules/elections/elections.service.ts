@@ -395,11 +395,6 @@ export class ElectionsService {
     const data = doc.data() as ElectionData;
     if (data.status !== 'voting') throw new BadRequestException('Election is not in the voting phase');
 
-    // Composite doc ID enforces one vote per user per election at DB level
-    const voteRef = this.firebase.db.collection('votes').doc(`${id}_${userId}`);
-    const existing = await voteRef.get();
-    if (existing.exists) throw new ForbiddenException('You have already voted in this election');
-
     if (data.type === 'yes_no' && dto.choices.length !== 1) {
       throw new BadRequestException('Yes/No elections require exactly 1 choice');
     }
@@ -409,12 +404,21 @@ export class ElectionsService {
       }
     }
 
-    await voteRef.set({
-      electionId: id,
-      userId,
-      electionType: data.type,
-      choices: dto.choices,
-      castAt: FieldValue.serverTimestamp(),
+    // Composite doc ID enforces one vote per user per election at DB level.
+    // Transaction makes the existence-check + write atomic to prevent duplicate votes.
+    const voteRef = this.firebase.db.collection('votes').doc(`${id}_${userId}`);
+
+    await this.firebase.db.runTransaction(async (tx) => {
+      const existing = await tx.get(voteRef);
+      if (existing.exists) throw new ForbiddenException('You have already voted in this election');
+
+      tx.set(voteRef, {
+        electionId: id,
+        userId,
+        electionType: data.type,
+        choices: dto.choices,
+        castAt: FieldValue.serverTimestamp(),
+      });
     });
   }
 
