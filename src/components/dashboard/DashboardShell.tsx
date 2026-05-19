@@ -41,6 +41,36 @@ const NAV: NavItem[] = [
     ),
   },
   {
+    label: 'مجالس الإدارة',
+    href: '/dashboard/boards',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="7" width="20" height="15" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="12" y1="12" x2="12" y2="17" /><line x1="9.5" y1="14.5" x2="14.5" y2="14.5" />
+      </svg>
+    ),
+    permissions: ['MANAGE_BOARDS'],
+  },
+  {
+    label: 'الإعلانات',
+    href: '/dashboard/announcements',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8a3 3 0 0 1 0 6" /><path d="M10 8v11" /><path d="M12 8h-2a4 4 0 0 1-4-4 4 4 0 0 1 4 4v0z" /><path d="M12 8h3l3 9H9l3-9z" />
+      </svg>
+    ),
+    permissions: ['MANAGE_SETTINGS'],
+  },
+  {
+    label: 'الشؤون المالية',
+    href: '/dashboard/finance',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
+      </svg>
+    ),
+    permissions: ['READ_FINANCE', 'RECORD_CONTRIBUTIONS', 'RECORD_EXPENSES'],
+  },
+  {
     label: 'طلبات الانضمام',
     href: '/dashboard/registrations',
     icon: (
