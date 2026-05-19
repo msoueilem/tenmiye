@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 import { getAllElections, getMyVotedElectionIds } from '@/features/elections/api.client';
-import { BackendElection, BackendElectionType, BackendElectionStatus } from '@/types/elections';
+import { Election, BackendElectionType, BackendElectionStatus } from '@/types/elections';
 
 function typeLabel(type: BackendElectionType): string {
   if (type === 'general_vote') return 'استفتاء';
@@ -20,7 +20,7 @@ function BallotIcon() {
   );
 }
 
-interface ElectionRow extends BackendElection {
+interface ElectionRow extends Election {
   hasVoted?: boolean;
 }
 

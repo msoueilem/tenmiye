@@ -1,23 +1,23 @@
 import { config } from '@/lib/config';
 import { apiFetch } from '@/lib/api';
 import { memberFetch, parseApiError } from '@/lib/memberApi';
-import { BackendElection, ElectionResults } from '@/types/elections';
+import { Election, ElectionResults } from '@/types/elections';
 
-export async function getAllElections(): Promise<BackendElection[] | null> {
+export async function getAllElections(): Promise<Election[] | null> {
   try {
     const res = await fetch(`${config.apiUrl}/elections`);
     if (!res.ok) return null;
-    return res.json() as Promise<BackendElection[]>;
+    return res.json() as Promise<Election[]>;
   } catch {
     return null;
   }
 }
 
-export async function getElectionById(id: string): Promise<BackendElection | null> {
+export async function getElectionById(id: string): Promise<Election | null> {
   try {
     const res = await fetch(`${config.apiUrl}/elections/${id}`);
     if (!res.ok) return null;
-    return res.json() as Promise<BackendElection>;
+    return res.json() as Promise<Election>;
   } catch {
     return null;
   }
@@ -70,7 +70,7 @@ export async function checkMyVote(electionId: string, token: string): Promise<bo
 }
 
 export async function createElectionApi(
-  data: Pick<BackendElection, 'title' | 'description' | 'type' | 'startTime' | 'endTime'>,
+  data: Pick<Election, 'title' | 'description' | 'type' | 'startTime' | 'endTime'>,
 ): Promise<{ id: string } | null> {
   try {
     return await apiFetch<{ id: string }>('POST', '/elections', { body: data, tokenType: 'admin' });
@@ -81,7 +81,7 @@ export async function createElectionApi(
 
 export async function updateElectionApi(
   id: string,
-  data: Partial<Pick<BackendElection, 'title' | 'description' | 'type' | 'status' | 'startTime' | 'endTime'>>,
+  data: Partial<Pick<Election, 'title' | 'description' | 'type' | 'status' | 'startTime' | 'endTime'>>,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     await apiFetch('PATCH', `/elections/${id}`, { body: data, tokenType: 'admin' });

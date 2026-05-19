@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BackendElection, BackendElectionType, BackendElectionStatus, ElectionResults } from '@/types/elections';
+import { Election, BackendElectionType, BackendElectionStatus, ElectionResults } from '@/types/elections';
 import {
   getAllElections,
   createElectionApi,
@@ -46,7 +46,7 @@ function statusColors(status: BackendElectionStatus): string {
 }
 
 export default function ElectionsManagementPage() {
-  const [elections, setElections] = useState<BackendElection[]>([]);
+  const [elections, setElections] = useState<Election[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -56,7 +56,7 @@ export default function ElectionsManagementPage() {
   const [form, setForm] = useState<ElectionForm>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [resultsElection, setResultsElection] = useState<BackendElection | null>(null);
+  const [resultsElection, setResultsElection] = useState<Election | null>(null);
   const [results, setResults] = useState<ElectionResults | null>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
 
@@ -81,7 +81,7 @@ export default function ElectionsManagementPage() {
     setIsModalOpen(true);
   }
 
-  function openEdit(e: BackendElection) {
+  function openEdit(e: Election) {
     setEditingId(e.id);
     setForm({
       title: e.title,
@@ -94,7 +94,7 @@ export default function ElectionsManagementPage() {
     setIsModalOpen(true);
   }
 
-  async function openResults(e: BackendElection) {
+  async function openResults(e: Election) {
     setResultsElection(e);
     setResultsLoading(true);
     setResults(await getElectionResults(e.id));

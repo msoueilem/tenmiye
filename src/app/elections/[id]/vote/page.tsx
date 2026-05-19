@@ -10,7 +10,7 @@ import {
   castVoteApi,
   checkMyVote,
 } from '@/features/elections/api.client';
-import { BackendElection, ElectionResults, PublicMember } from '@/types/elections';
+import { Election, ElectionResults, PublicMember } from '@/types/elections';
 import { Card } from '@/components/ui/Card';
 import { AlertBox } from '@/components/ui/AlertBox';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -29,7 +29,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
   const router = useRouter();
   const { getAccessToken, user } = useMemberAuth();
 
-  const [election, setElection] = useState<BackendElection | null>(null);
+  const [election, setElection] = useState<Election | null>(null);
   const [results, setResults] = useState<ElectionResults | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [loading, setLoading] = useState(true);

@@ -17,21 +17,19 @@ export interface ElectionConfig {
   };
 }
 
+// Backend election types (from NestJS API — electionProcesses collection)
+export type BackendElectionType = 'board_election' | 'committee_election' | 'general_vote';
+export type BackendElectionStatus = 'pending' | 'active' | 'completed' | 'cancelled';
+
 export interface Election {
   id: string;
   title: string;
-  description: string;
-  type: ElectionType;
-  status: 'active' | 'closed' | 'draft';
-  resultsVisibility: 'always' | 'after_close' | 'admin_always' | 'admin_after_close';
-  startTime: any;
-  endTime: any;
-  minSelections?: number;
-  maxSelections?: number;
-  options: ElectionOption[];
-  createdAt: any;
-  stats?: Record<string, number>;
-  config?: ElectionConfig;
+  description?: string;
+  type: BackendElectionType;
+  status: BackendElectionStatus;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
 }
 
 export interface Vote {
@@ -39,7 +37,7 @@ export interface Vote {
   electionId: string;
   voterId: string;
   selections: string[];
-  votedAt: any;
+  votedAt: string;
 }
 
 export interface NominationCount {
@@ -54,21 +52,6 @@ export interface PublicMember {
   name: string;
   photoUrl?: string;
   status?: string;
-}
-
-// Backend election types (from NestJS API — electionProcesses collection)
-export type BackendElectionType = 'board_election' | 'committee_election' | 'general_vote';
-export type BackendElectionStatus = 'pending' | 'active' | 'completed' | 'cancelled';
-
-export interface BackendElection {
-  id: string;
-  title: string;
-  description?: string;
-  type: BackendElectionType;
-  status: BackendElectionStatus;
-  startTime: string;
-  endTime: string;
-  createdAt: string;
 }
 
 export interface ElectionResults {
