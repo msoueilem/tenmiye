@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
@@ -40,6 +41,8 @@ type ElectionData = {
 
 @Injectable()
 export class ElectionsService {
+  private readonly logger = new Logger(ElectionsService.name);
+
   constructor(private readonly firebase: FirebaseService) {}
 
   // ─── Public reads ──────────────────────────────────────────────────────────
@@ -450,8 +453,8 @@ export class ElectionsService {
           status: hasEnough ? 'voting' : 'nomination',
           updatedAt: FieldValue.serverTimestamp(),
         });
-      } catch {
-        // Log and continue — don't let one failure block others
+      } catch (err: unknown) {
+        this.logger.error(`autoConfirmExpiredDismissals failed for election ${electionDoc.id}`, err);
       }
     }
   }
@@ -475,7 +478,9 @@ export class ElectionsService {
         if (!deadline || deadline.toMillis() > now.toMillis()) continue;
 
         if (data.type === 'board') {
-          // Board finalization requires explicit admin action — just log
+          this.logger.warn(
+            `Board election ${electionDoc.id} votingEnd has passed — admin must call POST /elections/${electionDoc.id}/finalize`,
+          );
           continue;
         }
 
@@ -484,8 +489,8 @@ export class ElectionsService {
           status: 'completed',
           updatedAt: FieldValue.serverTimestamp(),
         });
-      } catch {
-        // Log and continue
+      } catch (err: unknown) {
+        this.logger.error(`autoCloseExpiredVoting failed for election ${electionDoc.id}`, err);
       }
     }
   }
