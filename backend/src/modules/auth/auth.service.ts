@@ -225,6 +225,37 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  async logoutAll(userId: string): Promise<{ message: string }> {
+    const snap = await this.firebase.db
+      .collection('refreshTokens')
+      .where('userId', '==', userId)
+      .get();
+
+    if (!snap.empty) {
+      const batch = this.firebase.db.batch();
+      snap.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+    }
+
+    this.log('LOGOUT_ALL', 'warn', { userId });
+    return { message: 'All sessions terminated' };
+  }
+
+  async purgeExpiredRefreshTokens(): Promise<number> {
+    const snap = await this.firebase.db
+      .collection('refreshTokens')
+      .where('expiresAt', '<=', Timestamp.now())
+      .get();
+
+    if (snap.empty) return 0;
+
+    const batch = this.firebase.db.batch();
+    snap.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+
+    return snap.size;
+  }
+
   // ─── Google OAuth ────────────────────────────────────────────────────────────
 
   async issueAdminSession(user: {

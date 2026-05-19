@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -79,6 +80,14 @@ export class AuthController {
   @Post('logout')
   logout(@Body() dto: RefreshTokenDto) {
     return this.auth.logout(dto.refreshToken);
+  }
+
+  @ApiOperation({ summary: 'Logout all sessions — revokes every refresh token for the current user' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('logout-all')
+  logoutAll(@CurrentUser() user: JwtPayload) {
+    return this.auth.logoutAll(user.userId);
   }
 
   // ─── Google OAuth ────────────────────────────────────────────────────────────
