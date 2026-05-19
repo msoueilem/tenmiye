@@ -7,6 +7,8 @@ import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { FirebaseService } from '../../common/firebase/firebase.service';
@@ -15,7 +17,8 @@ import { UpdateMeDto } from './dto/update-me.dto';
 
 @ApiTags('me')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), UserTypeGuard)
+@RequireUserType('member')
 @Controller('me')
 export class MeController {
   constructor(

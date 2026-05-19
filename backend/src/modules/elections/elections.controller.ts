@@ -16,7 +16,9 @@ import { CastVoteDto } from './dto/cast-vote.dto';
 import { AdvanceElectionDto } from './dto/advance-election.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -111,7 +113,8 @@ export class ElectionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Submit nominations for a board election' })
   @Post(':id/nominations')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
   submitNomination(
     @Param('id') id: string,
     @Body() dto: SubmitNominationDto,
@@ -123,7 +126,8 @@ export class ElectionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Opt out of nomination during the dismissal phase' })
   @Delete(':id/nominations/me')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
   dismissSelf(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
     return this.elections.dismissSelf(id, req.user.userId);
   }
@@ -131,7 +135,8 @@ export class ElectionsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cast a vote in an election' })
   @Post(':id/votes')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
   castVote(
     @Param('id') id: string,
     @Body() dto: CastVoteDto,
