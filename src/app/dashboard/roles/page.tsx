@@ -8,19 +8,17 @@ import { getRoles, createRole, updateRole } from '@/features/roles/api.client';
 type Mode = 'list' | 'create' | 'edit';
 
 const ALL_PERMISSIONS = [
-  'MANAGE_USERS',
-  'MANAGE_REGISTRATIONS',
-  'MANAGE_BOARDS',
-  'MANAGE_ACCESS',
-  'MANAGE_ELECTIONS',
-  'MANAGE_PAYMENT_CHANNELS',
-  'RECORD_CONTRIBUTIONS',
-  'VERIFY_CONTRIBUTIONS',
-  'RECORD_EXPENSES',
-  'WRITE_BLOG',
-  'MODERATE_BLOG',
-  'READ_FINANCE',
   'READ_ALL',
+  'READ_MESSAGES',
+  'MANAGE_REGISTRATIONS',
+  'MANAGE_USERS',
+  'MANAGE_BOARDS',
+  'MANAGE_ELECTIONS',
+  'MANAGE_FINANCE',
+  'MANAGE_ANNOUNCEMENTS',
+  'MANAGE_TIERS',
+  'MANAGE_ROLES',
+  'MODERATE_BLOG',
   'MANAGE_SETTINGS',
 ] as const;
 
@@ -34,7 +32,7 @@ const emptyForm = (): CreateRoleDto => ({
 
 export default function DashboardRolesPage() {
   const { user } = useMemberAuth();
-  const canWrite = user?.permissions.includes('MANAGE_ACCESS') ?? false;
+  const canWrite = user?.permissions.includes('MANAGE_ROLES') ?? false;
 
   const [roles, setRoles] = useState<Role[]>([]);
   const [mode, setMode] = useState<Mode>('list');

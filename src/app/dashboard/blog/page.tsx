@@ -58,8 +58,8 @@ function ArticleIcon() {
 export default function DashboardBlogPage() {
   const { user } = useMemberAuth();
   const permissions = user?.permissions ?? [];
-  const canWrite = permissions.includes('WRITE_BLOG');
-  const canModerate = permissions.includes('MODERATE_BLOG');
+  const canWrite = permissions.includes('MODERATE_BLOG');
+  const canModerate = canWrite;
 
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [mode, setMode] = useState<Mode>('list');

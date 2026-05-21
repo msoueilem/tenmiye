@@ -15,10 +15,7 @@ type Tab = 'summary' | 'add' | 'history';
 export default function MemberFinancePage() {
   const { user } = useMemberAuth();
   const permissions = user?.permissions ?? [];
-  const canRead = permissions.includes('READ_FINANCE');
-  const canContribute = permissions.includes('RECORD_CONTRIBUTIONS');
-  const canExpense = permissions.includes('RECORD_EXPENSES');
-  const canAdd = canContribute || canExpense;
+  const canManage = permissions.includes('MANAGE_FINANCE');
 
   const [tab, setTab] = useState<Tab>('summary');
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
@@ -37,15 +34,16 @@ export default function MemberFinancePage() {
   });
 
   useEffect(() => {
-    if (!canRead) return;
-    Promise.all([getFinanceSummary(), getTransactions(), getPaymentChannels()])
+    const fetches: Promise<unknown>[] = [getFinanceSummary(), getTransactions()];
+    if (canManage) fetches.push(getPaymentChannels());
+    Promise.all(fetches)
       .then(([s, t, c]) => {
-        setSummary(s);
-        setTransactions(t);
-        setChannels(c);
+        setSummary(s as FinanceSummary);
+        setTransactions(t as Transaction[]);
+        if (c) setChannels(c as PaymentChannel[]);
       })
       .catch(() => setError('فشل تحميل البيانات المالية'));
-  }, [canRead]);
+  }, [canManage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,17 +63,9 @@ export default function MemberFinancePage() {
     }
   };
 
-  if (!canRead) {
-    return (
-      <div className="py-8 text-center text-slate-400" dir="rtl">
-        ليس لديك صلاحية الوصول إلى الشؤون المالية
-      </div>
-    );
-  }
-
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: 'summary', label: 'الملخص', show: true },
-    { key: 'add', label: 'تسجيل معاملة', show: canAdd },
+    { key: 'add', label: 'تسجيل معاملة', show: canManage },
     { key: 'history', label: 'السجل', show: true },
   ];
 
@@ -143,7 +133,7 @@ export default function MemberFinancePage() {
         </div>
       )}
 
-      {tab === 'add' && canAdd && (
+      {tab === 'add' && canManage && (
         <form onSubmit={handleSubmit} className="flex max-w-md flex-col gap-4">
           <select
             className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
@@ -152,8 +142,9 @@ export default function MemberFinancePage() {
               setForm((p) => ({ ...p, type: e.target.value as CreateTransactionDto['type'] }))
             }
           >
-            {canContribute && <option value="contribution">مساهمة</option>}
-            {canExpense && <option value="expense">مصروف</option>}
+            <option value="contribution">مساهمة</option>
+            <option value="donation">تبرع</option>
+            <option value="expense">مصروف</option>
           </select>
           <input
             type="number"

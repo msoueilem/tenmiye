@@ -16,7 +16,7 @@ const emptyForm = (): CreateTierDto => ({
 
 export default function DashboardTiersPage() {
   const { user } = useMemberAuth();
-  const canWrite = user?.permissions.includes('MANAGE_SETTINGS') ?? false;
+  const canWrite = user?.permissions.includes('MANAGE_TIERS') ?? false;
 
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [mode, setMode] = useState<Mode>('list');

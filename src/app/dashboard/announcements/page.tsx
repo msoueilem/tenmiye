@@ -23,7 +23,7 @@ const emptyForm = (): CreateAnnouncementDto => ({
 
 export default function MemberAnnouncementsPage() {
   const { user } = useMemberAuth();
-  const canWrite = user?.permissions.includes('MANAGE_SETTINGS') ?? false;
+  const canWrite = user?.permissions.includes('MANAGE_ANNOUNCEMENTS') ?? false;
 
   const [items, setItems] = useState<Announcement[]>([]);
   const [mode, setMode] = useState<Mode>('list');
