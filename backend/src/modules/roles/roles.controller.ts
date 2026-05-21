@@ -48,6 +48,7 @@ export class RolesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
   @RequireUserType('admin')
+  @RequirePermissions(Permission.MANAGE_ROLES)
   remove(@Param('id') id: string) {
     return this.roles.remove(id);
   }
