@@ -5,6 +5,7 @@ import { useMemberAuth } from '@/context/MemberAuthContext';
 import type { BlogPost, CreateBlogDto } from '@/types/blog';
 import {
   getAllBlogs,
+  getPublishedBlogs,
   createBlog,
   updateBlog,
   updateBlogStatus,
@@ -70,7 +71,7 @@ export default function DashboardBlogPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fn = canWrite || canModerate ? getAllBlogs : getAllBlogs;
+    const fn = canWrite || canModerate ? getAllBlogs : getPublishedBlogs;
     fn()
       .then(setPosts)
       .catch(() => setError('فشل تحميل المقالات'))
