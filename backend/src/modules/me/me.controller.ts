@@ -68,22 +68,80 @@ export class MeController {
     return { id: result.id, url: result.downloadUrl };
   }
 
-  @ApiOperation({ summary: 'Search active members by name prefix — for board/committee election nomination UI' })
+  @ApiOperation({ summary: 'Search active members by name (AR/FR) or phone — for nomination UI' })
   @Get('members/search')
   async searchMembers(@Query('q') q: string) {
     if (!q || q.trim().length < 2) return [];
     const trimmed = q.trim();
-    const snapshot = await this.firebase.db
-      .collection('users')
-      .where('status', '==', 'active')
-      .where('fullName', '>=', trimmed)
-      .where('fullName', '<=', trimmed + '￿')
-      .limit(20)
-      .get();
-    return snapshot.docs.map((d) => {
-      const data = d.data() as { fullName: string; fullNameAr?: string | null };
-      return { id: d.id, name: data.fullName, fullNameAr: data.fullNameAr ?? null };
-    });
+    const end = trimmed + '￿';
+    const db = this.firebase.db;
+
+    type UserDoc = {
+      fullName?: string;
+      fullNameAr?: string | null;
+      fullNameFr?: string | null;
+      whatsappNumber?: string | null;
+      phoneNumber?: string | null;
+      profilePictureId?: string | null;
+      status?: string;
+    };
+
+    const isNumeric = /^[\d+\s-]{2,}$/.test(trimmed);
+
+    // Single-field range queries avoid composite index requirements.
+    // Status filtering is done in JS after the fetch.
+    const queries = [
+      db.collection('users').where('fullName', '>=', trimmed).where('fullName', '<=', end).limit(20).get(),
+      db.collection('users').where('fullNameAr', '>=', trimmed).where('fullNameAr', '<=', end).limit(20).get(),
+      db.collection('users').where('fullNameFr', '>=', trimmed).where('fullNameFr', '<=', end).limit(20).get(),
+      ...(isNumeric
+        ? [
+            db.collection('users').where('phoneNumber', '==', trimmed).limit(5).get(),
+            db.collection('users').where('whatsappNumber', '==', trimmed).limit(5).get(),
+          ]
+        : []),
+    ];
+
+    const snapshots = await Promise.allSettled(queries);
+    const seen = new Set<string>();
+    type RawResult = { id: string; fullName: string; fullNameAr: string | null; fullNameFr: string | null; phoneNumber: string | null; whatsappNumber: string | null; profilePictureId: string | null };
+    const raw: RawResult[] = [];
+
+    for (const snap of snapshots) {
+      if (snap.status !== 'fulfilled') continue;
+      for (const doc of snap.value.docs) {
+        if (seen.has(doc.id)) continue;
+        seen.add(doc.id);
+        const d = doc.data() as UserDoc;
+        if (d.status !== 'active') continue;
+        raw.push({
+          id: doc.id,
+          fullName: d.fullName ?? '',
+          fullNameAr: d.fullNameAr ?? null,
+          fullNameFr: d.fullNameFr ?? null,
+          phoneNumber: d.phoneNumber ?? null,
+          whatsappNumber: d.whatsappNumber ?? null,
+          profilePictureId: d.profilePictureId ?? null,
+        });
+        if (raw.length >= 20) break;
+      }
+      if (raw.length >= 20) break;
+    }
+
+    // Batch-fetch profile picture URLs
+    const pictureIds = raw.map((r) => r.profilePictureId).filter(Boolean) as string[];
+    const urlMap: Record<string, string> = {};
+    if (pictureIds.length > 0) {
+      const uploadDocs = await db.getAll(...pictureIds.map((pid) => db.collection('uploads').doc(pid)));
+      for (const ud of uploadDocs) {
+        if (ud.exists) urlMap[ud.id] = (ud.data() as { downloadUrl?: string }).downloadUrl ?? '';
+      }
+    }
+
+    return raw.map(({ profilePictureId, ...rest }) => ({
+      ...rest,
+      photoUrl: profilePictureId ? (urlMap[profilePictureId] ?? null) : null,
+    }));
   }
 
   @ApiOperation({ summary: "Get the authenticated member's vote history enriched with election title" })

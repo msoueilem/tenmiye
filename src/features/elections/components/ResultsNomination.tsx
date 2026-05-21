@@ -19,15 +19,15 @@ export function ResultsNomination({ topNominations, members }: ResultsNomination
               <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
                 {members[nom.nomineeUid]?.photoUrl && (
                   <img 
-                    src={members[nom.nomineeUid].photoUrl} 
-                    alt={members[nom.nomineeUid]?.name || "صورة العضو"} 
+                    src={members[nom.nomineeUid].photoUrl ?? undefined}
+                    alt={members[nom.nomineeUid]?.fullName || "صورة العضو"} 
                     className="w-full h-full object-cover" 
                     loading="lazy" 
                     referrerPolicy="no-referrer" 
                   />
                 )}
               </div>
-              <span className="font-medium text-slate-700">{members[nom.nomineeUid]?.name || '...'}</span>
+              <span className="font-medium text-slate-700">{members[nom.nomineeUid]?.fullName || '...'}</span>
             </div>
             <span className="font-black text-lg text-primary drop-shadow-sm">{nom.count} صوت</span>
           </div>

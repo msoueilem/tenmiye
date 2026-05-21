@@ -15,6 +15,8 @@ function typeLabel(type: BackendElectionType): string {
 
 function statusLabel(status: BackendElectionStatus): string {
   if (status === 'voting') return '● تصويت جاري الآن';
+  if (status === 'nomination') return '● مرحلة الترشيح';
+  if (status === 'dismissal') return '● مرحلة الإقصاء';
   if (status === 'completed') return 'انتهى التصويت';
   return '';
 }
@@ -28,7 +30,14 @@ export default function PublicElectionsPage() {
     async function load() {
       const data = await getAllElections();
       if (mounted) {
-        setElections((data ?? []).filter((e) => e.status === 'voting' || e.status === 'completed'));
+        setElections(
+          (data ?? []).filter(
+            (e) =>
+              e.status === 'voting' ||
+              e.status === 'completed' ||
+              ((e.status === 'nomination' || e.status === 'dismissal') && e.type === 'board'),
+          ),
+        );
         setLoading(false);
       }
     }
@@ -66,7 +75,9 @@ export default function PublicElectionsPage() {
                 <div className={`px-4 py-1.5 rounded-full text-xs font-black border ${
                   e.status === 'voting'
                     ? 'bg-green-50 text-green-700 border-green-200'
-                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                    : (e.status === 'nomination' || e.status === 'dismissal')
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
                 }`}>
                   {statusLabel(e.status)}
                 </div>
@@ -90,7 +101,11 @@ export default function PublicElectionsPage() {
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
-                {e.status === 'voting' ? 'دخول قاعة التصويت' : 'عرض النتائج'}
+                {e.status === 'voting'
+                  ? 'دخول قاعة التصويت'
+                  : (e.status === 'nomination' || e.status === 'dismissal')
+                    ? 'عرض التفاصيل'
+                    : 'عرض النتائج'}
               </Link>
             </div>
           ))}

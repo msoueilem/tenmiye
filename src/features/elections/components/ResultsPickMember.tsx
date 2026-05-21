@@ -17,14 +17,14 @@ export function ResultsPickMember({ candidateUids, stats, members }: ResultsPick
               {members[uid]?.photoUrl && (
                 <img 
                   src={members[uid].photoUrl} 
-                  alt={members[uid]?.name || "صورة العضو"} 
+                  alt={members[uid]?.fullName || "صورة العضو"} 
                   className="w-full h-full object-cover" 
                   loading="lazy" 
                   referrerPolicy="no-referrer" 
                 />
               )}
             </div>
-            <span className="font-medium text-slate-700">{members[uid]?.name || '...'}</span>
+            <span className="font-medium text-slate-700">{members[uid]?.fullName || '...'}</span>
           </div>
           <span className="font-black text-lg text-slate-800">{stats?.[uid] || 0} صوت</span>
         </div>

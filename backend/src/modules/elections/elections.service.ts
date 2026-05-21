@@ -156,6 +156,7 @@ export class ElectionsService {
     const doc = await this.firebase.db.collection(COL).doc(id).get();
     if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
 
+    const data = doc.data() as ElectionData & Record<string, unknown>;
     const ts = (v?: string) => (v ? Timestamp.fromDate(new Date(v)) : undefined);
     const payload: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
 
@@ -172,6 +173,20 @@ export class ElectionsService {
 
     for (const [dtoKey, dbKey] of map) {
       if (dto[dtoKey] !== undefined) payload[dbKey] = ts(dto[dtoKey]);
+    }
+
+    // Also patch the current round's timestamps so the phase restarts with the new dates
+    if (data.type === 'board' && data.currentRound != null) {
+      const rounds = ((data.rounds as Record<string, unknown>[]) ?? []).map((r) => {
+        if ((r as { roundNumber: number }).roundNumber !== data.currentRound) return r;
+        const updated = { ...r };
+        if (dto.nominationStart) updated.nominationStart = ts(dto.nominationStart);
+        if (dto.nominationEnd)   updated.nominationEnd   = ts(dto.nominationEnd);
+        if (dto.dismissalStart)  updated.dismissalStart  = ts(dto.dismissalStart);
+        if (dto.dismissalEnd)    updated.dismissalEnd    = ts(dto.dismissalEnd);
+        return updated;
+      });
+      payload.rounds = rounds;
     }
 
     await this.firebase.db.collection(COL).doc(id).update(payload);

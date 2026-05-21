@@ -145,6 +145,7 @@ export default function DashboardElectionsPage() {
   const [scheduleError, setScheduleError] = useState('');
 
   const [acting, setActing] = useState<Record<string, boolean>>({});
+  const [actError, setActError] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -274,9 +275,12 @@ export default function DashboardElectionsPage() {
 
   async function handleDirectAdvance(election: ElectionRow, targetStatus: 'nomination' | 'dismissal' | 'voting' | 'completed') {
     setActing((prev) => ({ ...prev, [election.id]: true }));
+    setActError((prev) => ({ ...prev, [election.id]: '' }));
     const result = await advanceElectionApi(election.id, targetStatus);
     if (result.ok) {
       setElections((prev) => prev.map((e) => e.id === election.id ? { ...e, status: targetStatus } : e));
+    } else {
+      setActError((prev) => ({ ...prev, [election.id]: result.error ?? 'فشل تحديث الحالة' }));
     }
     setActing((prev) => ({ ...prev, [election.id]: false }));
   }
@@ -406,6 +410,9 @@ export default function DashboardElectionsPage() {
                     <p className="text-xs text-slate-500">{typeLabel(e.type)}</p>
                     {e.description && <p className="mt-1 line-clamp-2 text-sm text-slate-400">{e.description}</p>}
 
+                    {actError[e.id] && (
+                      <p className="mt-2 rounded-lg bg-red-400/10 px-3 py-1.5 text-xs text-red-400">{actError[e.id]}</p>
+                    )}
                     {canManage && e.status !== 'completed' && e.status !== 'cancelled' && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {advance && (

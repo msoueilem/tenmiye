@@ -22,6 +22,7 @@ export interface Election {
   dismissalEnd?: string;
   votingStart?: string;
   votingEnd?: string;
+  nominees?: ElectionNominee[];
   createdAt: string;
 }
 
@@ -40,9 +41,18 @@ export interface ElectionResults {
 
 export interface PublicMember {
   id: string;
-  name: string;
-  photoUrl?: string;
-  status?: string;
+  fullName: string;
+  fullNameAr?: string | null;
+  fullNameFr?: string | null;
+  phoneNumber?: string | null;
+  whatsappNumber?: string | null;
+  photoUrl?: string | null;
+}
+
+export interface ElectionNominee {
+  userId: string;
+  status: 'pending' | 'confirmed' | 'dismissed';
+  addedInRound: number;
 }
 
 export interface NominationCount {

@@ -148,6 +148,29 @@ export async function updateElectionApi(
   }
 }
 
+export async function submitNominationsApi(
+  electionId: string,
+  nominees: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await apiFetch('POST', `/elections/${electionId}/nominations`, { body: { nominees }, tokenType: 'member' });
+    return { ok: true };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof ApiError ? e.message : 'تعذر الاتصال بالخادم' };
+  }
+}
+
+export async function dismissSelfApi(
+  electionId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await apiFetch('DELETE', `/elections/${electionId}/nominations/me`, { tokenType: 'member' });
+    return { ok: true };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof ApiError ? e.message : 'تعذر الاتصال بالخادم' };
+  }
+}
+
 export async function deleteElectionApi(id: string): Promise<boolean> {
   try {
     await apiFetch('DELETE', `/elections/${id}`, { tokenType: 'member' });
