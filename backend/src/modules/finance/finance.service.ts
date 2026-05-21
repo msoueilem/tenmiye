@@ -158,6 +158,20 @@ export class FinanceService {
     return { id };
   }
 
+  async disableTransaction(id: string, disabledBy: string): Promise<{ id: string }> {
+    const doc = await this.firebase.db.collection('transactions').doc(id).get();
+    if (!doc.exists) throw new NotFoundException(`Transaction ${id} not found`);
+    if (doc.data()?.isActive === false) throw new BadRequestException('Transaction is already disabled');
+
+    await doc.ref.update({
+      isActive: false,
+      disabledBy,
+      disabledAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { id };
+  }
+
   // ─── Summary ──────────────────────────────────────────────────────────────
 
   async getSummary(year: number, month?: number) {
