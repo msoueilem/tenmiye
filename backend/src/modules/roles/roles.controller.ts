@@ -16,7 +16,7 @@ import { JwtPayload } from '../../common/strategies/jwt.strategy';
 @ApiBearerAuth()
 @Controller('roles')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(Permission.MANAGE_ACCESS)
+@RequirePermissions(Permission.MANAGE_ROLES)
 export class RolesController {
   constructor(private readonly roles: RolesService) {}
 

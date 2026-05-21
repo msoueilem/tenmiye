@@ -26,7 +26,7 @@ export class AnnouncementsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all announcements including inactive — admin only' })
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.MANAGE_SETTINGS)
+  @RequirePermissions(Permission.MANAGE_ANNOUNCEMENTS)
   @Get('all')
   findAll() {
     return this.announcements.findAll();
@@ -35,7 +35,7 @@ export class AnnouncementsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get an announcement by ID' })
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.MANAGE_SETTINGS)
+  @RequirePermissions(Permission.MANAGE_ANNOUNCEMENTS)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.announcements.findOne(id);
@@ -44,7 +44,7 @@ export class AnnouncementsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new announcement' })
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.MANAGE_SETTINGS)
+  @RequirePermissions(Permission.MANAGE_ANNOUNCEMENTS)
   @Post()
   create(@Body() dto: CreateAnnouncementDto, @CurrentUser() user: JwtPayload) {
     return this.announcements.create(dto, user.userId);
@@ -53,7 +53,7 @@ export class AnnouncementsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an announcement' })
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.MANAGE_SETTINGS)
+  @RequirePermissions(Permission.MANAGE_ANNOUNCEMENTS)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateAnnouncementDto) {
     return this.announcements.update(id, dto);
@@ -63,7 +63,7 @@ export class AnnouncementsController {
   @ApiOperation({ summary: 'Delete an announcement — admin only' })
   @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
   @RequireUserType('admin')
-  @RequirePermissions(Permission.MANAGE_SETTINGS)
+  @RequirePermissions(Permission.MANAGE_ANNOUNCEMENTS)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.announcements.remove(id);

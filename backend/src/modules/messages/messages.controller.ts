@@ -25,7 +25,7 @@ export class MessagesController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @UseGuards(AuthGuard('jwt'), PermissionsGuard)
-  @RequirePermissions(Permission.READ_ALL)
+  @RequirePermissions(Permission.READ_MESSAGES)
   @Get()
   findAll(@Query('limit') limit?: string, @Query('cursor') cursor?: string) {
     return this.messages.findAll(limit ? parseInt(limit, 10) : 20, cursor);
@@ -34,7 +34,7 @@ export class MessagesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark a message as read — admin only' })
   @UseGuards(AuthGuard('jwt'), PermissionsGuard)
-  @RequirePermissions(Permission.READ_ALL)
+  @RequirePermissions(Permission.READ_MESSAGES)
   @Patch(':id/read')
   markRead(@Param('id') id: string) {
     return this.messages.markRead(id);

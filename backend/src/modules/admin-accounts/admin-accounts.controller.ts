@@ -23,7 +23,7 @@ import { Permission } from '../../common/enums/permission.enum';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
 @RequireUserType('admin')
-@RequirePermissions(Permission.MANAGE_ACCESS)
+@RequirePermissions(Permission.MANAGE_ROLES)
 @Controller('admin-accounts')
 export class AdminAccountsController {
   constructor(private readonly service: AdminAccountsService) {}
