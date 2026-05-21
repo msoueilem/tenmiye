@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface NavItem {
   label: string;
@@ -211,8 +212,9 @@ export function DashboardShell({ children }: Props) {
         </ul>
       </nav>
 
-      {/* Logout */}
-      <div className="border-t border-white/10 p-3">
+      {/* Footer: theme toggle + logout */}
+      <div className="border-t border-white/10 p-3 flex flex-col gap-1">
+        <ThemeToggle showLabel className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-colors cursor-pointer" />
         <button
           onClick={() => logout().then(() => router.push('/dashboard/login'))}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-red-400 transition-colors cursor-pointer"
