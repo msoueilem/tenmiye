@@ -21,12 +21,12 @@ export default function AdminFinancePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [channelForm, setChannelForm] = useState<CreatePaymentChannelDto>({ name: '', isActive: true });
+  const [channelForm, setChannelForm] = useState<CreatePaymentChannelDto>({ name: '', type: 'cash', isActive: true });
   const [editingChannel, setEditingChannel] = useState<PaymentChannel | null>(null);
   const [showChannelForm, setShowChannelForm] = useState(false);
 
   useEffect(() => {
-    Promise.all([getFinanceSummary(), getPaymentChannels(), getTransactions()])
+    Promise.all([getFinanceSummary(new Date().getFullYear(), 'admin'), getPaymentChannels('admin'), getTransactions('admin')])
       .then(([s, c, t]) => {
         setSummary(s);
         setChannels(c);
@@ -38,7 +38,7 @@ export default function AdminFinancePage() {
   const handleVerify = async (id: string) => {
     setLoading(true);
     try {
-      const updated = await verifyTransaction(id);
+      const updated = await verifyTransaction(id, 'admin');
       setTransactions((prev) => prev.map((t) => (t.id === id ? updated : t)));
     } catch {
       setError('فشل التحقق');
@@ -51,7 +51,7 @@ export default function AdminFinancePage() {
     if (!confirm('هل أنت متأكد من حذف قناة الدفع؟')) return;
     setLoading(true);
     try {
-      await deletePaymentChannel(id);
+      await deletePaymentChannel(id, 'admin');
       setChannels((prev) => prev.filter((c) => c.id !== id));
     } catch {
       setError('فشل الحذف');
@@ -66,13 +66,13 @@ export default function AdminFinancePage() {
     setError('');
     try {
       if (editingChannel) {
-        const updated = await updatePaymentChannel(editingChannel.id, channelForm);
+        const updated = await updatePaymentChannel(editingChannel.id, channelForm, 'admin');
         setChannels((prev) => prev.map((c) => (c.id === editingChannel.id ? updated : c)));
       } else {
-        const created = await createPaymentChannel(channelForm);
+        const created = await createPaymentChannel(channelForm, 'admin');
         setChannels((prev) => [...prev, created]);
       }
-      setChannelForm({ name: '', isActive: true });
+      setChannelForm({ name: '', type: 'cash', isActive: true });
       setEditingChannel(null);
       setShowChannelForm(false);
     } catch {
@@ -110,25 +110,42 @@ export default function AdminFinancePage() {
       </div>
 
       {tab === 'summary' && summary && (
-        <div className="grid max-w-lg grid-cols-3 gap-4">
-          <div className="rounded-lg bg-white/5 p-4 text-center">
-            <p className="mb-1 text-xs text-slate-400">المساهمات</p>
-            <p className="text-lg font-bold text-green-400">
-              {summary.totalContributions} {summary.currency}
-            </p>
+        <div className="space-y-4 max-w-lg">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">المساهمات</p>
+              <p className="text-lg font-bold text-green-400">
+                {summary.totals.contribution} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">التبرعات</p>
+              <p className="text-lg font-bold text-green-300">
+                {summary.totals.donation} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">المصروفات</p>
+              <p className="text-lg font-bold text-red-400">
+                {summary.totals.expense} {summary.currency}
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg bg-white/5 p-4 text-center">
-            <p className="mb-1 text-xs text-slate-400">المصروفات</p>
-            <p className="text-lg font-bold text-red-400">
-              {summary.totalExpenses} {summary.currency}
-            </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">إجمالي الدخل</p>
+              <p className="text-lg font-bold text-green-400">
+                {summary.income} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">الصافي</p>
+              <p className={`text-lg font-bold ${summary.net >= 0 ? 'text-[#d4af37]' : 'text-red-400'}`}>
+                {summary.net} {summary.currency}
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg bg-white/5 p-4 text-center">
-            <p className="mb-1 text-xs text-slate-400">الرصيد</p>
-            <p className="text-lg font-bold text-[#d4af37]">
-              {summary.balance} {summary.currency}
-            </p>
-          </div>
+          <p className="text-xs text-slate-500">سنة {summary.year}{summary.month ? ` — شهر ${summary.month}` : ''}</p>
         </div>
       )}
 
@@ -140,7 +157,7 @@ export default function AdminFinancePage() {
               onClick={() => {
                 setShowChannelForm(true);
                 setEditingChannel(null);
-                setChannelForm({ name: '', isActive: true });
+                setChannelForm({ name: '', type: 'cash', isActive: true });
               }}
               className="rounded-lg bg-[#d4af37] px-3 py-1.5 text-sm font-bold text-slate-900 hover:bg-[#c9a227]"
             >
@@ -148,36 +165,69 @@ export default function AdminFinancePage() {
             </button>
           </div>
           {showChannelForm && (
-            <form onSubmit={handleChannelSubmit} className="mb-4 flex items-end gap-3">
-              <input
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2 text-white outline-none focus:ring-2 focus:ring-[#d4af37]/30"
-                placeholder="اسم القناة"
-                value={channelForm.name}
-                onChange={(e) => setChannelForm((p) => ({ ...p, name: e.target.value }))}
-                required
-              />
-              <label className="flex items-center gap-1 text-sm text-slate-300">
+            <form onSubmit={handleChannelSubmit} className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-900/30 p-4">
+              <div className="grid grid-cols-2 gap-3">
                 <input
-                  type="checkbox"
-                  checked={channelForm.isActive}
-                  onChange={(e) => setChannelForm((p) => ({ ...p, isActive: e.target.checked }))}
+                  className="rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2 text-white outline-none focus:ring-2 focus:ring-[#d4af37]/30"
+                  placeholder="اسم القناة"
+                  value={channelForm.name}
+                  onChange={(e) => setChannelForm((p) => ({ ...p, name: e.target.value }))}
+                  required
                 />
-                نشط
-              </label>
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-lg bg-[#d4af37] px-4 py-2 font-bold text-slate-900 hover:bg-[#c9a227] disabled:opacity-50"
-              >
-                حفظ
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowChannelForm(false)}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-slate-400 hover:text-white"
-              >
-                إلغاء
-              </button>
+                <select
+                  className="rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2 text-white outline-none focus:ring-2 focus:ring-[#d4af37]/30"
+                  value={channelForm.type}
+                  onChange={(e) => setChannelForm((p) => ({ ...p, type: e.target.value as 'mobile' | 'cash' }))}
+                  required
+                >
+                  <option value="cash">نقدي</option>
+                  <option value="mobile">محفظة رقمية</option>
+                </select>
+              </div>
+              {channelForm.type === 'mobile' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    className="rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2 text-white outline-none focus:ring-2 focus:ring-[#d4af37]/30"
+                    placeholder="رقم المحفظة"
+                    value={channelForm.walletNumber ?? ''}
+                    onChange={(e) => setChannelForm((p) => ({ ...p, walletNumber: e.target.value }))}
+                    required
+                  />
+                  <input
+                    className="rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2 text-white outline-none focus:ring-2 focus:ring-[#d4af37]/30"
+                    placeholder="اسم صاحب المحفظة"
+                    value={channelForm.walletOwner ?? ''}
+                    onChange={(e) => setChannelForm((p) => ({ ...p, walletOwner: e.target.value }))}
+                    required
+                  />
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={channelForm.isActive ?? true}
+                    onChange={(e) => setChannelForm((p) => ({ ...p, isActive: e.target.checked }))}
+                  />
+                  نشط
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="rounded-lg bg-[#d4af37] px-4 py-2 font-bold text-slate-900 hover:bg-[#c9a227] disabled:opacity-50"
+                  >
+                    حفظ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowChannelForm(false)}
+                    className="rounded-lg border border-slate-700 px-4 py-2 text-slate-400 hover:text-white"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
             </form>
           )}
           <div className="space-y-2">
@@ -191,7 +241,13 @@ export default function AdminFinancePage() {
                   <button
                     onClick={() => {
                       setEditingChannel(ch);
-                      setChannelForm({ name: ch.name, isActive: ch.isActive });
+                      setChannelForm({
+                        name: ch.name,
+                        type: ch.type,
+                        walletNumber: ch.walletNumber,
+                        walletOwner: ch.walletOwner,
+                        isActive: ch.isActive,
+                      });
                       setShowChannelForm(true);
                     }}
                     className="text-sm text-[#d4af37] hover:underline"
