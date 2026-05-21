@@ -172,14 +172,19 @@ export class FinanceService {
           .where('type', '==', type) as FirebaseFirestore.Query;
         if (month) q = q.where('month', '==', month);
 
-        const result = await q.aggregate({ total: AggregateField.sum('amount') }).get();
-        totals[type] = result.data().total;
+        try {
+          const result = await q.aggregate({ total: AggregateField.sum('amount') }).get();
+          totals[type] = result.data().total || 0;
+        } catch (err: any) {
+          console.error(`Aggregation error for type ${type}:`, err.message);
+          totals[type] = 0;
+        }
       }),
     );
 
-    const income = totals.contribution + totals.donation;
-    const net = income - totals.expense;
+    const income = (totals.contribution || 0) + (totals.donation || 0);
+    const net = income - (totals.expense || 0);
 
-    return { year, month: month ?? null, totals, income, net };
+    return { year, month: month ?? null, totals, income, net, currency: 'MRU' };
   }
 }
