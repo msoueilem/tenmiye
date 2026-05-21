@@ -16,6 +16,12 @@ export interface Election {
   boardConfig?: { seatsCount: number; targetNominees?: number; shortlistCount?: number; dismissalWindowHours?: number };
   startTime?: string;
   endTime?: string;
+  nominationStart?: string;
+  nominationEnd?: string;
+  dismissalStart?: string;
+  dismissalEnd?: string;
+  votingStart?: string;
+  votingEnd?: string;
   createdAt: string;
 }
 

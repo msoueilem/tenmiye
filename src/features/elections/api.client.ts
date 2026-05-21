@@ -79,6 +79,25 @@ interface CreateElectionPayload {
   boardConfig?: { seatsCount: number };
   startTime?: string;
   endTime?: string;
+  nominationStart?: string;
+  nominationEnd?: string;
+  dismissalStart?: string;
+  dismissalEnd?: string;
+  votingStart?: string;
+  votingEnd?: string;
+}
+
+export async function updateScheduleApi(
+  id: string,
+  dates: Partial<Pick<CreateElectionPayload, 'nominationStart' | 'nominationEnd' | 'dismissalStart' | 'dismissalEnd' | 'votingStart' | 'votingEnd' | 'startTime' | 'endTime'>>,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await apiFetch('PATCH', `/elections/${id}/schedule`, { body: dates, tokenType: 'member' });
+    return { ok: true };
+  } catch (e: unknown) {
+    const msg = e instanceof ApiError ? e.message : 'حدث خطأ أثناء تحديث المواعيد';
+    return { ok: false, error: msg };
+  }
 }
 
 export async function createElectionApi(data: CreateElectionPayload): Promise<{ id: string } | null> {
@@ -89,12 +108,26 @@ export async function createElectionApi(data: CreateElectionPayload): Promise<{ 
   }
 }
 
+export interface AdvanceExtra {
+  nominationStart?: string;
+  nominationEnd?: string;
+  dismissalStart?: string;
+  dismissalEnd?: string;
+  votingStart?: string;
+  votingEnd?: string;
+  reason?: string;
+}
+
 export async function advanceElectionApi(
   id: string,
   targetStatus: 'nomination' | 'dismissal' | 'voting' | 'completed' | 'cancelled',
+  extra?: AdvanceExtra,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await apiFetch('POST', `/elections/${id}/advance`, { body: { status: targetStatus }, tokenType: 'member' });
+    await apiFetch('POST', `/elections/${id}/advance`, {
+      body: { status: targetStatus, ...extra },
+      tokenType: 'member',
+    });
     return { ok: true };
   } catch (e: unknown) {
     const msg = e instanceof ApiError ? e.message : 'حدث خطأ أثناء تحديث حالة الانتخابات';

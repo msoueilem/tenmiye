@@ -77,14 +77,18 @@ export class CreateElectionDto {
   options?: ElectionOptionDto[];
 
   @ApiPropertyOptional({ description: 'ISO 8601 — voting window start (yes_no / multiple_choice)' })
-  @IsISO8601()
-  @IsOptional()
-  startTime?: string;
+  @IsISO8601() @IsOptional() startTime?: string;
 
   @ApiPropertyOptional({ description: 'ISO 8601 — voting window end (yes_no / multiple_choice)' })
-  @IsISO8601()
-  @IsOptional()
-  endTime?: string;
+  @IsISO8601() @IsOptional() endTime?: string;
+
+  // Board election pre-scheduled phase dates (can also be set later via PATCH /schedule)
+  @ApiPropertyOptional() @IsISO8601() @IsOptional() nominationStart?: string;
+  @ApiPropertyOptional() @IsISO8601() @IsOptional() nominationEnd?: string;
+  @ApiPropertyOptional() @IsISO8601() @IsOptional() dismissalStart?: string;
+  @ApiPropertyOptional() @IsISO8601() @IsOptional() dismissalEnd?: string;
+  @ApiPropertyOptional() @IsISO8601() @IsOptional() votingStart?: string;
+  @ApiPropertyOptional() @IsISO8601() @IsOptional() votingEnd?: string;
 
   @ApiPropertyOptional({ description: 'Required for board elections' })
   @ValidateIf((o: CreateElectionDto) => o.type === 'board')
