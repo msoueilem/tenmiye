@@ -14,12 +14,15 @@ import { CreateAdminAccountDto } from './dto/create-admin-account.dto';
 import { UpdateAdminAccountDto } from './dto/update-admin-account.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 
 @ApiTags('admin-accounts')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+@RequireUserType('admin')
 @RequirePermissions(Permission.MANAGE_ACCESS)
 @Controller('admin-accounts')
 export class AdminAccountsController {

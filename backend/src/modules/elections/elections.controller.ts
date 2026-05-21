@@ -80,9 +80,10 @@ export class ElectionsController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a draft election' })
+  @ApiOperation({ summary: 'Delete a draft election — admin only' })
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
   remove(@Param('id') id: string) {
     return this.elections.remove(id);

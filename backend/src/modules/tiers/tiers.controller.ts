@@ -5,7 +5,9 @@ import { CreateTierDto } from './dto/create-tier.dto';
 import { UpdateTierDto } from './dto/update-tier.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
@@ -42,8 +44,10 @@ export class TiersController {
     return this.tiers.update(id, dto);
   }
 
-  @ApiOperation({ summary: 'Delete a tier' })
+  @ApiOperation({ summary: 'Delete a tier — admin only' })
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   remove(@Param('id') id: string) {
     return this.tiers.remove(id);
   }

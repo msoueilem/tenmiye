@@ -15,7 +15,9 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -71,9 +73,10 @@ export class BlogController {
     return this.blog.updateStatus(id, dto);
   }
 
-  @ApiOperation({ summary: 'Delete a blog post by ID' })
+  @ApiOperation({ summary: 'Delete a blog post by ID — admin only' })
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   @RequirePermissions(Permission.MODERATE_BLOG)
   remove(@Param('id') id: string) {
     return this.blog.remove(id);

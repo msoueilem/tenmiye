@@ -5,7 +5,9 @@ import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
@@ -58,8 +60,9 @@ export class AnnouncementsController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete an announcement' })
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @ApiOperation({ summary: 'Delete an announcement — admin only' })
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   @RequirePermissions(Permission.MANAGE_SETTINGS)
   @Delete(':id')
   remove(@Param('id') id: string) {

@@ -7,7 +7,9 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { ListTransactionsDto } from './dto/list-transactions.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
@@ -60,8 +62,10 @@ export class FinanceController {
     return this.finance.updatePaymentChannel(id, dto);
   }
 
-  @ApiOperation({ summary: 'Delete a payment channel' })
+  @ApiOperation({ summary: 'Delete a payment channel — admin only' })
   @Delete('payment-channels/:id')
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   @RequirePermissions(Permission.MANAGE_PAYMENT_CHANNELS)
   removePaymentChannel(@Param('id') id: string) {
     return this.finance.removePaymentChannel(id);
