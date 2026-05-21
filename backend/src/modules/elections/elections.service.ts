@@ -113,7 +113,7 @@ export class ElectionsService {
       description: dto.description ?? null,
       type: dto.type,
       status: 'draft',
-      options: dto.type !== 'board' ? (dto.options ?? []) : [],
+      options: dto.type !== 'board' ? (dto.options ?? []).map((o) => ({ id: o.id, label: o.label })) : [],
       startTime: dto.startTime ? Timestamp.fromDate(new Date(dto.startTime)) : null,
       endTime: dto.endTime ? Timestamp.fromDate(new Date(dto.endTime)) : null,
       boardConfig,
@@ -504,7 +504,7 @@ export class ElectionsService {
 
   private assertValidTransition(from: string, to: string, type: string): void {
     const valid: Record<string, string[]> = {
-      draft: ['nomination', 'cancelled'],
+      draft: ['nomination', 'voting', 'cancelled'],
       nomination: ['dismissal', 'cancelled'],
       dismissal: ['nomination', 'voting', 'cancelled'],
       voting: ['completed', 'cancelled'],

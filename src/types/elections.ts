@@ -14,6 +14,8 @@ export interface Election {
   status: BackendElectionStatus;
   options?: ElectionOption[];
   boardConfig?: { seatsCount: number; targetNominees?: number; shortlistCount?: number; dismissalWindowHours?: number };
+  startTime?: string;
+  endTime?: string;
   createdAt: string;
 }
 

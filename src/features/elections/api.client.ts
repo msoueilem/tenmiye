@@ -26,7 +26,19 @@ export async function getElectionResults(id: string): Promise<ElectionResults | 
   try {
     const res = await fetch(`${config.apiUrl}/elections/${id}/results`);
     if (!res.ok) return null;
-    return res.json() as Promise<ElectionResults>;
+    const data = await res.json() as {
+      id?: string;
+      electionId?: string;
+      type?: string;
+      rankings?: { optionId: string; voteCount: number }[];
+      results?: { selection: string; count: number }[];
+    };
+    const electionId = data.electionId ?? data.id ?? id;
+    const results = data.results ?? (data.rankings ?? []).map((r) => ({
+      selection: r.optionId,
+      count: r.voteCount,
+    }));
+    return { electionId, results };
   } catch {
     return null;
   }
@@ -38,7 +50,7 @@ export async function castVoteApi(
   _token: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await apiFetch('POST', `/elections/${electionId}/votes`, { body: { selections }, tokenType: 'member' });
+    await apiFetch('POST', `/elections/${electionId}/votes`, { body: { choices: selections }, tokenType: 'member' });
     return { ok: true };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof ApiError ? e.message : 'تعذر الاتصال بالخادم' };
@@ -65,6 +77,8 @@ interface CreateElectionPayload {
   type: 'yes_no' | 'multiple_choice' | 'board';
   options?: ElectionOption[];
   boardConfig?: { seatsCount: number };
+  startTime?: string;
+  endTime?: string;
 }
 
 export async function createElectionApi(data: CreateElectionPayload): Promise<{ id: string } | null> {

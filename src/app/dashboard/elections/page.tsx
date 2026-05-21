@@ -71,6 +71,8 @@ interface CreateForm {
   type: BackendElectionType;
   multiOptions: string[];
   seatsCount: string;
+  startTime: string;
+  endTime: string;
 }
 
 const emptyForm = (): CreateForm => ({
@@ -79,6 +81,8 @@ const emptyForm = (): CreateForm => ({
   type: 'yes_no',
   multiOptions: ['', ''],
   seatsCount: '3',
+  startTime: '',
+  endTime: '',
 });
 
 export default function DashboardElectionsPage() {
@@ -130,6 +134,9 @@ export default function DashboardElectionsPage() {
       description: form.description.trim() || undefined,
       type: form.type,
     };
+
+    if (form.startTime) payload.startTime = new Date(form.startTime).toISOString();
+    if (form.endTime) payload.endTime = new Date(form.endTime).toISOString();
 
     if (form.type === 'yes_no') {
       payload.options = [
@@ -408,6 +415,29 @@ export default function DashboardElectionsPage() {
                     onChange={(e) => setForm((p) => ({ ...p, seatsCount: e.target.value }))}
                     required
                   />
+                </div>
+              )}
+
+              {form.type !== 'board' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">بداية التصويت (اختياري)</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full rounded-xl border border-white/10 bg-[#071a07] px-3 py-2.5 text-sm text-white outline-none focus:border-[#0df20d]/40"
+                      value={form.startTime}
+                      onChange={(e) => setForm((p) => ({ ...p, startTime: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-400">نهاية التصويت (اختياري)</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full rounded-xl border border-white/10 bg-[#071a07] px-3 py-2.5 text-sm text-white outline-none focus:border-[#0df20d]/40"
+                      value={form.endTime}
+                      onChange={(e) => setForm((p) => ({ ...p, endTime: e.target.value }))}
+                    />
+                  </div>
                 </div>
               )}
 

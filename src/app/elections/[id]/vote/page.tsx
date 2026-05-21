@@ -116,7 +116,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
         <div className="flex flex-col gap-2">
           {!isActive && <AlertBox variant="info">هذه الانتخابات غير نشطة حالياً.</AlertBox>}
           {hasVoted && <AlertBox variant="success">لقد قمت بالتصويت في هذه الانتخابات مسبقاً.</AlertBox>}
-          {!user && isActive && <AlertBox variant="info">يجب تسجيل الدخول للمشاركة في التصويت.</AlertBox>}
+          {!user && isActive && !hasVoted && <AlertBox variant="info">يجب تسجيل الدخول للمشاركة في التصويت.</AlertBox>}
           {error && <AlertBox variant="error">{error}</AlertBox>}
         </div>
       </Card>
