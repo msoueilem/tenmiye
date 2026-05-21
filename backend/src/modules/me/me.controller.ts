@@ -92,7 +92,6 @@ export class MeController {
     const snapshot = await this.firebase.db
       .collection('votes')
       .where('userId', '==', user.userId)
-      .orderBy('castAt', 'desc')
       .get();
 
     if (snapshot.empty) return [];
@@ -106,16 +105,22 @@ export class MeController {
       if (doc.exists) electionTitles[doc.id] = (doc.data() as { title?: string }).title ?? doc.id;
     }
 
-    return snapshot.docs.map((d) => {
-      const data = d.data() as { electionId: string; electionType: string; choices: string[]; castAt: unknown };
-      return {
-        id: d.id,
-        electionId: data.electionId,
-        electionTitle: electionTitles[data.electionId] ?? data.electionId,
-        electionType: data.electionType,
-        choices: data.choices,
-        castAt: data.castAt,
-      };
-    });
+    return snapshot.docs
+      .map((d) => {
+        const data = d.data() as { electionId: string; electionType: string; choices: string[]; castAt: { _seconds?: number; seconds?: number } | null };
+        return {
+          id: d.id,
+          electionId: data.electionId,
+          electionTitle: electionTitles[data.electionId] ?? data.electionId,
+          electionType: data.electionType,
+          choices: data.choices,
+          castAt: data.castAt,
+        };
+      })
+      .sort((a, b) => {
+        const aSeconds = a.castAt?._seconds ?? a.castAt?.seconds ?? 0;
+        const bSeconds = b.castAt?._seconds ?? b.castAt?.seconds ?? 0;
+        return bSeconds - aSeconds;
+      });
   }
 }

@@ -8,13 +8,13 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
 function typeLabel(type: BackendElectionType): string {
-  if (type === 'general_vote') return 'استفتاء';
-  if (type === 'board_election') return 'انتخابات مجلس الإدارة';
-  return 'انتخابات لجنة';
+  if (type === 'yes_no') return 'استفتاء نعم / لا';
+  if (type === 'multiple_choice') return 'اختيار متعدد';
+  return 'انتخابات مجلس';
 }
 
 function statusLabel(status: BackendElectionStatus): string {
-  if (status === 'active') return '● تصويت جاري الآن';
+  if (status === 'voting') return '● تصويت جاري الآن';
   if (status === 'completed') return 'انتهى التصويت';
   return '';
 }
@@ -28,7 +28,7 @@ export default function PublicElectionsPage() {
     async function load() {
       const data = await getAllElections();
       if (mounted) {
-        setElections((data ?? []).filter((e) => e.status === 'active' || e.status === 'completed'));
+        setElections((data ?? []).filter((e) => e.status === 'voting' || e.status === 'completed'));
         setLoading(false);
       }
     }
@@ -64,7 +64,7 @@ export default function PublicElectionsPage() {
             >
               <div className="flex justify-between items-start mb-6">
                 <div className={`px-4 py-1.5 rounded-full text-xs font-black border ${
-                  e.status === 'active'
+                  e.status === 'voting'
                     ? 'bg-green-50 text-green-700 border-green-200'
                     : 'bg-slate-100 text-slate-600 border-slate-200'
                 }`}>
@@ -85,12 +85,12 @@ export default function PublicElectionsPage() {
               <Link
                 href={`/elections/${e.id}`}
                 className={`w-full h-14 flex items-center justify-center rounded-2xl font-black text-lg transition-all ${
-                  e.status === 'active'
+                  e.status === 'voting'
                     ? 'bg-[#0df20d] text-slate-900 hover:bg-[#0be00b] shadow-lg shadow-[#0df20d]/30'
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
-                {e.status === 'active' ? 'دخول قاعة التصويت' : 'عرض النتائج'}
+                {e.status === 'voting' ? 'دخول قاعة التصويت' : 'عرض النتائج'}
               </Link>
             </div>
           ))}

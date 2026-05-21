@@ -102,10 +102,10 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     return <div className="p-8 text-center text-red-500 font-bold">الانتخابات غير موجودة.</div>;
   }
 
-  const isActive = election.status === 'active';
+  const isActive = election.status === 'voting';
   const isVotingDisabled = !user || hasVoted || submitting || !isActive;
   const stats = results ? resultsToStats(results.results) : {};
-  const isGeneralVote = election.type === 'general_vote';
+  const isGeneralVote = election.type === 'yes_no';
 
   return (
     <div className="max-w-4xl mx-auto p-4 flex flex-col gap-8">

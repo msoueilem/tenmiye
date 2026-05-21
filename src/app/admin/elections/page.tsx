@@ -8,41 +8,54 @@ import {
   updateElectionApi,
   deleteElectionApi,
   getElectionResults,
+  advanceElectionApi,
 } from '@/features/elections/api.client';
 
 type ElectionForm = {
   title: string;
   description: string;
   type: BackendElectionType;
-  startTime: string;
-  endTime: string;
+  seatsCount: string;
+  multiOptions: string[];
 };
 
 const EMPTY_FORM: ElectionForm = {
   title: '',
   description: '',
-  type: 'general_vote',
-  startTime: '',
-  endTime: '',
+  type: 'yes_no',
+  seatsCount: '3',
+  multiOptions: ['', ''],
 };
 
 function typeLabel(type: BackendElectionType): string {
-  if (type === 'general_vote') return 'استفتاء';
-  if (type === 'board_election') return 'انتخابات مجلس الإدارة';
-  return 'انتخابات لجنة';
+  if (type === 'yes_no') return 'استفتاء نعم / لا';
+  if (type === 'multiple_choice') return 'اختيار متعدد';
+  return 'انتخابات مجلس';
 }
 
 function statusLabel(status: BackendElectionStatus): string {
-  if (status === 'active') return 'نشط';
+  if (status === 'voting') return 'تصويت';
   if (status === 'completed') return 'مكتمل';
   if (status === 'cancelled') return 'ملغي';
-  return 'معلّق';
+  if (status === 'draft') return 'مسودة';
+  if (status === 'nomination') return 'ترشيح';
+  if (status === 'dismissal') return 'إقصاء';
+  return status;
 }
 
 function statusColors(status: BackendElectionStatus): string {
-  if (status === 'active') return 'bg-green-50 text-green-700 border-green-200';
-  if (status === 'pending') return 'bg-amber-50 text-amber-700 border-amber-200';
+  if (status === 'voting') return 'bg-green-50 text-green-700 border-green-200';
+  if (status === 'draft') return 'bg-amber-50 text-amber-700 border-amber-200';
+  if (status === 'nomination' || status === 'dismissal') return 'bg-blue-50 text-blue-700 border-blue-200';
   return 'bg-slate-100 text-slate-600 border-slate-200';
+}
+
+function nextStatus(status: BackendElectionStatus, type: BackendElectionType): 'nomination' | 'dismissal' | 'voting' | 'completed' | null {
+  if (status === 'draft') return type === 'board' ? 'nomination' : 'voting';
+  if (status === 'nomination') return 'dismissal';
+  if (status === 'dismissal') return 'voting';
+  if (status === 'voting') return 'completed';
+  return null;
 }
 
 export default function ElectionsManagementPage() {
@@ -87,8 +100,8 @@ export default function ElectionsManagementPage() {
       title: e.title,
       description: e.description ?? '',
       type: e.type,
-      startTime: e.startTime ? e.startTime.slice(0, 16) : '',
-      endTime: e.endTime ? e.endTime.slice(0, 16) : '',
+      seatsCount: String(e.boardConfig?.seatsCount ?? 3),
+      multiOptions: e.options?.map((o) => o.label) ?? ['', ''],
     });
     setMessage(null);
     setIsModalOpen(true);
@@ -101,39 +114,64 @@ export default function ElectionsManagementPage() {
     setResultsLoading(false);
   }
 
+  function setOption(index: number, value: string) {
+    setForm((p) => {
+      const next = [...p.multiOptions];
+      next[index] = value;
+      return { ...p, multiOptions: next };
+    });
+  }
+
   async function handleSave() {
-    if (!form.title.trim() || !form.startTime || !form.endTime) {
-      setMessage({ type: 'error', text: 'يرجى ملء جميع الحقول المطلوبة' });
-      return;
-    }
-    if (new Date(form.endTime) <= new Date(form.startTime)) {
-      setMessage({ type: 'error', text: 'يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء' });
+    if (!form.title.trim()) {
+      setMessage({ type: 'error', text: 'يرجى ملء عنوان الانتخابات' });
       return;
     }
 
     setIsSaving(true);
 
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim() || undefined,
-      type: form.type,
-      startTime: new Date(form.startTime).toISOString(),
-      endTime: new Date(form.endTime).toISOString(),
-    };
-
-    let ok = false;
     if (editingId) {
-      const res = await updateElectionApi(editingId, payload);
-      ok = res.ok;
-      if (!ok) setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء التعديل' });
+      const res = await updateElectionApi(editingId, {
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        type: form.type,
+      });
+      if (!res.ok) setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء التعديل' });
+      else { setIsModalOpen(false); void fetchElections(); }
     } else {
+      type Payload = Parameters<typeof createElectionApi>[0];
+      const payload: Payload = {
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        type: form.type,
+      };
+
+      if (form.type === 'yes_no') {
+        payload.options = [{ id: 'yes', label: 'نعم' }, { id: 'no', label: 'لا' }];
+      } else if (form.type === 'multiple_choice') {
+        const labels = form.multiOptions.map((o) => o.trim()).filter(Boolean);
+        if (labels.length < 2) {
+          setMessage({ type: 'error', text: 'أدخل خيارين على الأقل' });
+          setIsSaving(false);
+          return;
+        }
+        payload.options = labels.map((label, i) => ({ id: `opt-${i + 1}`, label }));
+      } else {
+        const seats = parseInt(form.seatsCount, 10);
+        if (isNaN(seats) || seats < 1) {
+          setMessage({ type: 'error', text: 'عدد المقاعد يجب أن يكون رقماً صحيحاً موجباً' });
+          setIsSaving(false);
+          return;
+        }
+        payload.boardConfig = { seatsCount: seats };
+      }
+
       const res = await createElectionApi(payload);
-      ok = !!res;
-      if (!ok) setMessage({ type: 'error', text: 'حدث خطأ أثناء الإنشاء' });
+      if (!res) setMessage({ type: 'error', text: 'حدث خطأ أثناء الإنشاء' });
+      else { setIsModalOpen(false); void fetchElections(); }
     }
 
     setIsSaving(false);
-    if (ok) { setIsModalOpen(false); void fetchElections(); }
   }
 
   async function handleDelete(id: string) {
@@ -142,8 +180,15 @@ export default function ElectionsManagementPage() {
     void fetchElections();
   }
 
-  async function handleUpdateStatus(id: string, status: BackendElectionStatus) {
-    await updateElectionApi(id, { status });
+  async function handleAdvance(e: Election) {
+    const target = nextStatus(e.status, e.type);
+    if (!target) return;
+    await advanceElectionApi(e.id, target);
+    void fetchElections();
+  }
+
+  async function handleCancel(id: string) {
+    await advanceElectionApi(id, 'cancelled');
     void fetchElections();
   }
 
@@ -172,53 +217,52 @@ export default function ElectionsManagementPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {elections.map((e) => (
-          <div key={e.id} className="bg-white dark:bg-[#1a331a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusColors(e.status)}`}>
-                {statusLabel(e.status)}
-              </span>
-              <div className="flex gap-1">
-                <button onClick={() => openEdit(e)} className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-600 transition-colors">
-                  <span className="material-symbols-outlined text-[20px]">edit</span>
-                </button>
-                <button onClick={() => void handleDelete(e.id)} className="cursor-pointer p-1.5 text-slate-400 hover:text-red-600 transition-colors">
-                  <span className="material-symbols-outlined text-[20px]">delete</span>
-                </button>
+        {elections.map((e) => {
+          const advance = nextStatus(e.status, e.type);
+          return (
+            <div key={e.id} className="bg-white dark:bg-[#1a331a] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusColors(e.status)}`}>
+                  {statusLabel(e.status)}
+                </span>
+                <div className="flex gap-1">
+                  {e.status === 'draft' && (
+                    <button onClick={() => openEdit(e)} className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-600 transition-colors">
+                      <span className="material-symbols-outlined text-[20px]">edit</span>
+                    </button>
+                  )}
+                  <button onClick={() => void handleDelete(e.id)} className="cursor-pointer p-1.5 text-slate-400 hover:text-red-600 transition-colors">
+                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                  </button>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-bold mb-1 line-clamp-1">{e.title}</h3>
+              <p className="text-xs text-slate-400 mb-1">{typeLabel(e.type)}</p>
+              <p className="text-sm text-slate-500 mb-6 line-clamp-2 h-10">{e.description}</p>
+
+              <div className="mt-auto space-y-3">
+                <div className="flex gap-2 border-t pt-3 border-slate-100 dark:border-slate-800">
+                  {advance && e.status !== 'cancelled' && (
+                    <button onClick={() => void handleAdvance(e)} className="flex-1 cursor-pointer py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">
+                      {e.status === 'draft' ? (e.type === 'board' ? 'بدء الترشيح' : 'بدء التصويت') :
+                       e.status === 'nomination' ? 'الانتقال للإقصاء' :
+                       e.status === 'dismissal' ? 'بدء التصويت' : 'إنهاء'}
+                    </button>
+                  )}
+                  {e.status !== 'completed' && e.status !== 'cancelled' && (
+                    <button onClick={() => void handleCancel(e.id)} className="flex-1 cursor-pointer py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">
+                      إلغاء
+                    </button>
+                  )}
+                  <button onClick={() => void openResults(e)} className="cursor-pointer px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[18px]">bar_chart</span>
+                  </button>
+                </div>
               </div>
             </div>
-
-            <h3 className="text-xl font-bold mb-1 line-clamp-1">{e.title}</h3>
-            <p className="text-xs text-slate-400 mb-1">{typeLabel(e.type)}</p>
-            <p className="text-sm text-slate-500 mb-6 line-clamp-2 h-10">{e.description}</p>
-
-            <div className="mt-auto space-y-3">
-              <div className="text-xs text-slate-400 border-t pt-3 border-slate-100 dark:border-slate-800">
-                {e.endTime ? new Date(e.endTime).toLocaleDateString('ar-MR') : ''}
-              </div>
-              <div className="flex gap-2">
-                {e.status === 'pending' && (
-                  <button onClick={() => void handleUpdateStatus(e.id, 'active')} className="flex-1 cursor-pointer py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">
-                    إطلاق
-                  </button>
-                )}
-                {e.status === 'active' && (
-                  <button onClick={() => void handleUpdateStatus(e.id, 'completed')} className="flex-1 cursor-pointer py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">
-                    إغلاق
-                  </button>
-                )}
-                {e.status === 'completed' && (
-                  <button onClick={() => void handleUpdateStatus(e.id, 'active')} className="flex-1 cursor-pointer py-2 bg-slate-600 text-white rounded-lg text-xs font-bold">
-                    إعادة فتح
-                  </button>
-                )}
-                <button onClick={() => void openResults(e)} className="cursor-pointer px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[18px]">bar_chart</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {fetchError && (
           <div className="col-span-full py-20 text-center text-red-500 font-medium">{fetchError}</div>
@@ -272,33 +316,54 @@ export default function ElectionsManagementPage() {
                   className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value as BackendElectionType })}
+                  disabled={!!editingId}
                 >
-                  <option value="general_vote">استفتاء (نعم / لا)</option>
-                  <option value="board_election">انتخابات مجلس الإدارة</option>
-                  <option value="committee_election">انتخابات لجنة</option>
+                  <option value="yes_no">استفتاء نعم / لا</option>
+                  <option value="multiple_choice">اختيار متعدد</option>
+                  <option value="board">انتخابات مجلس الإدارة</option>
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {!editingId && form.type === 'multiple_choice' && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-500">الخيارات (2 على الأقل) *</label>
+                  {form.multiOptions.map((opt, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
+                        placeholder={`الخيار ${i + 1}`}
+                        value={opt}
+                        onChange={(e) => setOption(i, e.target.value)}
+                      />
+                      {form.multiOptions.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => setForm((p) => ({ ...p, multiOptions: p.multiOptions.filter((_, j) => j !== i) }))}
+                          className="cursor-pointer px-3 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 hover:text-red-500"
+                        >×</button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, multiOptions: [...p.multiOptions, ''] }))}
+                    className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5"
+                  >+ إضافة خيار</button>
+                </div>
+              )}
+
+              {!editingId && form.type === 'board' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">تاريخ البدء *</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">عدد المقاعد *</label>
                   <input
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
-                    type="datetime-local"
-                    value={form.startTime}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                    type="number"
+                    min="1"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                    value={form.seatsCount}
+                    onChange={(e) => setForm({ ...form, seatsCount: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">تاريخ الانتهاء *</label>
-                  <input
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
-                    type="datetime-local"
-                    value={form.endTime}
-                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                  />
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="p-6 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800 flex gap-3">

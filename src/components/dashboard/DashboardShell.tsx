@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface NavItem {
   label: string;
@@ -58,7 +57,6 @@ const NAV: NavItem[] = [
         <path d="M18 8a3 3 0 0 1 0 6" /><path d="M10 8v11" /><path d="M12 8h-2a4 4 0 0 1-4-4 4 4 0 0 1 4 4v0z" /><path d="M12 8h3l3 9H9l3-9z" />
       </svg>
     ),
-    permissions: ['MANAGE_ANNOUNCEMENTS'],
   },
   {
     label: 'الشؤون المالية',
@@ -209,9 +207,8 @@ export function DashboardShell({ children }: Props) {
         </ul>
       </nav>
 
-      {/* Footer: theme toggle + logout */}
-      <div className="border-t border-white/10 p-3 flex flex-col gap-1">
-        <ThemeToggle showLabel className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-colors cursor-pointer" />
+      {/* Footer: logout */}
+      <div className="border-t border-white/10 p-3">
         <button
           onClick={() => logout().then(() => router.push('/dashboard/login'))}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-red-400 transition-colors cursor-pointer"

@@ -24,7 +24,8 @@ export async function deletePaymentChannel(id: string, tokenType: 'admin' | 'mem
 }
 
 export async function getTransactions(tokenType: 'admin' | 'member' = 'member'): Promise<Transaction[]> {
-  return apiFetch<Transaction[]>('GET', '/finance/transactions', { tokenType });
+  const res = await apiFetch<{ data: Transaction[]; nextCursor: string | null }>('GET', '/finance/transactions', { tokenType });
+  return res.data;
 }
 
 export async function createTransaction(dto: CreateTransactionDto, tokenType: 'admin' | 'member' = 'member'): Promise<Transaction> {

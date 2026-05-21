@@ -1,25 +1,10 @@
 export interface ElectionOption {
   id: string;
-  name: string;
-  photoUrl?: string;
+  label: string;
 }
 
-export type ElectionType = 'YES_NO' | 'NOMINATION' | 'PICK_MEMBER';
-
-export interface ElectionConfig {
-  pickMember?: {
-    candidateUids?: string[];
-    maxSelections?: number;
-  };
-  nomination?: {
-    minPicks?: number;
-    maxPicks?: number;
-  };
-}
-
-// Backend election types (from NestJS API — electionProcesses collection)
-export type BackendElectionType = 'board_election' | 'committee_election' | 'general_vote';
-export type BackendElectionStatus = 'pending' | 'active' | 'completed' | 'cancelled';
+export type BackendElectionType = 'yes_no' | 'multiple_choice' | 'board';
+export type BackendElectionStatus = 'draft' | 'nomination' | 'dismissal' | 'voting' | 'completed' | 'cancelled';
 
 export interface Election {
   id: string;
@@ -27,8 +12,8 @@ export interface Election {
   description?: string;
   type: BackendElectionType;
   status: BackendElectionStatus;
-  startTime: string;
-  endTime: string;
+  options?: ElectionOption[];
+  boardConfig?: { seatsCount: number; targetNominees?: number; shortlistCount?: number; dismissalWindowHours?: number };
   createdAt: string;
 }
 
@@ -40,11 +25,9 @@ export interface Vote {
   votedAt: string;
 }
 
-export interface NominationCount {
-  id: string;
+export interface ElectionResults {
   electionId: string;
-  nomineeUid: string;
-  count: number;
+  results: { selection: string; count: number }[];
 }
 
 export interface PublicMember {
@@ -54,7 +37,9 @@ export interface PublicMember {
   status?: string;
 }
 
-export interface ElectionResults {
+export interface NominationCount {
+  id: string;
   electionId: string;
-  results: { selection: string; count: number }[];
+  nomineeUid: string;
+  count: number;
 }
