@@ -50,8 +50,8 @@ export default function MemberAnnouncementsPage() {
       message: item.message,
       type: item.type,
       isActive: item.isActive,
-      startDate: item.startDate.slice(0, 10),
-      endDate: item.endDate.slice(0, 10),
+      startDate: item.startDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+      endDate: item.endDate?.slice(0, 10) ?? '',
       ctaLabel: item.ctaLabel ?? '',
       ctaUrl: item.ctaUrl ?? '',
     });
