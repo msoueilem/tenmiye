@@ -31,7 +31,8 @@ export default function MemberFinancePage() {
   const [form, setForm] = useState<CreateTransactionDto>({
     type: 'contribution',
     amount: 0,
-    currency: 'MRU',
+    date: new Date().toISOString().slice(0, 10),
+    paymentChannelId: '',
     description: '',
   });
 
@@ -54,7 +55,7 @@ export default function MemberFinancePage() {
     try {
       const created = await createTransaction(form);
       setTransactions((prev) => [created, ...prev]);
-      setForm({ type: 'contribution', amount: 0, currency: 'MRU', description: '' });
+      setForm({ type: 'contribution', amount: 0, date: new Date().toISOString().slice(0, 10), paymentChannelId: '', description: '' });
       setSuccess('تم تسجيل المعاملة بنجاح');
       setTab('history');
     } catch {
@@ -103,25 +104,42 @@ export default function MemberFinancePage() {
       </div>
 
       {tab === 'summary' && summary && (
-        <div className="grid max-w-lg grid-cols-3 gap-4">
-          <div className="rounded-lg bg-white/5 p-4 text-center">
-            <p className="mb-1 text-xs text-slate-400">المساهمات</p>
-            <p className="text-lg font-bold text-green-400">
-              {summary.totalContributions} {summary.currency}
-            </p>
+        <div className="space-y-4 max-w-lg">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">المساهمات</p>
+              <p className="text-lg font-bold text-green-400">
+                {summary.totals.contribution} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">التبرعات</p>
+              <p className="text-lg font-bold text-green-300">
+                {summary.totals.donation} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">المصروفات</p>
+              <p className="text-lg font-bold text-red-400">
+                {summary.totals.expense} {summary.currency}
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg bg-white/5 p-4 text-center">
-            <p className="mb-1 text-xs text-slate-400">المصروفات</p>
-            <p className="text-lg font-bold text-red-400">
-              {summary.totalExpenses} {summary.currency}
-            </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">إجمالي الدخل</p>
+              <p className="text-lg font-bold text-green-400">
+                {summary.income} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">الصافي</p>
+              <p className={`text-lg font-bold ${summary.net >= 0 ? 'text-[#0df20d]' : 'text-red-400'}`}>
+                {summary.net} {summary.currency}
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg bg-white/5 p-4 text-center">
-            <p className="mb-1 text-xs text-slate-400">الرصيد</p>
-            <p className="text-lg font-bold text-[#0df20d]">
-              {summary.balance} {summary.currency}
-            </p>
-          </div>
+          <p className="text-xs text-slate-500">سنة {summary.year}{summary.month ? ` — شهر ${summary.month}` : ''}</p>
         </div>
       )}
 
@@ -146,24 +164,21 @@ export default function MemberFinancePage() {
             onChange={(e) => setForm((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
             required
           />
-          <select
+          <input
+            type="date"
             className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
-            value={form.currency}
-            onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))}
-          >
-            <option value="MRU">أوقية موريتانية (MRU)</option>
-            <option value="USD">دولار أمريكي (USD)</option>
-            <option value="EUR">يورو (EUR)</option>
-          </select>
+            value={form.date}
+            onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+            required
+          />
           {channels.filter((c) => c.isActive).length > 0 && (
             <select
               className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
-              value={form.paymentChannelId ?? ''}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, paymentChannelId: e.target.value || undefined }))
-              }
+              value={form.paymentChannelId}
+              onChange={(e) => setForm((p) => ({ ...p, paymentChannelId: e.target.value }))}
+              required
             >
-              <option value="">قناة الدفع (اختياري)</option>
+              <option value="">اختر قناة الدفع</option>
               {channels
                 .filter((c) => c.isActive)
                 .map((c) => (
@@ -198,9 +213,9 @@ export default function MemberFinancePage() {
               className="rounded-lg border border-white/10 bg-white/5 p-3"
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm text-white">{tx.description ?? tx.type}</p>
+                <p className="text-sm text-white">{tx.notes ?? tx.description ?? tx.type}</p>
                 <p className="text-sm font-semibold text-[#0df20d]">
-                  {tx.amount} {tx.currency}
+                  {tx.amount} MRU
                 </p>
               </div>
               <p className="mt-1 text-xs text-slate-400">
