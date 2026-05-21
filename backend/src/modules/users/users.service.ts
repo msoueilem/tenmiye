@@ -100,6 +100,8 @@ export class UsersService {
       tierId,
       profilePictureId: dto.profilePictureId ?? null,
       outsidePlatform: dto.outsidePlatform ?? false,
+      isBlocked: false,
+      outsideWhatsapp: false,
       status: 'pending',
       approvedBy: null,
       approvedAt: null,

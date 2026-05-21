@@ -81,6 +81,19 @@ export default function DashboardRolesPage() {
     }));
   };
 
+  const handleToggleActive = async (role: Role) => {
+    if (!canWrite) return;
+    setSaving(true);
+    try {
+      const updated = await updateRole(role.id, { isActive: !role.isActive });
+      setRoles((prev) => prev.map((r) => (r.id === role.id ? updated : r)));
+    } catch {
+      setError('فشل تغيير حالة الدور');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canWrite) return;
@@ -179,6 +192,15 @@ export default function DashboardRolesPage() {
               ))}
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={form.isActive ?? true}
+              onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+              className="accent-[#0df20d]"
+            />
+            نشط
+          </label>
           <div className="mt-2 flex gap-3">
             <button
               type="submit"
@@ -222,7 +244,12 @@ export default function DashboardRolesPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-white">{role.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-white">{role.name}</p>
+                  <span className={`text-xs ${role.isActive ? 'text-green-400' : 'text-slate-500'}`}>
+                    {role.isActive ? '● نشط' : '○ معطّل'}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500">{role.slug}</p>
                 {role.description && (
                   <p className="mt-1 text-sm text-slate-400">{role.description}</p>
@@ -241,12 +268,25 @@ export default function DashboardRolesPage() {
                 )}
               </div>
               {canWrite && (
-                <button
-                  onClick={() => handleEdit(role)}
-                  className="shrink-0 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-[#0df20d] hover:bg-white/10"
-                >
-                  تعديل
-                </button>
+                <div className="flex shrink-0 flex-col gap-1">
+                  <button
+                    onClick={() => handleToggleActive(role)}
+                    disabled={saving}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${
+                      role.isActive
+                        ? 'bg-white/5 text-yellow-400 hover:bg-white/10'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    {role.isActive ? 'تعطيل' : 'تفعيل'}
+                  </button>
+                  <button
+                    onClick={() => handleEdit(role)}
+                    className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-[#0df20d] hover:bg-white/10"
+                  >
+                    تعديل
+                  </button>
+                </div>
               )}
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsArray, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, IsEnum, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Permission } from '../../../common/enums/permission.enum';
 
@@ -28,4 +28,9 @@ export class CreateRoleDto {
   @IsArray()
   @IsEnum(Permission, { each: true })
   permissions!: Permission[];
+
+  @ApiPropertyOptional({ default: true })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

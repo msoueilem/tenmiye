@@ -15,8 +15,9 @@ interface Member {
   nationalId?: string | null;
   city?: string | null;
   region?: string | null;
-  status: 'pending' | 'active' | 'blocked';
-  outsidePlatform: boolean;
+  status: 'pending' | 'active' | 'inactive' | 'blocked';
+  isBlocked: boolean;
+  outsideWhatsapp: boolean;
   createdAt?: string | null;
 }
 
@@ -27,7 +28,7 @@ interface MemberFormData {
   nationalId: string;
   city: string;
   region: string;
-  outsidePlatform: boolean;
+  outsideWhatsapp: boolean;
 }
 
 const EMPTY_FORM: MemberFormData = {
@@ -37,12 +38,12 @@ const EMPTY_FORM: MemberFormData = {
   nationalId: '',
   city: '',
   region: '',
-  outsidePlatform: false,
+  outsideWhatsapp: false,
 };
 
 type FilterStatus = 'all' | 'pending' | 'active' | 'blocked';
 
-const STATUS_LABEL: Record<string, string> = { pending: 'معلّق', active: 'نشط', blocked: 'محظور' };
+const STATUS_LABEL: Record<string, string> = { pending: 'معلّق', active: 'نشط', inactive: 'غير نشط', blocked: 'محظور' };
 
 function formatDate(val: Member['createdAt']): string {
   if (!val) return '—';
@@ -52,6 +53,7 @@ function formatDate(val: Member['createdAt']): string {
 function StatusBadge({ status }: { status: string }) {
   if (status === 'active') return <span className="rounded-full bg-[#0df20d]/15 px-2 py-0.5 text-xs font-bold text-[#0df20d]">نشط</span>;
   if (status === 'pending') return <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-400">معلّق</span>;
+  if (status === 'inactive') return <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-xs font-bold text-slate-400">غير نشط</span>;
   return <span className="rounded-full bg-red-400/15 px-2 py-0.5 text-xs font-bold text-red-400">{STATUS_LABEL[status] ?? status}</span>;
 }
 
@@ -131,6 +133,15 @@ export default function MembersPage() {
     setActing((prev) => ({ ...prev, [id]: false }));
   }
 
+  async function toggleBooleanField(id: string, field: 'isBlocked' | 'outsideWhatsapp', current: boolean) {
+    setActing((prev) => ({ ...prev, [`${id}_${field}`]: true }));
+    try {
+      await apiFetch('PATCH', `/users/${id}`, { body: { [field]: !current }, tokenType: 'member' });
+      setRows((prev) => prev.map((m) => m.id === id ? { ...m, [field]: !current } : m));
+    } catch { /* silently ignore */ }
+    setActing((prev) => ({ ...prev, [`${id}_${field}`]: false }));
+  }
+
   function openAdd() {
     setEditing(null);
     setForm(EMPTY_FORM);
@@ -147,7 +158,7 @@ export default function MembersPage() {
       nationalId: member.nationalId ?? '',
       city: member.city ?? '',
       region: member.region ?? '',
-      outsidePlatform: member.outsidePlatform,
+      outsideWhatsapp: member.outsideWhatsapp,
     });
     setFormError('');
     setModal('edit');
@@ -170,7 +181,7 @@ export default function MembersPage() {
     const body: Record<string, unknown> = {
       fullName: form.fullName,
       phoneNumber: form.phoneNumber,
-      outsidePlatform: form.outsidePlatform,
+      outsideWhatsapp: form.outsideWhatsapp,
     };
     if (form.whatsappNumber) body.whatsappNumber = form.whatsappNumber;
     if (form.nationalId) body.nationalId = form.nationalId;
@@ -182,12 +193,12 @@ export default function MembersPage() {
         if (!form.whatsappNumber) { setFormError('رقم واتساب مطلوب.'); setFormSaving(false); return; }
         body.whatsappNumber = form.whatsappNumber;
         const { id } = await apiFetch<{ id: string }>('POST', '/users', { body, tokenType: 'member' });
-        const newMember: Member = { id, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsidePlatform: form.outsidePlatform, status: 'pending', createdAt: new Date().toISOString() };
+        const newMember: Member = { id, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsideWhatsapp: form.outsideWhatsapp, isBlocked: false, status: 'pending', createdAt: new Date().toISOString() };
         setRows((prev) => [newMember, ...prev]);
         closeModal();
       } else if (modal === 'edit' && editing) {
         await apiFetch('PATCH', `/users/${editing.id}`, { body, tokenType: 'member' });
-        setRows((prev) => prev.map((m) => m.id === editing.id ? { ...m, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber || m.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsidePlatform: form.outsidePlatform } : m));
+        setRows((prev) => prev.map((m) => m.id === editing.id ? { ...m, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber || m.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsideWhatsapp: form.outsideWhatsapp } : m));
         closeModal();
       }
     } catch (e: unknown) {
@@ -290,8 +301,11 @@ export default function MembersPage() {
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <p className="font-semibold text-white">{m.fullName}</p>
                     <StatusBadge status={m.status} />
-                    {m.outsidePlatform && (
-                      <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-xs font-bold text-slate-400">خارج المنصة</span>
+                    {m.isBlocked && (
+                      <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400">محظور</span>
+                    )}
+                    {m.outsideWhatsapp && (
+                      <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-xs font-bold text-slate-400">خارج واتساب</span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-400">
@@ -310,9 +324,20 @@ export default function MembersPage() {
                     >
                       تعديل
                     </button>
+                    <button
+                      disabled={!!acting[`${m.id}_outsideWhatsapp`]}
+                      onClick={() => void toggleBooleanField(m.id, 'outsideWhatsapp', m.outsideWhatsapp)}
+                      className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        m.outsideWhatsapp
+                          ? 'bg-slate-500/15 text-slate-300 hover:bg-slate-500/25'
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      }`}
+                    >
+                      {acting[`${m.id}_outsideWhatsapp`] ? '...' : m.outsideWhatsapp ? 'في واتساب' : 'خارج واتساب'}
+                    </button>
                     {(m.status === 'pending' || m.status === 'blocked') && (
                       <button
-                        disabled={acting[m.id]}
+                        disabled={!!acting[m.id]}
                         onClick={() => void updateStatus(m.id, 'active')}
                         className="cursor-pointer rounded-lg bg-[#0df20d]/15 px-3 py-1.5 text-xs font-bold text-[#0df20d] transition-colors hover:bg-[#0df20d]/25 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -321,7 +346,7 @@ export default function MembersPage() {
                     )}
                     {m.status === 'active' && (
                       <button
-                        disabled={acting[m.id]}
+                        disabled={!!acting[m.id]}
                         onClick={() => void updateStatus(m.id, 'blocked')}
                         className="cursor-pointer rounded-lg bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -383,21 +408,21 @@ export default function MembersPage() {
                 </Field>
               </div>
 
-              {/* Outside platform toggle */}
+              {/* Outside WhatsApp toggle */}
               <button
                 type="button"
-                onClick={() => setForm((p) => ({ ...p, outsidePlatform: !p.outsidePlatform }))}
+                onClick={() => setForm((p) => ({ ...p, outsideWhatsapp: !p.outsideWhatsapp }))}
                 className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-sm transition-colors ${
-                  form.outsidePlatform
+                  form.outsideWhatsapp
                     ? 'border-slate-500/40 bg-slate-500/10'
                     : 'border-white/10 bg-[#071a07] hover:border-white/20'
                 }`}
               >
-                <span className={form.outsidePlatform ? 'font-semibold text-slate-300' : 'text-slate-400'}>
-                  خارج المنصة
+                <span className={form.outsideWhatsapp ? 'font-semibold text-slate-300' : 'text-slate-400'}>
+                  خارج واتساب
                 </span>
-                <span className={`h-5 w-9 rounded-full transition-colors ${form.outsidePlatform ? 'bg-slate-500' : 'bg-white/10'}`}>
-                  <span className={`block h-5 w-5 rounded-full border-2 border-[#0a1f0a] bg-white transition-transform ${form.outsidePlatform ? 'translate-x-0' : 'translate-x-4'}`} />
+                <span className={`h-5 w-9 rounded-full transition-colors ${form.outsideWhatsapp ? 'bg-slate-500' : 'bg-white/10'}`}>
+                  <span className={`block h-5 w-5 rounded-full border-2 border-[#0a1f0a] bg-white transition-transform ${form.outsideWhatsapp ? 'translate-x-0' : 'translate-x-4'}`} />
                 </span>
               </button>
             </div>

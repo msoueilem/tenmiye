@@ -6,20 +6,17 @@ export interface MemberSearchResult {
 
 export interface UserMember {
   id: string;
-  name: string;
+  fullName: string;
   phoneNumber: string;
-  status: 'active' | 'pending' | 'blocked';
+  whatsappNumber?: string;
+  nationalId?: string | null;
+  status: 'active' | 'inactive' | 'pending' | 'blocked';
+  isBlocked: boolean;
+  outsideWhatsapp: boolean;
+  roleId?: string;
+  tierId?: string;
   createdAt: string;
-  notes?: string;
-  votedElections?: string[];
-  contribution?: number;
-  totalContribution?: number;
-  totalDonation?: number;
-  monthsCovered?: number;
-  photoUrl?: string;
-  dateOfBirth?: string;
-  occupation?: string;
-  location?: string;
+  updatedAt?: string;
 }
 
 export interface Admin {
