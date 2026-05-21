@@ -21,6 +21,11 @@ export const tokenStore = {
   set(type: TokenType, access: string, refresh: string): void {
     localStorage.setItem(KEYS[type].access, access);
     localStorage.setItem(KEYS[type].refresh, refresh);
+    
+    // Clear the opposite token type to ensure only one active session
+    const otherType: TokenType = type === 'admin' ? 'member' : 'admin';
+    localStorage.removeItem(KEYS[otherType].access);
+    localStorage.removeItem(KEYS[otherType].refresh);
   },
   clear(type: TokenType): void {
     localStorage.removeItem(KEYS[type].access);
@@ -124,5 +129,7 @@ export async function apiFetch<T = unknown>(
   }
 
   if (res.status === 204) return null as T;
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  if (!text) return null as T;
+  return JSON.parse(text) as T;
 }
