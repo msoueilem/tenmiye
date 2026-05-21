@@ -6,7 +6,7 @@ import { AdminSession } from '@/context/DashboardContext';
 import { Permission } from '@/lib/permissions';
 
 export function DashboardHome({ session }: { session: AdminSession }) {
-  const isSuperAdmin = session.permissions.includes(Permission.MANAGE_ACCESS);
+  const isSuperAdmin = session.permissions.includes(Permission.MANAGE_ROLES);
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
