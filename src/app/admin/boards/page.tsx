@@ -23,7 +23,7 @@ export default function AdminBoardsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getBoards().then(setBoards).catch(() => setError('فشل تحميل المجالس'));
+    getBoards('admin').then(setBoards).catch(() => setError('فشل تحميل المجالس'));
   }, []);
 
   const resetForm = () => {
@@ -64,10 +64,10 @@ export default function AdminBoardsPage() {
     setError('');
     try {
       if (mode === 'edit' && editing) {
-        const updated = await updateBoard(editing.id, form);
+        const updated = await updateBoard(editing.id, form, 'admin');
         setBoards((prev) => prev.map((b) => (b.id === editing.id ? updated : b)));
       } else {
-        const created = await createBoard(form);
+        const created = await createBoard(form, 'admin');
         setBoards((prev) => [...prev, created]);
       }
       resetForm();

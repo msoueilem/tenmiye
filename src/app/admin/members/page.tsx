@@ -105,8 +105,8 @@ export default function MembersPage() {
     return users.filter((u) => {
       const matchesSearch = !searchTerm ||
         u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.phoneNumber.includes(searchTerm) ||
-        (u.fullNameAr ?? '').includes(searchTerm);
+        (u.phoneNumber && u.phoneNumber.includes(searchTerm)) ||
+        (u.fullNameAr && u.fullNameAr.includes(searchTerm));
       const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -142,7 +142,7 @@ export default function MembersPage() {
     setIsSaving(true);
     setFormError('');
 
-    const payload = {
+    const payload: any = {
       fullName: form.fullName.trim(),
       fullNameAr: form.fullNameAr.trim() || undefined,
       phoneNumber: form.phoneNumber.trim(),
@@ -151,8 +151,11 @@ export default function MembersPage() {
       city: form.city.trim() || undefined,
       region: form.region.trim() || undefined,
       tierId: form.tierId,
-      status: form.status,
     };
+    
+    if (editingUser) {
+      payload.status = form.status;
+    }
 
     try {
       if (editingUser) {

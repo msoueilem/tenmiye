@@ -29,7 +29,7 @@ export default function AdminBlogPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getAllBlogs().then(setPosts).catch(() => setError('فشل تحميل المقالات'));
+    getAllBlogs('admin').then(setPosts).catch(() => setError('فشل تحميل المقالات'));
   }, []);
 
   const resetForm = () => {
@@ -51,7 +51,7 @@ export default function AdminBlogPage() {
     if (!confirm('هل أنت متأكد من حذف هذا المقال؟')) return;
     setLoading(true);
     try {
-      await deleteBlog(id);
+      await deleteBlog(id, 'admin');
       setPosts((prev) => prev.filter((p) => p.id !== id));
     } catch {
       setError('فشل الحذف');
@@ -64,8 +64,9 @@ export default function AdminBlogPage() {
     const next = post.status === 'published' ? 'draft' : 'published';
     setLoading(true);
     try {
-      const updated = await updateBlogStatus(post.id, next);
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? updated : p)));
+      await updateBlogStatus(post.id, next, 'admin');
+      const refreshed = await getAllBlogs('admin');
+      setPosts(refreshed);
     } catch {
       setError('فشل تغيير الحالة');
     } finally {
@@ -81,12 +82,12 @@ export default function AdminBlogPage() {
     setError('');
     try {
       if (mode === 'edit' && editing) {
-        const updated = await updateBlog(editing.id, payload);
-        setPosts((prev) => prev.map((p) => (p.id === editing.id ? updated : p)));
+        await updateBlog(editing.id, payload, 'admin');
       } else {
-        const created = await createBlog(payload);
-        setPosts((prev) => [...prev, created]);
+        await createBlog(payload, 'admin');
       }
+      const refreshed = await getAllBlogs('admin');
+      setPosts(refreshed);
       resetForm();
     } catch {
       setError('فشل الحفظ');

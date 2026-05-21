@@ -30,7 +30,7 @@ export default function AdminAnnouncementsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getAllAnnouncements().then(setItems).catch(() => setError('فشل تحميل الإعلانات'));
+    getAllAnnouncements('admin').then(setItems).catch(() => setError('فشل تحميل الإعلانات'));
   }, []);
 
   const resetForm = () => {
@@ -46,8 +46,8 @@ export default function AdminAnnouncementsPage() {
       message: item.message,
       type: item.type,
       isActive: item.isActive,
-      startDate: item.startDate.slice(0, 10),
-      endDate: item.endDate.slice(0, 10),
+      startDate: item.startDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+      endDate: item.endDate?.slice(0, 10) ?? '',
       ctaLabel: item.ctaLabel ?? '',
       ctaUrl: item.ctaUrl ?? '',
     });
@@ -73,10 +73,10 @@ export default function AdminAnnouncementsPage() {
     setError('');
     try {
       if (mode === 'edit' && editing) {
-        const updated = await updateAnnouncement(editing.id, form);
+        const updated = await updateAnnouncement(editing.id, form, 'admin');
         setItems((prev) => prev.map((i) => (i.id === editing.id ? updated : i)));
       } else {
-        const created = await createAnnouncement(form);
+        const created = await createAnnouncement(form, 'admin');
         setItems((prev) => [...prev, created]);
       }
       resetForm();
@@ -199,7 +199,7 @@ export default function AdminAnnouncementsPage() {
             <div>
               <p className="line-clamp-1 font-semibold text-white">{item.message}</p>
               <p className="text-sm text-slate-400">
-                {item.startDate.slice(0, 10)} — {item.endDate.slice(0, 10)} •{' '}
+                {item.startDate?.slice(0, 10) ?? '—'} — {item.endDate?.slice(0, 10) ?? '—'} •{' '}
                 <span className={item.isActive ? 'text-green-400' : 'text-slate-500'}>
                   {item.isActive ? 'نشط' : 'غير نشط'}
                 </span>
