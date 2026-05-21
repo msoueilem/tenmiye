@@ -103,7 +103,7 @@ export class BlogService {
     });
   }
 
-  async updateStatus(id: string, dto: UpdateStatusDto): Promise<void> {
+  async updateStatus(id: string, dto: UpdateStatusDto): Promise<{ id: string; [key: string]: unknown }> {
     const doc = await this.firebase.db.collection(COLLECTION).doc(id).get();
     if (!doc.exists) throw new NotFoundException(`Post ${id} not found`);
 
@@ -116,6 +116,7 @@ export class BlogService {
     }
 
     await this.firebase.db.collection(COLLECTION).doc(id).update(update);
+    return this.findOne(id, false);
   }
 
   async remove(id: string): Promise<void> {
