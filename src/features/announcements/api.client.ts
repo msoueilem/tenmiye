@@ -5,18 +5,18 @@ export async function getActiveAnnouncements(): Promise<Announcement[]> {
   return apiFetch<Announcement[]>('GET', '/announcements');
 }
 
-export async function getAllAnnouncements(): Promise<Announcement[]> {
-  return apiFetch<Announcement[]>('GET', '/announcements/all', { tokenType: 'member' });
+export async function getAllAnnouncements(tokenType: 'admin' | 'member' = 'member'): Promise<Announcement[]> {
+  return apiFetch<Announcement[]>('GET', '/announcements/all', { tokenType });
 }
 
-export async function createAnnouncement(dto: CreateAnnouncementDto): Promise<Announcement> {
-  return apiFetch<Announcement>('POST', '/announcements', { body: dto, tokenType: 'member' });
+export async function createAnnouncement(dto: CreateAnnouncementDto, tokenType: 'admin' | 'member' = 'member'): Promise<Announcement> {
+  return apiFetch<Announcement>('POST', '/announcements', { body: dto, tokenType });
 }
 
-export async function updateAnnouncement(id: string, dto: UpdateAnnouncementDto): Promise<Announcement> {
-  return apiFetch<Announcement>('PATCH', `/announcements/${id}`, { body: dto, tokenType: 'member' });
+export async function updateAnnouncement(id: string, dto: UpdateAnnouncementDto, tokenType: 'admin' | 'member' = 'member'): Promise<Announcement> {
+  return apiFetch<Announcement>('PATCH', `/announcements/${id}`, { body: dto, tokenType });
 }
 
-export async function deleteAnnouncement(id: string): Promise<void> {
-  return apiFetch<void>('DELETE', `/announcements/${id}`, { tokenType: 'admin' });
+export async function deleteAnnouncement(id: string, tokenType: 'admin' | 'member' = 'admin'): Promise<void> {
+  return apiFetch<void>('DELETE', `/announcements/${id}`, { tokenType });
 }
