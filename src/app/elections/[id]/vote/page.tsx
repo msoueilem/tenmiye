@@ -11,6 +11,7 @@ import {
   checkMyVote,
   submitNominationsApi,
   dismissSelfApi,
+  getMyNominationApi,
 } from '@/features/elections/api.client';
 import { Election, ElectionResults, PublicMember } from '@/types/elections';
 import { Card } from '@/components/ui/Card';
@@ -34,9 +35,11 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
   const [election, setElection] = useState<Election | null>(null);
   const [results, setResults] = useState<ElectionResults | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
+  const [hasNominated, setHasNominated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [selections, setSelections] = useState<string[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<Record<string, PublicMember>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -57,8 +60,14 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
       const token = await getAccessToken();
       if (token && el) {
-        const voted = await checkMyVote(electionId, token);
-        if (mounted) setHasVoted(voted);
+        const [voted, nomination] = await Promise.all([
+          checkMyVote(electionId, token),
+          el.status === 'nomination' ? getMyNominationApi(electionId) : Promise.resolve({ submitted: false, nominees: [] }),
+        ]);
+        if (mounted) {
+          setHasVoted(voted);
+          setHasNominated(nomination.submitted);
+        }
       }
       if (mounted) setLoading(false);
     }
@@ -75,10 +84,14 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     } catch { /* ignore */ }
   }, []);
 
-  const toggleMember = (uid: string, max: number) => {
+  const toggleMember = (uid: string, max: number, member?: PublicMember) => {
     setSelections((prev) => {
-      if (prev.includes(uid)) return prev.filter((x) => x !== uid);
+      if (prev.includes(uid)) {
+        setSelectedMembers((m) => { const next = { ...m }; delete next[uid]; return next; });
+        return prev.filter((x) => x !== uid);
+      }
       if (prev.length >= max) return prev;
+      if (member) setSelectedMembers((m) => ({ ...m, [uid]: member }));
       return [...prev, uid];
     });
   };
@@ -93,8 +106,9 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     if (!result.ok) {
       setError(result.error ?? 'حدث خطأ');
     } else {
-      setSuccess('تم تقديم ترشيحاتك بنجاح!');
+      setHasNominated(true);
       setSelections([]);
+      setSelectedMembers({});
     }
   };
 
@@ -161,7 +175,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     : 'الانتخابات';
 
   return (
-    <div className="max-w-4xl mx-auto p-4 flex flex-col gap-8" dir="rtl">
+    <div className="flex flex-col gap-8">
       {/* Header */}
       <Card>
         <div className="flex items-center gap-3 mb-2">
@@ -179,13 +193,14 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
           {!isActive && !isCompleted && <AlertBox variant="info">هذه الانتخابات غير نشطة حالياً.</AlertBox>}
           {hasVoted && isVoting && <AlertBox variant="success">لقد قمت بالتصويت في هذه الانتخابات مسبقاً.</AlertBox>}
           {!user && isActive && <AlertBox variant="info">يجب تسجيل الدخول للمشاركة.</AlertBox>}
-          {success && <AlertBox variant="success">{success}</AlertBox>}
+          {hasNominated && isNomination && <AlertBox variant="success">لقد قدّمت ترشيحاتك لهذه الجولة مسبقاً.</AlertBox>}
+      {success && <AlertBox variant="success">{success}</AlertBox>}
           {error && <AlertBox variant="error">{error}</AlertBox>}
         </div>
       </Card>
 
       {/* ── Nomination phase ── */}
-      {isNomination && (
+      {isNomination && !hasNominated && !success && (
         <Card>
           <h2 className="text-xl font-bold mb-2 text-slate-800 border-b border-slate-100 pb-3">
             رشّح أعضاءك للمجلس
@@ -195,9 +210,10 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
             المحدد: {selections.length} / {seatsCount}
           </p>
           <MemberSearchPicker
-            disabled={!user || !!success}
+            disabled={!user}
             selections={selections}
-            onToggle={(uid) => toggleMember(uid, seatsCount)}
+            selectedMembers={selectedMembers}
+            onToggle={(uid, member) => toggleMember(uid, seatsCount, member)}
             searchQuery={searchQuery}
             setSearchQuery={(q) => { setSearchQuery(q); void handleSearch(q); }}
             searchResults={searchResults}
@@ -205,7 +221,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
           <div className="mt-4">
             <PrimaryButton
               onClick={handleSubmitNominations}
-              disabled={!user || submitting || selections.length !== seatsCount || !!success}
+              disabled={!user || submitting || selections.length !== seatsCount}
               loading={submitting}
             >
               {!user ? 'سجّل الدخول للترشيح' : `تأكيد الترشيحات (${selections.length}/${seatsCount})`}
@@ -262,7 +278,8 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
               <MemberSearchPicker
                 disabled={!user || hasVoted || submitting}
                 selections={selections}
-                onToggle={(uid) => toggleMember(uid, seatsCount)}
+                selectedMembers={selectedMembers}
+                onToggle={(uid, member) => toggleMember(uid, seatsCount, member)}
                 searchQuery={searchQuery}
                 setSearchQuery={(q) => { setSearchQuery(q); void handleSearch(q); }}
                 searchResults={searchResults}
@@ -321,9 +338,52 @@ function MemberAvatar({ member }: { member: PublicMember }) {
   );
 }
 
+function MemberRow({ m, selected, disabled, onToggle }: { m: PublicMember; selected: boolean; disabled: boolean; onToggle: (uid: string, member: PublicMember) => void }) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={() => onToggle(m.id, m)}
+      className={`flex items-center gap-3 rounded-xl border p-3 text-right transition-all w-full disabled:opacity-50 disabled:cursor-not-allowed ${
+        selected ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-slate-300 bg-white'
+      }`}
+    >
+      <MemberAvatar member={m} />
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          {m.fullNameAr && <span className="font-semibold text-slate-900 text-sm" dir="rtl">{m.fullNameAr}</span>}
+          {m.fullNameFr && (
+            <span className={`text-sm ${m.fullNameAr ? 'text-slate-500' : 'font-semibold text-slate-900'}`}>{m.fullNameFr}</span>
+          )}
+          {!m.fullNameAr && !m.fullNameFr && <span className="font-semibold text-slate-900 text-sm">{m.fullName}</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-0.5">
+          {m.whatsappNumber && (
+            <span className="flex items-center gap-1 text-xs text-slate-500">
+              <svg viewBox="0 0 24 24" className="h-3 w-3 fill-green-500" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+              </svg>
+              {m.whatsappNumber}
+            </span>
+          )}
+          {m.phoneNumber && m.phoneNumber !== m.whatsappNumber && (
+            <span className="flex items-center gap-1 text-xs text-slate-500">
+              <svg viewBox="0 0 24 24" className="h-3 w-3 fill-slate-400" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+              </svg>
+              {m.phoneNumber}
+            </span>
+          )}
+        </div>
+      </div>
+      {selected && <span className="text-green-600 text-lg shrink-0">✓</span>}
+    </button>
+  );
+}
+
 function MemberSearchPicker({
   disabled,
   selections,
+  selectedMembers,
   onToggle,
   searchQuery,
   setSearchQuery,
@@ -331,13 +391,29 @@ function MemberSearchPicker({
 }: {
   disabled: boolean;
   selections: string[];
-  onToggle: (uid: string) => void;
+  selectedMembers: Record<string, PublicMember>;
+  onToggle: (uid: string, member: PublicMember) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   searchResults: PublicMember[];
 }) {
+  const unselectedResults = searchResults.filter((m) => !selections.includes(m.id));
+
   return (
     <div className="flex flex-col gap-3 mb-4">
+      {/* Always-visible selected members */}
+      {selections.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">المرشحون المختارون</p>
+          {selections.map((uid) => {
+            const m = selectedMembers[uid];
+            if (!m) return null;
+            return <MemberRow key={uid} m={m} selected disabled={disabled} onToggle={onToggle} />;
+          })}
+          {unselectedResults.length > 0 && <hr className="border-slate-100 my-1" />}
+        </div>
+      )}
+
       <input
         type="text"
         placeholder="ابحث بالاسم (عربي أو فرنسي) أو رقم الهاتف..."
@@ -347,62 +423,11 @@ function MemberSearchPicker({
         onChange={(e) => setSearchQuery(e.target.value)}
         dir="auto"
       />
-      {searchResults.map((m) => {
-        const selected = selections.includes(m.id);
-        return (
-          <button
-            key={m.id}
-            disabled={disabled}
-            onClick={() => onToggle(m.id)}
-            className={`flex items-center gap-3 rounded-xl border p-3 text-right transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              selected ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-slate-300 bg-white'
-            }`}
-          >
-            <MemberAvatar member={m} />
 
-            <div className="flex-1 min-w-0">
-              {/* Names */}
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                {m.fullNameAr && (
-                  <span className="font-semibold text-slate-900 text-sm" dir="rtl">{m.fullNameAr}</span>
-                )}
-                {m.fullNameFr && (
-                  <span className={`text-sm ${m.fullNameAr ? 'text-slate-500' : 'font-semibold text-slate-900'}`}>
-                    {m.fullNameFr}
-                  </span>
-                )}
-                {!m.fullNameAr && !m.fullNameFr && (
-                  <span className="font-semibold text-slate-900 text-sm">{m.fullName}</span>
-                )}
-              </div>
-
-              {/* Contact info */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-0.5">
-                {m.whatsappNumber && (
-                  <span className="flex items-center gap-1 text-xs text-slate-500">
-                    <svg viewBox="0 0 24 24" className="h-3 w-3 fill-green-500" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
-                    </svg>
-                    {m.whatsappNumber}
-                  </span>
-                )}
-                {m.phoneNumber && m.phoneNumber !== m.whatsappNumber && (
-                  <span className="flex items-center gap-1 text-xs text-slate-500">
-                    <svg viewBox="0 0 24 24" className="h-3 w-3 fill-slate-400" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-                    </svg>
-                    {m.phoneNumber}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {selected && (
-              <span className="text-green-600 text-lg shrink-0">✓</span>
-            )}
-          </button>
-        );
-      })}
+      {/* Search results — hide already-selected ones to avoid duplication */}
+      {unselectedResults.map((m) => (
+        <MemberRow key={m.id} m={m} selected={false} disabled={disabled} onToggle={onToggle} />
+      ))}
     </div>
   );
 }

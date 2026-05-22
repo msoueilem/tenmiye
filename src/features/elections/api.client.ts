@@ -148,6 +148,16 @@ export async function updateElectionApi(
   }
 }
 
+export async function getMyNominationApi(
+  electionId: string,
+): Promise<{ submitted: boolean; nominees: string[] }> {
+  try {
+    return await apiFetch<{ submitted: boolean; nominees: string[] }>('GET', `/elections/${electionId}/nominations/me`, { tokenType: 'member' });
+  } catch {
+    return { submitted: false, nominees: [] };
+  }
+}
+
 export async function submitNominationsApi(
   electionId: string,
   nominees: string[],

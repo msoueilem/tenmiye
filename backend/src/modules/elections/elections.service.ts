@@ -364,6 +364,19 @@ export class ElectionsService {
 
   // ─── Member operations ─────────────────────────────────────────────────────
 
+  async getMyNomination(id: string, userId: string): Promise<{ submitted: boolean; nominees: string[] }> {
+    const doc = await this.firebase.db.collection(COL).doc(id).get();
+    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
+    const data = doc.data() as ElectionData;
+    const currentRound = data.currentRound ?? 1;
+    const nomRef = this.firebase.db.collection(COL).doc(id).collection('nominations').doc(userId);
+    const nomDoc = await nomRef.get();
+    if (!nomDoc.exists) return { submitted: false, nominees: [] };
+    const nomData = nomDoc.data() as { nominees: string[]; round: number };
+    if (nomData.round !== currentRound) return { submitted: false, nominees: [] };
+    return { submitted: true, nominees: nomData.nominees };
+  }
+
   async submitNomination(id: string, dto: SubmitNominationDto, userId: string): Promise<void> {
     const doc = await this.firebase.db.collection(COL).doc(id).get();
     if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);

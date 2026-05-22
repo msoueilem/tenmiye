@@ -122,6 +122,15 @@ export class ElectionsController {
   }
 
   @ApiBearerAuth()
+  @ApiOperation({ summary: "Check whether the authenticated member has submitted nominations for this round" })
+  @Get(':id/nominations/me')
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
+  getMyNomination(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
+    return this.elections.getMyNomination(id, req.user.userId);
+  }
+
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Submit nominations for a board election' })
   @Post(':id/nominations')
   @UseGuards(JwtAuthGuard, UserTypeGuard)
