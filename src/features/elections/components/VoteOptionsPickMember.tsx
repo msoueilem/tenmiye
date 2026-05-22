@@ -28,7 +28,7 @@ export function VoteOptionsPickMember({ disabled, selections, onToggle, candidat
             {members[uid]?.photoUrl && (
               <img 
                 src={members[uid].photoUrl} 
-                alt={members[uid]?.name || "صورة العضو"} 
+                alt={members[uid]?.fullName || "صورة العضو"} 
                 className="w-full h-full object-cover" 
                 loading="lazy" 
                 referrerPolicy="no-referrer" 
@@ -36,7 +36,7 @@ export function VoteOptionsPickMember({ disabled, selections, onToggle, candidat
             )}
           </div>
           <div>
-            <div className="font-bold">{members[uid]?.name || 'جاري التحميل...'}</div>
+            <div className="font-bold">{members[uid]?.fullName || 'جاري التحميل...'}</div>
           </div>
         </button>
       ))}

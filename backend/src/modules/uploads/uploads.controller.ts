@@ -10,6 +10,9 @@ import { UploadsService } from './uploads.service';
 import { DeleteUploadDto } from './dto/delete-upload.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 
 const fileInterceptor = FileInterceptor('file', { storage: memoryStorage() });
 const fileBody = {
@@ -61,6 +64,8 @@ export class UploadsController {
 
   @ApiOperation({ summary: 'Soft-delete an upload — removes from storage, marks deleted in Firestore' })
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('admin')
   softDelete(
     @Param('id') id: string,
     @Body() dto: DeleteUploadDto,

@@ -43,8 +43,8 @@ export default function MemberBoardsPage() {
     setForm({
       name: board.name,
       description: board.description ?? '',
-      termStartDate: board.termStartDate,
-      termEndDate: board.termEndDate,
+      termStartDate: board.termStartDate?.slice(0, 10) ?? '',
+      termEndDate: board.termEndDate?.slice(0, 10) ?? '',
       status: board.status ?? 'upcoming',
     });
     setMode('edit');

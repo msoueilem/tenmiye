@@ -58,7 +58,7 @@ export function VoteOptionsNomination({
         <div className="border border-slate-200 rounded-lg p-2 max-h-60 overflow-y-auto bg-slate-50">
           {searchResults.map(member => (
             <div key={member.id} className="flex justify-between items-center p-2 hover:bg-white rounded border-b border-slate-100 last:border-b-0">
-              <span className="font-medium text-slate-700">{member.name}</span>
+              <span className="font-medium text-slate-700">{member.fullName}</span>
               <button 
                 onClick={() => onToggle(member.id, maxPicks)}
                 className={`text-sm px-3 py-1 rounded font-medium transition-colors ${
@@ -81,7 +81,7 @@ export function VoteOptionsNomination({
           <div className="flex flex-wrap gap-2">
             {selections.map(uid => (
               <div key={uid} className="bg-primary/20 border border-primary/30 text-deep-green px-3 py-1.5 rounded-full text-sm flex items-center gap-2 font-medium">
-                {members[uid]?.name || uid}
+                {members[uid]?.fullName || uid}
                 <button 
                   onClick={() => !disabled && onToggle(uid, maxPicks)} 
                   className="text-red-500 font-bold hover:text-red-700 flex items-center justify-center w-5 h-5 rounded-full hover:bg-red-50 disabled:opacity-50"

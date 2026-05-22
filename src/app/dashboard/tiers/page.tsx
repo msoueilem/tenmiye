@@ -16,7 +16,7 @@ const emptyForm = (): CreateTierDto => ({
 
 export default function DashboardTiersPage() {
   const { user } = useMemberAuth();
-  const canWrite = user?.permissions.includes('MANAGE_SETTINGS') ?? false;
+  const canWrite = user?.permissions.includes('MANAGE_TIERS') ?? false;
 
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [mode, setMode] = useState<Mode>('list');
@@ -50,6 +50,19 @@ export default function DashboardTiersPage() {
       monthlyAmount: tier.monthlyAmount,
     });
     setMode('edit');
+  };
+
+  const handleToggleActive = async (tier: Tier) => {
+    if (!canWrite) return;
+    setSaving(true);
+    try {
+      const updated = await updateTier(tier.id, { isActive: !tier.isActive });
+      setTiers((prev) => prev.map((t) => (t.id === tier.id ? updated : t)));
+    } catch {
+      setError('فشل تغيير حالة الفئة');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,6 +143,15 @@ export default function DashboardTiersPage() {
               required
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={form.isActive ?? true}
+              onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+              className="accent-[#0df20d]"
+            />
+            نشط
+          </label>
           <div className="mt-2 flex gap-3">
             <button
               type="submit"
@@ -172,7 +194,12 @@ export default function DashboardTiersPage() {
             className="flex items-center justify-between rounded-xl border border-white/10 bg-[#071a07] p-4"
           >
             <div>
-              <p className="font-semibold text-white">{tier.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-white">{tier.name}</p>
+                <span className={`text-xs ${tier.isActive ? 'text-green-400' : 'text-slate-500'}`}>
+                  {tier.isActive ? '● نشط' : '○ معطّل'}
+                </span>
+              </div>
               <p className="text-xs text-slate-500">{tier.slug}</p>
               {tier.description && (
                 <p className="mt-1 text-sm text-slate-400">{tier.description}</p>
@@ -182,12 +209,25 @@ export default function DashboardTiersPage() {
               </p>
             </div>
             {canWrite && (
-              <button
-                onClick={() => handleEdit(tier)}
-                className="shrink-0 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-[#0df20d] hover:bg-white/10"
-              >
-                تعديل
-              </button>
+              <div className="flex shrink-0 flex-col gap-1">
+                <button
+                  onClick={() => handleToggleActive(tier)}
+                  disabled={saving}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${
+                    tier.isActive
+                      ? 'bg-white/5 text-yellow-400 hover:bg-white/10'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  {tier.isActive ? 'تعطيل' : 'تفعيل'}
+                </button>
+                <button
+                  onClick={() => handleEdit(tier)}
+                  className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-[#0df20d] hover:bg-white/10"
+                >
+                  تعديل
+                </button>
+              </div>
             )}
           </div>
         ))}

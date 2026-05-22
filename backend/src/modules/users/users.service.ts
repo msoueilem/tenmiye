@@ -13,7 +13,7 @@ export class UsersService {
   constructor(private readonly firebase: FirebaseService) {}
 
   async findAll(query: ListUsersDto): Promise<{ data: UserResponseDto[]; nextCursor: string | null }> {
-    let ref = this.firebase.db.collection('users').orderBy('createdAt', 'desc').limit(query.limit);
+    let ref = this.firebase.db.collection('users').orderBy('createdAt', 'desc').limit(query.limit + 1);
 
     if (query.cursor) {
       const cursorDoc = await this.firebase.db.collection('users').doc(query.cursor).get();
@@ -21,13 +21,13 @@ export class UsersService {
     }
 
     const snapshot = await ref.get();
-    const data = snapshot.docs.map((doc) =>
+    const hasMore = snapshot.docs.length > query.limit;
+    const docs = hasMore ? snapshot.docs.slice(0, query.limit) : snapshot.docs;
+    const data = docs.map((doc) =>
       plainToInstance(UserResponseDto, { id: doc.id, ...serializeDoc(doc.data()) }, { excludeExtraneousValues: true }),
     );
 
-    const nextCursor = snapshot.docs.length === query.limit
-      ? (snapshot.docs[snapshot.docs.length - 1].id)
-      : null;
+    const nextCursor = hasMore ? docs[docs.length - 1].id : null;
 
     return { data, nextCursor };
   }
@@ -100,6 +100,8 @@ export class UsersService {
       tierId,
       profilePictureId: dto.profilePictureId ?? null,
       outsidePlatform: dto.outsidePlatform ?? false,
+      isBlocked: false,
+      outsideWhatsapp: false,
       status: 'pending',
       approvedBy: null,
       approvedAt: null,

@@ -23,6 +23,7 @@ import { Permission } from '../../common/enums/permission.enum';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UpdateElectionDto } from './dto/update-election.dto';
+import { UpdateScheduleDto } from './dto/update-schedule.dto';
 
 @ApiTags('elections')
 @Controller('elections')
@@ -80,6 +81,15 @@ export class ElectionsController {
   }
 
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update schedule dates for any election (does not change status)' })
+  @Patch(':id/schedule')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_ELECTIONS)
+  updateSchedule(@Param('id') id: string, @Body() dto: UpdateScheduleDto) {
+    return this.elections.updateSchedule(id, dto);
+  }
+
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a draft election — admin only' })
   @Delete(':id')
   @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
@@ -109,6 +119,15 @@ export class ElectionsController {
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
   finalize(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
     return this.elections.finalizeResults(id, req.user.userId);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Check whether the authenticated member has submitted nominations for this round" })
+  @Get(':id/nominations/me')
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
+  getMyNomination(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
+    return this.elections.getMyNomination(id, req.user.userId);
   }
 
   @ApiBearerAuth()

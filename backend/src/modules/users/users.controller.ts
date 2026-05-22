@@ -24,39 +24,43 @@ import { Permission } from '../../common/enums/permission.enum';
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(Permission.MANAGE_USERS)
+@UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private users: UsersService) {}
 
-  @ApiOperation({ summary: 'Get paginated users — pass nextCursor from previous response to get next page' })
+  @ApiOperation({ summary: 'Get paginated users — any authenticated member (directory read)' })
   @Get()
   findAll(@Query() query: ListUsersDto) {
     return this.users.findAll(query);
   }
 
-  @ApiOperation({ summary: 'Get a user by ID' })
+  @ApiOperation({ summary: 'Get a user by ID — any authenticated member' })
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.users.findOne(id);
   }
 
   @ApiOperation({ summary: 'Create a new user' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_USERS)
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.users.create(dto);
   }
 
   @ApiOperation({ summary: 'Update a user by ID' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_USERS)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.users.update(id, dto);
   }
 
   @ApiOperation({ summary: 'Delete a user by ID — admin only' })
-  @Delete(':id')
   @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
   @RequireUserType('admin')
+  @RequirePermissions(Permission.MANAGE_USERS)
+  @Delete(':id')
   remove(@Param('id') id: string) {
     return this.users.remove(id);
   }

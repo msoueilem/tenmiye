@@ -36,62 +36,75 @@ class SummaryQueryDto {
 @ApiTags('finance')
 @ApiBearerAuth()
 @Controller('finance')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard)
 export class FinanceController {
   constructor(private readonly finance: FinanceService) {}
 
   // ─── Payment Channels ───────────────────────────────────────────────────────
 
-  @ApiOperation({ summary: 'List all payment channels' })
+  @ApiOperation({ summary: 'List all payment channels — requires MANAGE_FINANCE' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_FINANCE)
   @Get('payment-channels')
   findAllPaymentChannels() {
     return this.finance.findAllPaymentChannels();
   }
 
   @ApiOperation({ summary: 'Create a payment channel' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_FINANCE)
   @Post('payment-channels')
-  @RequirePermissions(Permission.MANAGE_PAYMENT_CHANNELS)
   createPaymentChannel(@Body() dto: CreatePaymentChannelDto) {
     return this.finance.createPaymentChannel(dto);
   }
 
   @ApiOperation({ summary: 'Update a payment channel' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_FINANCE)
   @Patch('payment-channels/:id')
-  @RequirePermissions(Permission.MANAGE_PAYMENT_CHANNELS)
   updatePaymentChannel(@Param('id') id: string, @Body() dto: UpdatePaymentChannelDto) {
     return this.finance.updatePaymentChannel(id, dto);
   }
 
   @ApiOperation({ summary: 'Delete a payment channel — admin only' })
-  @Delete('payment-channels/:id')
   @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
   @RequireUserType('admin')
-  @RequirePermissions(Permission.MANAGE_PAYMENT_CHANNELS)
+  @RequirePermissions(Permission.MANAGE_FINANCE)
+  @Delete('payment-channels/:id')
   removePaymentChannel(@Param('id') id: string) {
     return this.finance.removePaymentChannel(id);
   }
 
   // ─── Transactions ───────────────────────────────────────────────────────────
 
-  @ApiOperation({ summary: 'List transactions — filterable by type, year, month, userId' })
+  @ApiOperation({ summary: 'List transactions — any authenticated member' })
   @Get('transactions')
-  @RequirePermissions(Permission.READ_FINANCE)
   findAllTransactions(@Query() query: ListTransactionsDto) {
     return this.finance.findAllTransactions(query);
   }
 
   @ApiOperation({ summary: 'Record a transaction (contribution, donation, or expense)' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_FINANCE)
   @Post('transactions')
-  @RequirePermissions(Permission.RECORD_CONTRIBUTIONS)
   createTransaction(@Body() dto: CreateTransactionDto, @CurrentUser() user: JwtPayload) {
     return this.finance.createTransaction(dto, user.userId);
   }
 
   @ApiOperation({ summary: 'Verify a transaction' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_FINANCE)
   @Patch('transactions/:id/verify')
-  @RequirePermissions(Permission.VERIFY_CONTRIBUTIONS)
   verifyTransaction(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.finance.verifyTransaction(id, user.userId);
+  }
+
+  @ApiOperation({ summary: 'Disable an incorrect transaction — creates an audit trail instead of deleting' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_FINANCE)
+  @Patch('transactions/:id/disable')
+  disableTransaction(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.finance.disableTransaction(id, user.userId);
   }
 
   // ─── Summary ────────────────────────────────────────────────────────────────
@@ -100,7 +113,6 @@ export class FinanceController {
     summary: 'Financial summary — totals by type for a given year (and optional month)',
   })
   @Get('summary')
-  @RequirePermissions(Permission.READ_FINANCE)
   getSummary(@Query() query: SummaryQueryDto) {
     return this.finance.getSummary(query.year, query.month);
   }

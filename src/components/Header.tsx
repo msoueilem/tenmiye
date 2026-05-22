@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 interface HeaderProps {
   title?: string;
@@ -52,6 +53,12 @@ export function Header({ title, logoUrl }: HeaderProps) {
           >
             انضم إلينا
           </a>
+          <Link
+            className="hover:text-primary dark:hover:text-primary text-sm leading-normal font-medium text-slate-700 transition-colors dark:text-slate-300"
+            href="/blog"
+          >
+            المدونة
+          </Link>
         </nav>
       </div>
     </header>

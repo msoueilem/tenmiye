@@ -37,7 +37,7 @@ export class BlogController {
   @ApiOperation({ summary: 'Get all blog posts including drafts — writers and moderators only' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.WRITE_BLOG)
+  @RequirePermissions(Permission.MODERATE_BLOG)
   @Get('all')
   findAllAdmin() {
     return this.blog.findAll(false);
@@ -52,7 +52,7 @@ export class BlogController {
   @ApiOperation({ summary: 'Create a new blog post' })
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.WRITE_BLOG)
+  @RequirePermissions(Permission.MODERATE_BLOG)
   create(@Body() dto: CreatePostDto, @Req() req: { user: JwtPayload }) {
     return this.blog.create(dto, req.user.userId);
   }
@@ -60,7 +60,7 @@ export class BlogController {
   @ApiOperation({ summary: 'Update a blog post by ID' })
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.WRITE_BLOG)
+  @RequirePermissions(Permission.MODERATE_BLOG)
   update(@Param('id') id: string, @Body() dto: UpdatePostDto) {
     return this.blog.update(id, dto);
   }

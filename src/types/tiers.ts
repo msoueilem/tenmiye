@@ -4,6 +4,7 @@ export interface Tier {
   slug: string;
   description?: string;
   monthlyAmount: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -13,6 +14,7 @@ export interface CreateTierDto {
   slug: string;
   description?: string;
   monthlyAmount: number;
+  isActive?: boolean;
 }
 
 export interface UpdateTierDto extends Partial<CreateTierDto> {}

@@ -28,6 +28,7 @@ export class TiersService {
 
     const ref = await this.firebase.db.collection(COLLECTION).add({
       ...dto,
+      isActive: dto.isActive ?? true,
       createdBy,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

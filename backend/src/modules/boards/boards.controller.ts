@@ -11,43 +11,46 @@ import { Permission } from '../../common/enums/permission.enum';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('boards')
-@ApiBearerAuth()
 @Controller('boards')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class BoardsController {
   constructor(private readonly boards: BoardsService) {}
 
-  @ApiOperation({ summary: 'Get all boards' })
+  @ApiOperation({ summary: 'Get all boards — public' })
   @Get()
   findAll() {
     return this.boards.findAll();
   }
 
-  @ApiOperation({ summary: 'Get a board by ID' })
+  @ApiOperation({ summary: 'Get a board by ID — public' })
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.boards.findOne(id);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new board' })
-  @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_BOARDS)
+  @Post()
   create(@Body() dto: CreateBoardDto) {
     return this.boards.create(dto);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a board' })
-  @Patch(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_BOARDS)
+  @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateBoardDto) {
     return this.boards.update(id, dto);
   }
 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a board — admin only' })
-  @Delete(':id')
   @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
   @RequireUserType('admin')
   @RequirePermissions(Permission.MANAGE_BOARDS)
+  @Delete(':id')
   remove(@Param('id') id: string) {
     return this.boards.remove(id);
   }

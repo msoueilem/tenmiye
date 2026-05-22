@@ -4,12 +4,20 @@ import { useEffect, useState } from 'react';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 import type { Announcement, CreateAnnouncementDto } from '@/types/announcements';
 import {
+  getActiveAnnouncements,
   getAllAnnouncements,
   createAnnouncement,
   updateAnnouncement,
 } from '@/features/announcements/api.client';
 
 type Mode = 'list' | 'create' | 'edit';
+
+const TYPE_LABEL: Record<string, string> = { info: 'معلومة', warning: 'تحذير', event: 'حدث' };
+const TYPE_COLOR: Record<string, string> = {
+  info: 'text-blue-400',
+  warning: 'text-yellow-400',
+  event: 'text-purple-400',
+};
 
 const emptyForm = (): CreateAnnouncementDto => ({
   message: '',
@@ -23,18 +31,23 @@ const emptyForm = (): CreateAnnouncementDto => ({
 
 export default function MemberAnnouncementsPage() {
   const { user } = useMemberAuth();
-  const canWrite = user?.permissions.includes('MANAGE_SETTINGS') ?? false;
+  const canWrite = user?.permissions.includes('MANAGE_ANNOUNCEMENTS') ?? false;
 
   const [items, setItems] = useState<Announcement[]>([]);
   const [mode, setMode] = useState<Mode>('list');
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [form, setForm] = useState<CreateAnnouncementDto>(emptyForm());
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getAllAnnouncements().then(setItems).catch(() => setError('فشل تحميل الإعلانات'));
-  }, []);
+    const fetch = canWrite ? getAllAnnouncements() : getActiveAnnouncements();
+    fetch
+      .then(setItems)
+      .catch(() => setError('فشل تحميل الإعلانات'))
+      .finally(() => setLoading(false));
+  }, [canWrite]);
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -61,7 +74,7 @@ export default function MemberAnnouncementsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canWrite) return;
-    setLoading(true);
+    setSaving(true);
     setError('');
     try {
       if (mode === 'edit' && editing) {
@@ -75,9 +88,19 @@ export default function MemberAnnouncementsPage() {
     } catch {
       setError('فشل الحفظ');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-16 animate-pulse rounded-xl border border-white/10 bg-[#071a07]" />
+        ))}
+      </div>
+    );
+  }
 
   if (mode === 'create' || mode === 'edit') {
     return (
@@ -88,7 +111,7 @@ export default function MemberAnnouncementsPage() {
         {error && <p className="mb-4 text-red-400">{error}</p>}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <textarea
-            className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+            className="w-full rounded-lg border border-white/10 bg-[#071a07] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
             placeholder="نص الإعلان (500 حرف كحد أقصى)"
             value={form.message}
             onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
@@ -97,7 +120,7 @@ export default function MemberAnnouncementsPage() {
             required
           />
           <select
-            className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+            className="w-full rounded-lg border border-white/10 bg-[#071a07] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
             value={form.type}
             onChange={(e) => setForm((p) => ({ ...p, type: e.target.value as Announcement['type'] }))}
           >
@@ -110,7 +133,7 @@ export default function MemberAnnouncementsPage() {
               <label className="mb-1 block text-sm text-slate-400">تاريخ البدء</label>
               <input
                 type="date"
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+                className="w-full rounded-lg border border-white/10 bg-[#071a07] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
                 value={form.startDate}
                 onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
                 required
@@ -120,7 +143,7 @@ export default function MemberAnnouncementsPage() {
               <label className="mb-1 block text-sm text-slate-400">تاريخ الانتهاء</label>
               <input
                 type="date"
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+                className="w-full rounded-lg border border-white/10 bg-[#071a07] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
                 value={form.endDate}
                 onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
                 required
@@ -132,16 +155,17 @@ export default function MemberAnnouncementsPage() {
               type="checkbox"
               checked={form.isActive}
               onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+              className="accent-[#0df20d]"
             />
             نشط
           </label>
           <div className="mt-2 flex gap-3">
             <button
               type="submit"
-              disabled={loading}
+              disabled={saving}
               className="flex-1 rounded-lg bg-[#0df20d] px-4 py-3 font-bold text-slate-900 hover:bg-[#0be00b] disabled:opacity-50"
             >
-              {loading ? 'جاري الحفظ...' : 'حفظ'}
+              {saving ? 'جاري الحفظ...' : 'حفظ'}
             </button>
             <button
               type="button"
@@ -174,18 +198,28 @@ export default function MemberAnnouncementsPage() {
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between rounded-lg border border-[#0df20d]/20 bg-white/5 p-4"
+            className="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-[#071a07] p-4"
           >
-            <div>
-              <p className="line-clamp-1 font-semibold text-white">{item.message}</p>
-              <p className="text-sm text-slate-400">
-                {item.startDate.slice(0, 10)} — {item.endDate.slice(0, 10)}
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center gap-2">
+                <span className={`text-xs font-bold ${TYPE_COLOR[item.type] ?? 'text-slate-400'}`}>
+                  {TYPE_LABEL[item.type] ?? item.type}
+                </span>
+                {!item.isActive && (
+                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-500">
+                    غير نشط
+                  </span>
+                )}
+              </div>
+              <p className="line-clamp-2 text-sm text-white">{item.message}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {item.startDate?.slice(0, 10)} — {item.endDate?.slice(0, 10)}
               </p>
             </div>
             {canWrite && (
               <button
                 onClick={() => handleEdit(item)}
-                className="text-sm text-[#0df20d] hover:underline"
+                className="shrink-0 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-[#0df20d] hover:bg-white/10"
               >
                 تعديل
               </button>

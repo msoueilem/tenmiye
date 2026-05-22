@@ -16,7 +16,7 @@ import { JwtPayload } from '../../common/strategies/jwt.strategy';
 @ApiBearerAuth()
 @Controller('roles')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(Permission.MANAGE_ACCESS)
+@RequirePermissions(Permission.MANAGE_ROLES)
 export class RolesController {
   constructor(private readonly roles: RolesService) {}
 
@@ -48,6 +48,7 @@ export class RolesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
   @RequireUserType('admin')
+  @RequirePermissions(Permission.MANAGE_ROLES)
   remove(@Param('id') id: string) {
     return this.roles.remove(id);
   }

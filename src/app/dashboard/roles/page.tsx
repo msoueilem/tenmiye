@@ -8,19 +8,17 @@ import { getRoles, createRole, updateRole } from '@/features/roles/api.client';
 type Mode = 'list' | 'create' | 'edit';
 
 const ALL_PERMISSIONS = [
-  'MANAGE_USERS',
-  'MANAGE_REGISTRATIONS',
-  'MANAGE_BOARDS',
-  'MANAGE_ACCESS',
-  'MANAGE_ELECTIONS',
-  'MANAGE_PAYMENT_CHANNELS',
-  'RECORD_CONTRIBUTIONS',
-  'VERIFY_CONTRIBUTIONS',
-  'RECORD_EXPENSES',
-  'WRITE_BLOG',
-  'MODERATE_BLOG',
-  'READ_FINANCE',
   'READ_ALL',
+  'READ_MESSAGES',
+  'MANAGE_REGISTRATIONS',
+  'MANAGE_USERS',
+  'MANAGE_BOARDS',
+  'MANAGE_ELECTIONS',
+  'MANAGE_FINANCE',
+  'MANAGE_ANNOUNCEMENTS',
+  'MANAGE_TIERS',
+  'MANAGE_ROLES',
+  'MODERATE_BLOG',
   'MANAGE_SETTINGS',
 ] as const;
 
@@ -34,7 +32,7 @@ const emptyForm = (): CreateRoleDto => ({
 
 export default function DashboardRolesPage() {
   const { user } = useMemberAuth();
-  const canWrite = user?.permissions.includes('MANAGE_ACCESS') ?? false;
+  const canWrite = user?.permissions.includes('MANAGE_ROLES') ?? false;
 
   const [roles, setRoles] = useState<Role[]>([]);
   const [mode, setMode] = useState<Mode>('list');
@@ -81,6 +79,19 @@ export default function DashboardRolesPage() {
         ? prev.permissions.filter((p) => p !== perm)
         : [...prev.permissions, perm],
     }));
+  };
+
+  const handleToggleActive = async (role: Role) => {
+    if (!canWrite) return;
+    setSaving(true);
+    try {
+      const updated = await updateRole(role.id, { isActive: !role.isActive });
+      setRoles((prev) => prev.map((r) => (r.id === role.id ? updated : r)));
+    } catch {
+      setError('فشل تغيير حالة الدور');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -181,6 +192,15 @@ export default function DashboardRolesPage() {
               ))}
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={form.isActive ?? true}
+              onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+              className="accent-[#0df20d]"
+            />
+            نشط
+          </label>
           <div className="mt-2 flex gap-3">
             <button
               type="submit"
@@ -224,7 +244,12 @@ export default function DashboardRolesPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-white">{role.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-white">{role.name}</p>
+                  <span className={`text-xs ${role.isActive ? 'text-green-400' : 'text-slate-500'}`}>
+                    {role.isActive ? '● نشط' : '○ معطّل'}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500">{role.slug}</p>
                 {role.description && (
                   <p className="mt-1 text-sm text-slate-400">{role.description}</p>
@@ -243,12 +268,25 @@ export default function DashboardRolesPage() {
                 )}
               </div>
               {canWrite && (
-                <button
-                  onClick={() => handleEdit(role)}
-                  className="shrink-0 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-[#0df20d] hover:bg-white/10"
-                >
-                  تعديل
-                </button>
+                <div className="flex shrink-0 flex-col gap-1">
+                  <button
+                    onClick={() => handleToggleActive(role)}
+                    disabled={saving}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${
+                      role.isActive
+                        ? 'bg-white/5 text-yellow-400 hover:bg-white/10'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    {role.isActive ? 'تعطيل' : 'تفعيل'}
+                  </button>
+                  <button
+                    onClick={() => handleEdit(role)}
+                    className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-bold text-[#0df20d] hover:bg-white/10"
+                  >
+                    تعديل
+                  </button>
+                </div>
               )}
             </div>
           </div>

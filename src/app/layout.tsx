@@ -43,6 +43,7 @@ export default function RootLayout({
       lang="ar"
       dir="rtl"
       className={`${notoSansArabic.variable} ${lexend.variable} ${publicSans.variable}`}
+      suppressHydrationWarning
     >
       <head>
         <link

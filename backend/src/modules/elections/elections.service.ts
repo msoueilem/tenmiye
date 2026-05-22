@@ -10,6 +10,7 @@ import { FirebaseService } from '../../common/firebase/firebase.service';
 import { serializeDoc } from '../../common/utils/firestore';
 import { CreateElectionDto } from './dto/create-election.dto';
 import { UpdateElectionDto } from './dto/update-election.dto';
+import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { AdvanceElectionDto } from './dto/advance-election.dto';
 import { SubmitNominationDto } from './dto/submit-nomination.dto';
 import { CastVoteDto } from './dto/cast-vote.dto';
@@ -108,20 +109,27 @@ export class ElectionsService {
         }
       : null;
 
+    const ts = (v?: string) => (v ? Timestamp.fromDate(new Date(v)) : null);
+
     const ref = await this.firebase.db.collection(COL).add({
       title: dto.title,
       description: dto.description ?? null,
       type: dto.type,
       status: 'draft',
-      options: dto.type !== 'board' ? (dto.options ?? []) : [],
-      startTime: dto.startTime ? Timestamp.fromDate(new Date(dto.startTime)) : null,
-      endTime: dto.endTime ? Timestamp.fromDate(new Date(dto.endTime)) : null,
+      options: dto.type !== 'board' ? (dto.options ?? []).map((o) => ({ id: o.id, label: o.label })) : [],
+      startTime: ts(dto.startTime),
+      endTime: ts(dto.endTime),
+      // Board elections may pre-schedule their phases at creation time
+      nominationStart: ts(dto.nominationStart),
+      nominationEnd: ts(dto.nominationEnd),
+      dismissalStart: ts(dto.dismissalStart),
+      dismissalEnd: ts(dto.dismissalEnd),
+      votingStart: ts(dto.votingStart),
+      votingEnd: ts(dto.votingEnd),
       boardConfig,
       nominees: dto.type === 'board' ? [] : null,
       rounds: dto.type === 'board' ? [] : null,
       currentRound: null,
-      votingStart: null,
-      votingEnd: null,
       results: null,
       createdBy,
       createdAt: FieldValue.serverTimestamp(),
@@ -142,6 +150,46 @@ export class ElectionsService {
       ...payload,
       updatedAt: FieldValue.serverTimestamp(),
     });
+  }
+
+  async updateSchedule(id: string, dto: UpdateScheduleDto): Promise<void> {
+    const doc = await this.firebase.db.collection(COL).doc(id).get();
+    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
+
+    const data = doc.data() as ElectionData & Record<string, unknown>;
+    const ts = (v?: string) => (v ? Timestamp.fromDate(new Date(v)) : undefined);
+    const payload: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+
+    const map: Array<[keyof UpdateScheduleDto, string]> = [
+      ['nominationStart', 'nominationStart'],
+      ['nominationEnd', 'nominationEnd'],
+      ['dismissalStart', 'dismissalStart'],
+      ['dismissalEnd', 'dismissalEnd'],
+      ['votingStart', 'votingStart'],
+      ['votingEnd', 'votingEnd'],
+      ['startTime', 'startTime'],
+      ['endTime', 'endTime'],
+    ];
+
+    for (const [dtoKey, dbKey] of map) {
+      if (dto[dtoKey] !== undefined) payload[dbKey] = ts(dto[dtoKey]);
+    }
+
+    // Also patch the current round's timestamps so the phase restarts with the new dates
+    if (data.type === 'board' && data.currentRound != null) {
+      const rounds = ((data.rounds as Record<string, unknown>[]) ?? []).map((r) => {
+        if ((r as { roundNumber: number }).roundNumber !== data.currentRound) return r;
+        const updated = { ...r };
+        if (dto.nominationStart) updated.nominationStart = ts(dto.nominationStart);
+        if (dto.nominationEnd)   updated.nominationEnd   = ts(dto.nominationEnd);
+        if (dto.dismissalStart)  updated.dismissalStart  = ts(dto.dismissalStart);
+        if (dto.dismissalEnd)    updated.dismissalEnd    = ts(dto.dismissalEnd);
+        return updated;
+      });
+      payload.rounds = rounds;
+    }
+
+    await this.firebase.db.collection(COL).doc(id).update(payload);
   }
 
   async remove(id: string): Promise<void> {
@@ -169,16 +217,26 @@ export class ElectionsService {
     };
 
     if (to === 'nomination') {
-      if (!dto.nominationStart || !dto.nominationEnd || !dto.dismissalStart || !dto.dismissalEnd) {
+      // Fall back to dates pre-stored on the election document if not provided in the request
+      const stored = data as Record<string, { toDate?: () => Date } | null>;
+      const toISO = (ts: { toDate?: () => Date } | null | undefined) =>
+        ts?.toDate ? ts.toDate().toISOString() : undefined;
+
+      const nomStart = dto.nominationStart ?? toISO(stored.nominationStart);
+      const nomEnd   = dto.nominationEnd   ?? toISO(stored.nominationEnd);
+      const disStart = dto.dismissalStart  ?? toISO(stored.dismissalStart);
+      const disEnd   = dto.dismissalEnd    ?? toISO(stored.dismissalEnd);
+
+      if (!nomStart || !nomEnd || !disStart || !disEnd) {
         throw new BadRequestException('nominationStart, nominationEnd, dismissalStart, dismissalEnd are required');
       }
       const roundNumber = (data.currentRound ?? 0) + 1;
       const newRound = {
         roundNumber,
-        nominationStart: Timestamp.fromDate(new Date(dto.nominationStart)),
-        nominationEnd: Timestamp.fromDate(new Date(dto.nominationEnd)),
-        dismissalStart: Timestamp.fromDate(new Date(dto.dismissalStart)),
-        dismissalEnd: Timestamp.fromDate(new Date(dto.dismissalEnd)),
+        nominationStart: Timestamp.fromDate(new Date(nomStart)),
+        nominationEnd:   Timestamp.fromDate(new Date(nomEnd)),
+        dismissalStart:  Timestamp.fromDate(new Date(disStart)),
+        dismissalEnd:    Timestamp.fromDate(new Date(disEnd)),
         status: 'nomination',
       };
       const existingRounds = (data.rounds as unknown[]) ?? [];
@@ -199,11 +257,16 @@ export class ElectionsService {
 
     if (to === 'voting') {
       if (data.type === 'board') {
-        if (!dto.votingStart || !dto.votingEnd) {
+        const stored = data as Record<string, { toDate?: () => Date } | null>;
+        const toISO = (ts: { toDate?: () => Date } | null | undefined) =>
+          ts?.toDate ? ts.toDate().toISOString() : undefined;
+        const votStart = dto.votingStart ?? toISO(stored.votingStart);
+        const votEnd   = dto.votingEnd   ?? toISO(stored.votingEnd);
+        if (!votStart || !votEnd) {
           throw new BadRequestException('votingStart and votingEnd are required for board elections');
         }
-        update.votingStart = Timestamp.fromDate(new Date(dto.votingStart));
-        update.votingEnd = Timestamp.fromDate(new Date(dto.votingEnd));
+        update.votingStart = Timestamp.fromDate(new Date(votStart));
+        update.votingEnd   = Timestamp.fromDate(new Date(votEnd));
         // Mark current round as completed
         const rounds = (data.rounds as Record<string, unknown>[]) ?? [];
         update.rounds = rounds.map((r) =>
@@ -300,6 +363,19 @@ export class ElectionsService {
   }
 
   // ─── Member operations ─────────────────────────────────────────────────────
+
+  async getMyNomination(id: string, userId: string): Promise<{ submitted: boolean; nominees: string[] }> {
+    const doc = await this.firebase.db.collection(COL).doc(id).get();
+    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
+    const data = doc.data() as ElectionData;
+    const currentRound = data.currentRound ?? 1;
+    const nomRef = this.firebase.db.collection(COL).doc(id).collection('nominations').doc(userId);
+    const nomDoc = await nomRef.get();
+    if (!nomDoc.exists) return { submitted: false, nominees: [] };
+    const nomData = nomDoc.data() as { nominees: string[]; round: number };
+    if (nomData.round !== currentRound) return { submitted: false, nominees: [] };
+    return { submitted: true, nominees: nomData.nominees };
+  }
 
   async submitNomination(id: string, dto: SubmitNominationDto, userId: string): Promise<void> {
     const doc = await this.firebase.db.collection(COL).doc(id).get();
@@ -504,7 +580,7 @@ export class ElectionsService {
 
   private assertValidTransition(from: string, to: string, type: string): void {
     const valid: Record<string, string[]> = {
-      draft: ['nomination', 'cancelled'],
+      draft: ['nomination', 'voting', 'cancelled'],
       nomination: ['dismissal', 'cancelled'],
       dismissal: ['nomination', 'voting', 'cancelled'],
       voting: ['completed', 'cancelled'],

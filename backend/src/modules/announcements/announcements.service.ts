@@ -16,7 +16,6 @@ export class AnnouncementsService {
     const snap = await this.firebase.db
       .collection(COLLECTION)
       .where('isActive', '==', true)
-      .orderBy('createdAt', 'desc')
       .get();
 
     return snap.docs

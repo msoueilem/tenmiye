@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AggregateField, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { serializeDoc } from '../../common/utils/firestore';
 import { CreatePaymentChannelDto } from './dto/create-payment-channel.dto';
@@ -81,8 +81,7 @@ export class FinanceService {
   async findAllTransactions(query: ListTransactionsDto) {
     let ref = this.firebase.db
       .collection('transactions')
-      .orderBy('date', 'desc')
-      .limit(query.limit) as FirebaseFirestore.Query;
+      .limit(query.limit + 1) as FirebaseFirestore.Query;
 
     if (query.type) ref = ref.where('type', '==', query.type);
     if (query.year) ref = ref.where('year', '==', query.year);
@@ -95,8 +94,20 @@ export class FinanceService {
     }
 
     const snap = await ref.get();
-    const data = snap.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }));
-    const nextCursor = snap.docs.length === query.limit ? snap.docs[snap.docs.length - 1].id : null;
+    const hasMore = snap.docs.length > query.limit;
+    const docs = hasMore ? snap.docs.slice(0, query.limit) : snap.docs;
+
+    const data = docs
+      .map((d) => ({ id: d.id, ...serializeDoc(d.data()) }))
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const aTs = a.date as { _seconds?: number; seconds?: number } | null;
+        const bTs = b.date as { _seconds?: number; seconds?: number } | null;
+        const aS = aTs?._seconds ?? aTs?.seconds ?? 0;
+        const bS = bTs?._seconds ?? bTs?.seconds ?? 0;
+        return bS - aS;
+      });
+
+    const nextCursor = hasMore ? docs[docs.length - 1].id : null;
     return { data, nextCursor };
   }
 
@@ -158,32 +169,40 @@ export class FinanceService {
     return { id };
   }
 
+  async disableTransaction(id: string, disabledBy: string): Promise<{ id: string }> {
+    const doc = await this.firebase.db.collection('transactions').doc(id).get();
+    if (!doc.exists) throw new NotFoundException(`Transaction ${id} not found`);
+    if (doc.data()?.isActive === false) throw new BadRequestException('Transaction is already disabled');
+
+    await doc.ref.update({
+      isActive: false,
+      disabledBy,
+      disabledAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { id };
+  }
+
   // ─── Summary ──────────────────────────────────────────────────────────────
 
   async getSummary(year: number, month?: number) {
-    const types = ['contribution', 'donation', 'expense'] as const;
-    const totals: Record<string, number> = {};
+    const snap = await this.firebase.db
+      .collection('transactions')
+      .where('year', '==', year)
+      .get();
 
-    await Promise.all(
-      types.map(async (type) => {
-        let q = this.firebase.db
-          .collection('transactions')
-          .where('year', '==', year)
-          .where('type', '==', type) as FirebaseFirestore.Query;
-        if (month) q = q.where('month', '==', month);
+    const totals: Record<string, number> = { contribution: 0, donation: 0, expense: 0 };
 
-        try {
-          const result = await q.aggregate({ total: AggregateField.sum('amount') }).get();
-          totals[type] = result.data().total || 0;
-        } catch (err: any) {
-          console.error(`Aggregation error for type ${type}:`, err.message);
-          totals[type] = 0;
-        }
-      }),
-    );
+    for (const doc of snap.docs) {
+      const d = doc.data() as { type: string; amount: number; month: number };
+      if (month && d.month !== month) continue;
+      if (d.type in totals) {
+        totals[d.type] = (totals[d.type] ?? 0) + (d.amount ?? 0);
+      }
+    }
 
-    const income = (totals.contribution || 0) + (totals.donation || 0);
-    const net = income - (totals.expense || 0);
+    const income = totals.contribution + totals.donation;
+    const net = income - totals.expense;
 
     return { year, month: month ?? null, totals, income, net, currency: 'MRU' };
   }

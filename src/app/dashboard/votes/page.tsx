@@ -3,22 +3,38 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 
+interface FirestoreTimestamp {
+  seconds?: number;
+  _seconds?: number;
+  nanoseconds?: number;
+  _nanoseconds?: number;
+}
+
 interface VoteRecord {
   id: string;
   electionId: string;
   electionTitle: string;
-  selection: string | null;
-  nomineeId: string | null;
-  createdAt: { seconds: number } | null;
+  electionType: string;
+  choices: string[];
+  castAt: FirestoreTimestamp | string | null;
 }
 
-function formatDate(createdAt: VoteRecord['createdAt']): string {
-  if (!createdAt?.seconds) return '—';
-  return new Date(createdAt.seconds * 1000).toLocaleDateString('ar-MR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+function formatDate(castAt: VoteRecord['castAt']): string {
+  if (!castAt) return '—';
+  if (typeof castAt === 'string') {
+    const d = new Date(castAt);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('ar-MR', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  const seconds = (castAt as FirestoreTimestamp)._seconds ?? (castAt as FirestoreTimestamp).seconds ?? 0;
+  if (!seconds) return '—';
+  return new Date(seconds * 1000).toLocaleDateString('ar-MR', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function typeLabel(type: string): string {
+  if (type === 'general_vote') return 'استفتاء';
+  if (type === 'board_election') return 'انتخابات مجلس الإدارة';
+  if (type === 'committee_election') return 'انتخابات لجنة';
+  return type;
 }
 
 function VoteIcon() {
@@ -42,16 +58,29 @@ export default function VotesPage() {
         if (mounted) setVotes(data);
       } catch {
         if (mounted) setError('تعذّر تحميل سجل الأصوات.');
+      } finally {
+        if (mounted) setLoading(false);
       }
     }
-    void load().finally(() => { if (mounted) setLoading(false); });
+    void load();
     return () => { mounted = false; };
   }, []);
 
   if (loading) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0df20d] border-t-transparent" />
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-6 h-8 w-40 animate-pulse rounded-lg bg-white/10" />
+        <ul className="flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="flex items-start gap-4 rounded-xl border border-white/10 bg-[#071a07] p-5">
+              <div className="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-full bg-white/10" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-1/3 animate-pulse rounded bg-white/5" />
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -60,7 +89,7 @@ export default function VotesPage() {
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-2xl font-bold text-white">سجل الأصوات</h1>
 
-      {error && <p className="text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-red-400">{error}</p>}
 
       {!error && votes.length === 0 && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-[#071a07] px-8 py-16 text-center">
@@ -81,19 +110,16 @@ export default function VotesPage() {
               <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0df20d]/15 text-[#0df20d]">
                 <VoteIcon />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-white leading-snug">{vote.electionTitle}</p>
-                {vote.selection && (
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold leading-snug text-white">{vote.electionTitle}</p>
+                <p className="mt-0.5 text-xs text-slate-500">{typeLabel(vote.electionType)}</p>
+                {vote.choices.length > 0 && (
                   <p className="mt-1 text-sm text-slate-400">
-                    الاختيار: <span className="text-slate-200">{vote.selection}</span>
+                    الاختيار:{' '}
+                    <span className="text-slate-200">{vote.choices.join('، ')}</span>
                   </p>
                 )}
-                {vote.nomineeId && (
-                  <p className="mt-1 text-sm text-slate-400">
-                    المرشح: <span className="text-slate-200 font-mono text-xs">{vote.nomineeId}</span>
-                  </p>
-                )}
-                <p className="mt-2 text-xs text-slate-600">{formatDate(vote.createdAt)}</p>
+                <p className="mt-2 text-xs text-slate-600">{formatDate(vote.castAt)}</p>
               </div>
             </li>
           ))}

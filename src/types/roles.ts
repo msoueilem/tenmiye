@@ -5,6 +5,7 @@ export interface Role {
   description?: string;
   responsibilities?: string[];
   permissions: string[];
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,6 +16,7 @@ export interface CreateRoleDto {
   description?: string;
   responsibilities?: string[];
   permissions: string[];
+  isActive?: boolean;
 }
 
 export interface UpdateRoleDto extends Partial<CreateRoleDto> {}

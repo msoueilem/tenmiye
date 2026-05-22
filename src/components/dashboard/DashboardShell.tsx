@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface NavItem {
   label: string;
@@ -49,7 +48,6 @@ const NAV: NavItem[] = [
         <rect x="2" y="7" width="20" height="15" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="12" y1="12" x2="12" y2="17" /><line x1="9.5" y1="14.5" x2="14.5" y2="14.5" />
       </svg>
     ),
-    permissions: ['MANAGE_BOARDS'],
   },
   {
     label: 'الإعلانات',
@@ -59,7 +57,6 @@ const NAV: NavItem[] = [
         <path d="M18 8a3 3 0 0 1 0 6" /><path d="M10 8v11" /><path d="M12 8h-2a4 4 0 0 1-4-4 4 4 0 0 1 4 4v0z" /><path d="M12 8h3l3 9H9l3-9z" />
       </svg>
     ),
-    permissions: ['MANAGE_SETTINGS'],
   },
   {
     label: 'الشؤون المالية',
@@ -69,7 +66,6 @@ const NAV: NavItem[] = [
         <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
       </svg>
     ),
-    permissions: ['READ_FINANCE', 'RECORD_CONTRIBUTIONS', 'RECORD_EXPENSES'],
   },
   {
     label: 'طلبات الانضمام',
@@ -89,7 +85,7 @@ const NAV: NavItem[] = [
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
-    permissions: ['READ_ALL'],
+    permissions: ['READ_MESSAGES'],
   },
   {
     label: 'المدونة',
@@ -99,7 +95,7 @@ const NAV: NavItem[] = [
         <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
     ),
-    permissions: ['WRITE_BLOG', 'MODERATE_BLOG'],
+    permissions: ['MODERATE_BLOG'],
   },
   {
     label: 'الأدوار',
@@ -109,7 +105,7 @@ const NAV: NavItem[] = [
         <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
       </svg>
     ),
-    permissions: ['MANAGE_ACCESS'],
+    permissions: ['MANAGE_ROLES'],
   },
   {
     label: 'فئات العضوية',
@@ -119,7 +115,7 @@ const NAV: NavItem[] = [
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     ),
-    permissions: ['MANAGE_SETTINGS'],
+    permissions: ['MANAGE_TIERS'],
   },
   {
     label: 'الأعضاء',
@@ -129,7 +125,6 @@ const NAV: NavItem[] = [
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    permissions: ['MANAGE_USERS'],
   },
   {
     label: 'الإعدادات',
@@ -212,9 +207,8 @@ export function DashboardShell({ children }: Props) {
         </ul>
       </nav>
 
-      {/* Footer: theme toggle + logout */}
-      <div className="border-t border-white/10 p-3 flex flex-col gap-1">
-        <ThemeToggle showLabel className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-colors cursor-pointer" />
+      {/* Footer: logout */}
+      <div className="border-t border-white/10 p-3">
         <button
           onClick={() => logout().then(() => router.push('/dashboard/login'))}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-red-400 transition-colors cursor-pointer"

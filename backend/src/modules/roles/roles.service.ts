@@ -29,6 +29,7 @@ export class RolesService {
     const ref = await this.firebase.db.collection(COLLECTION).add({
       ...dto,
       responsibilities: dto.responsibilities ?? [],
+      isActive: dto.isActive ?? true,
       createdBy,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

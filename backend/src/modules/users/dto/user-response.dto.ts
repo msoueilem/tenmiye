@@ -19,6 +19,8 @@ export class UserResponseDto {
   @Expose() lastLoginAt!: unknown;
   @Expose() joinRequestId!: string | null;
   @Expose() outsidePlatform!: boolean;
+  @Expose() isBlocked!: boolean;
+  @Expose() outsideWhatsapp!: boolean;
   @Expose() createdAt!: unknown;
   @Expose() updatedAt!: unknown;
   // passwordHash is intentionally absent — never exposed
