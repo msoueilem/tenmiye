@@ -12,11 +12,16 @@ import { ElectionsModule } from './modules/elections/elections.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { HealthModule } from './modules/health/health.module';
-import { FilesModule } from './modules/files/files.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { MeModule } from './modules/me/me.module';
 import { RegistrationsModule } from './modules/registrations/registrations.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { RegionsModule } from './modules/regions/regions.module';
+import { TiersModule } from './modules/tiers/tiers.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { AdminAccountsModule } from './modules/admin-accounts/admin-accounts.module';
 
 @Module({
   imports: [
@@ -31,11 +36,16 @@ import { MessagesModule } from './modules/messages/messages.module';
     FinanceModule,
     BlogModule,
     HealthModule,
-    FilesModule,
+    UploadsModule,
     SettingsModule,
     MeModule,
     RegistrationsModule,
     MessagesModule,
+    RegionsModule,
+    TiersModule,
+    RolesModule,
+    AnnouncementsModule,
+    AdminAccountsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

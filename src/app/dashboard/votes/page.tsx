@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { apiFetch } from '@/lib/api';
 
 interface VoteRecord {
   id: string;
@@ -31,7 +30,6 @@ function VoteIcon() {
 }
 
 export default function VotesPage() {
-  const { getAccessToken } = useMemberAuth();
   const [votes, setVotes] = useState<VoteRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,16 +37,16 @@ export default function VotesPage() {
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const token = await getAccessToken();
-      if (!token) return;
-      const res = await memberFetch('/me/votes', token);
-      if (!res.ok) { setError('تعذّر تحميل سجل الأصوات.'); return; }
-      const data = (await res.json()) as VoteRecord[];
-      if (mounted) setVotes(data);
+      try {
+        const data = await apiFetch<VoteRecord[]>('GET', '/me/votes', { tokenType: 'member' });
+        if (mounted) setVotes(data);
+      } catch {
+        if (mounted) setError('تعذّر تحميل سجل الأصوات.');
+      }
     }
     void load().finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [getAccessToken]);
+  }, []);
 
   if (loading) {
     return (

@@ -3,9 +3,9 @@ import { IsIn, IsOptional, IsString } from 'class-validator';
 import { CreateUserDto } from './create-user.dto';
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
-  @IsIn(['active', 'pending', 'blocked'])
+  @IsIn(['active', 'inactive', 'pending', 'blocked'])
   @IsOptional()
-  status?: 'active' | 'pending' | 'blocked';
+  status?: 'active' | 'inactive' | 'pending' | 'blocked';
 
   @IsString()
   @IsOptional()

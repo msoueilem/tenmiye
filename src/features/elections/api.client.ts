@@ -1,22 +1,22 @@
 import { config } from '@/lib/config';
-import { memberFetch, parseApiError } from '@/lib/memberApi';
-import { BackendElection, ElectionResults } from '@/types/elections';
+import { apiFetch, ApiError } from '@/lib/api';
+import { Election, ElectionResults } from '@/types/elections';
 
-export async function getAllElections(): Promise<BackendElection[] | null> {
+export async function getAllElections(): Promise<Election[] | null> {
   try {
     const res = await fetch(`${config.apiUrl}/elections`);
     if (!res.ok) return null;
-    return res.json() as Promise<BackendElection[]>;
+    return res.json() as Promise<Election[]>;
   } catch {
     return null;
   }
 }
 
-export async function getElectionById(id: string): Promise<BackendElection | null> {
+export async function getElectionById(id: string): Promise<Election | null> {
   try {
     const res = await fetch(`${config.apiUrl}/elections/${id}`);
     if (!res.ok) return null;
-    return res.json() as Promise<BackendElection>;
+    return res.json() as Promise<Election>;
   } catch {
     return null;
   }
@@ -35,28 +35,19 @@ export async function getElectionResults(id: string): Promise<ElectionResults | 
 export async function castVoteApi(
   electionId: string,
   selections: string[],
-  token: string,
+  _token: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await memberFetch(`/elections/${electionId}/votes`, token, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selections }),
-    });
-    if (!res.ok) {
-      return { ok: false, error: await parseApiError(res, 'حدث خطأ أثناء التصويت') };
-    }
+    await apiFetch('POST', `/elections/${electionId}/votes`, { body: { selections }, tokenType: 'member' });
     return { ok: true };
-  } catch {
-    return { ok: false, error: 'تعذر الاتصال بالخادم' };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof ApiError ? e.message : 'تعذر الاتصال بالخادم' };
   }
 }
 
-export async function getMyVotedElectionIds(token: string): Promise<Set<string>> {
+export async function getMyVotedElectionIds(_token: string): Promise<Set<string>> {
   try {
-    const res = await memberFetch('/me/votes', token);
-    if (!res.ok) return new Set();
-    const votes = (await res.json()) as Array<{ electionId: string }>;
+    const votes = await apiFetch<Array<{ electionId: string }>>('GET', '/me/votes', { tokenType: 'member' });
     return new Set(votes.map((v) => v.electionId));
   } catch {
     return new Set();
@@ -69,17 +60,10 @@ export async function checkMyVote(electionId: string, token: string): Promise<bo
 }
 
 export async function createElectionApi(
-  data: Pick<BackendElection, 'title' | 'description' | 'type' | 'startTime' | 'endTime'>,
-  token: string,
+  data: Pick<Election, 'title' | 'description' | 'type' | 'startTime' | 'endTime'>,
 ): Promise<{ id: string } | null> {
   try {
-    const res = await memberFetch('/elections', token, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<{ id: string }>;
+    return await apiFetch<{ id: string }>('POST', '/elections', { body: data, tokenType: 'admin' });
   } catch {
     return null;
   }
@@ -87,28 +71,21 @@ export async function createElectionApi(
 
 export async function updateElectionApi(
   id: string,
-  data: Partial<Pick<BackendElection, 'title' | 'description' | 'type' | 'status' | 'startTime' | 'endTime'>>,
-  token: string,
+  data: Partial<Pick<Election, 'title' | 'description' | 'type' | 'status' | 'startTime' | 'endTime'>>,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await memberFetch(`/elections/${id}`, token, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      return { ok: false, error: await parseApiError(res, 'حدث خطأ أثناء التعديل') };
-    }
+    await apiFetch('PATCH', `/elections/${id}`, { body: data, tokenType: 'admin' });
     return { ok: true };
-  } catch {
-    return { ok: false, error: 'تعذر الاتصال بالخادم' };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'حدث خطأ أثناء التعديل';
+    return { ok: false, error: msg };
   }
 }
 
-export async function deleteElectionApi(id: string, token: string): Promise<boolean> {
+export async function deleteElectionApi(id: string): Promise<boolean> {
   try {
-    const res = await memberFetch(`/elections/${id}`, token, { method: 'DELETE' });
-    return res.ok;
+    await apiFetch('DELETE', `/elections/${id}`, { tokenType: 'admin' });
+    return true;
   } catch {
     return false;
   }

@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { apiFetch, ApiError } from '@/lib/api';
 
 interface SettingsData {
   title?: string;
@@ -12,7 +11,6 @@ interface SettingsData {
 }
 
 export default function SettingsPage() {
-  const { getAccessToken } = useMemberAuth();
   const [form, setForm] = useState<SettingsData>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,43 +21,39 @@ export default function SettingsPage() {
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const token = await getAccessToken();
-      if (!token) { setError('انتهت الجلسة.'); setLoading(false); return; }
-      const res = await memberFetch('/settings/public', token);
-      if (!res.ok) { setError('تعذّر تحميل الإعدادات.'); setLoading(false); return; }
-      const json = await res.json() as SettingsData;
-      if (mounted) {
-        setForm({
-          title: json.title ?? '',
-          aboutText: json.aboutText ?? '',
-          projectsCount: json.projectsCount ?? 0,
-          achievements: json.achievements ?? [],
-        });
-        setLoading(false);
+      try {
+        const json = await apiFetch<SettingsData>('GET', '/settings/public', { tokenType: 'member' });
+        if (mounted) {
+          setForm({
+            title: json.title ?? '',
+            aboutText: json.aboutText ?? '',
+            projectsCount: json.projectsCount ?? 0,
+            achievements: json.achievements ?? [],
+          });
+        }
+      } catch {
+        if (mounted) setError('تعذّر تحميل الإعدادات.');
+      } finally {
+        if (mounted) setLoading(false);
       }
     }
     void load();
     return () => { mounted = false; };
-  }, [getAccessToken]);
+  }, []);
 
   async function save() {
     setSaving(true);
     setError('');
     setSuccess(false);
-    const token = await getAccessToken();
-    if (!token) { setError('انتهت الجلسة.'); setSaving(false); return; }
-    const res = await memberFetch('/settings', token, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    if (res.ok) {
+    try {
+      await apiFetch('PATCH', '/settings', { body: form, tokenType: 'member' });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } else {
+    } catch {
       setError('تعذّر حفظ الإعدادات.');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   function addAchievement() {

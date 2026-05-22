@@ -3,14 +3,14 @@
 import React, { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { apiFetch } from '@/lib/api';
 import {
   getElectionById,
   getElectionResults,
   castVoteApi,
   checkMyVote,
 } from '@/features/elections/api.client';
-import { BackendElection, ElectionResults, PublicMember } from '@/types/elections';
+import { Election, ElectionResults, PublicMember } from '@/types/elections';
 import { Card } from '@/components/ui/Card';
 import { AlertBox } from '@/components/ui/AlertBox';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -29,7 +29,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
   const router = useRouter();
   const { getAccessToken, user } = useMemberAuth();
 
-  const [election, setElection] = useState<BackendElection | null>(null);
+  const [election, setElection] = useState<Election | null>(null);
   const [results, setResults] = useState<ElectionResults | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -68,13 +68,10 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     const trimmed = q.trim();
     if (trimmed.length < 2) { setSearchResults([]); return; }
     try {
-      const token = await getAccessToken();
-      if (!token) return;
-      const res = await memberFetch(`/me/members/search?q=${encodeURIComponent(trimmed)}`, token);
-      if (!res.ok) return;
-      setSearchResults(await res.json() as PublicMember[]);
+      const results = await apiFetch<PublicMember[]>('GET', `/me/members/search?q=${encodeURIComponent(trimmed)}`, { tokenType: 'member' });
+      setSearchResults(results);
     } catch { /* ignore */ }
-  }, [getAccessToken]);
+  }, []);
 
   const toggleMember = (uid: string) => {
     setSelections((prev) => (prev.includes(uid) ? prev.filter((x) => x !== uid) : [uid]));

@@ -1,137 +1,82 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
 import { useRouter, usePathname } from 'next/navigation';
-import { checkAdminStatus } from '@/features/users/api.client';
-import { Admin } from '@/types/users';
+import { tokenStore, decodeJwt, apiFetch, UnauthorizedError } from '@/lib/api';
+import { AdminSession, DashboardProvider } from '@/context/DashboardContext';
 import { DashboardSidebar } from '@/components/DashboardSidebar';
-import { DashboardProvider } from '@/context/DashboardContext';
 import { MemberAuthProvider } from '@/context/MemberAuthContext';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [user, setUser] = useState<User | null>(null);
-  const [admin, setAdmin] = useState<Admin | null>(null);
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<AdminSession | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const isSignIn = pathname === '/admin/signin';
+
+  const isPublicAdminRoute =
+    pathname === '/admin/signin' || pathname === '/admin/auth-callback';
 
   useEffect(() => {
-    if (isSignIn || !auth) return;
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        // Evict any active member session
-        localStorage.removeItem('member_refresh_token');
-        setUser(currentUser);
-        try {
-          const adminData = await checkAdminStatus(currentUser);
-          setAdmin(adminData);
-        } catch (err) {
-          console.error('Error checking admin status:', err);
-        }
-      } else {
-        router.push('/admin/signin');
-      }
+    if (isPublicAdminRoute) {
       setLoading(false);
-    });
+      return;
+    }
 
-    return () => unsubscribe();
-  }, [router, isSignIn]);
+    const token = tokenStore.getAccess('admin');
+    if (!token) {
+      router.replace('/admin/signin');
+      return;
+    }
 
-  const handleLogout = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    router.push('/admin/signin');
+    try {
+      const payload = decodeJwt<{ userId: string; permissions: string[]; googleEmail?: string }>(token);
+      setSession({
+        userId: payload.userId,
+        permissions: payload.permissions ?? [],
+        googleEmail: payload.googleEmail ?? null,
+      });
+    } catch {
+      tokenStore.clear('admin');
+      router.replace('/admin/signin');
+    } finally {
+      setLoading(false);
+    }
+  }, [router, isPublicAdminRoute]);
+
+  const logout = async () => {
+    const refreshToken = tokenStore.getRefresh('admin');
+    if (refreshToken) {
+      await apiFetch('POST', '/auth/logout', { body: { refreshToken } }).catch(() => {});
+    }
+    tokenStore.clear('admin');
+    router.replace('/admin/signin');
   };
 
-  if (isSignIn) return <>{children}</>;
+  if (isPublicAdminRoute) return <>{children}</>;
 
   if (loading) {
     return (
       <div className="min-h-screen bg-dashboard-bg-light dark:bg-[#102210] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!user) return null;
-
-  // admin === null means the signed-in Google account is not in adminAccounts
-  if (user && admin === null) {
-    return (
-      <div className="min-h-screen bg-[#f8fcf8] dark:bg-[#102210] flex items-center justify-center p-6" dir="rtl">
-        <div className="w-full max-w-md bg-white dark:bg-[#1a331a] rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 p-8 text-center">
-          <p className="text-slate-700 dark:text-slate-200 font-bold mb-2">غير مصرح بالوصول</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-            الحساب <span className="font-bold">{user.email}</span> ليس مسجلاً كمسؤول.
-          </p>
-          <button
-            onClick={handleLogout}
-            className="w-full h-12 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-lg transition-all cursor-pointer"
-          >
-            تسجيل الخروج
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (admin && admin.status !== 'active') {
-    return (
-      <div className="min-h-screen bg-[#f8fcf8] dark:bg-[#102210] flex items-center justify-center p-6 text-slate-900 dark:text-slate-100" dir="rtl">
-        <div className="w-full max-w-md bg-white dark:bg-[#1a331a] rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 p-8 text-center">
-          <div className="mb-6 inline-flex items-center justify-center p-4 bg-orange-100 dark:bg-orange-900/20 rounded-full text-orange-600 dark:text-orange-400">
-            <span className="material-symbols-outlined text-4xl">lock_person</span>
-          </div>
-          <h1 className="text-2xl font-black mb-2">الحساب قيد المراجعة</h1>
-          <p className="text-slate-500 dark:text-slate-400 mb-8">
-            تم إنشاء طلب وصول للنظام للمستخدم <span className="font-bold text-slate-700 dark:text-slate-200">{admin.email}</span>. 
-            يرجى التواصل مع المدير العام لتفعيل حسابك.
-          </p>
-          <button 
-            onClick={handleLogout}
-            className="w-full h-12 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-lg transition-all"
-          >
-            تسجيل الخروج
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (admin && admin.status === 'active') {
-    return (
-      <MemberAuthProvider>
-        <DashboardProvider user={user} admin={admin}>
-          <div className="flex h-screen overflow-hidden bg-[#f8fcf8] dark:bg-[#102210] text-slate-900 dark:text-slate-100" dir="rtl">
-            <DashboardSidebar />
-            <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-              {children}
-            </main>
-          </div>
-        </DashboardProvider>
-      </MemberAuthProvider>
-    );
-  }
+  if (!session) return null;
 
   return (
-    <div className="min-h-screen bg-[#f8fcf8] dark:bg-[#102210] flex items-center justify-center p-6" dir="rtl">
-      <div className="w-full max-w-md bg-white dark:bg-[#1a331a] rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 p-8 text-center">
-        <p className="text-red-500 mb-6">حدث خطأ غير متوقع في التحقق من الصلاحيات.</p>
-        <button
-          onClick={handleLogout}
-          className="w-full h-12 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-lg transition-all cursor-pointer"
+    <MemberAuthProvider>
+      <DashboardProvider session={session} logout={logout}>
+        <div
+          className="flex h-screen overflow-hidden bg-[#f8fcf8] dark:bg-[#102210] text-slate-900 dark:text-slate-100"
+          dir="rtl"
         >
-          تسجيل الخروج
-        </button>
-      </div>
-    </div>
+          <DashboardSidebar />
+          <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+            {children}
+          </main>
+        </div>
+      </DashboardProvider>
+    </MemberAuthProvider>
   );
 }

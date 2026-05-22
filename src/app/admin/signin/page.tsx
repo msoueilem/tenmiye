@@ -1,8 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { DashboardSignIn } from '@/components/DashboardSignIn';
 
 export default function SignInPage() {
-  return <DashboardSignIn />;
+  return (
+    <Suspense>
+      <DashboardSignIn />
+    </Suspense>
+  );
 }

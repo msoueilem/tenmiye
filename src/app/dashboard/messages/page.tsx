@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { apiFetch, ApiError } from '@/lib/api';
 
 interface Message {
   id: string;
@@ -24,7 +23,6 @@ function formatDate(createdAt: Message['createdAt']): string {
 }
 
 export default function MessagesPage() {
-  const { getAccessToken } = useMemberAuth();
   const [rows, setRows] = useState<Message[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,18 +32,23 @@ export default function MessagesPage() {
   const [marking, setMarking] = useState<Record<string, boolean>>({});
 
   const fetchPage = useCallback(async (cursor?: string) => {
-    const token = await getAccessToken();
-    if (!token) { setError('انتهت الجلسة.'); return; }
-
     const params = new URLSearchParams({ limit: '30' });
     if (cursor) params.set('cursor', cursor);
 
-    const res = await memberFetch(`/messages?${params}`, token);
-    if (res.status === 403) { setError('ليس لديك صلاحية الوصول لهذه الصفحة.'); return; }
-    if (!res.ok) { setError('تعذّر تحميل الرسائل.'); return; }
-
-    return res.json() as Promise<{ data: Message[]; nextCursor: string | null }>;
-  }, [getAccessToken]);
+    try {
+      return await apiFetch<{ data: Message[]; nextCursor: string | null }>(
+        'GET',
+        `/messages?${params}`,
+        { tokenType: 'member' },
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setError('ليس لديك صلاحية الوصول لهذه الصفحة.');
+      } else {
+        setError('تعذّر تحميل الرسائل.');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -72,12 +75,11 @@ export default function MessagesPage() {
 
   async function markRead(id: string) {
     setMarking((prev) => ({ ...prev, [id]: true }));
-    const token = await getAccessToken();
-    if (!token) { setMarking((prev) => ({ ...prev, [id]: false })); return; }
-
-    const res = await memberFetch(`/messages/${id}/read`, token, { method: 'PATCH' });
-    if (res.ok) {
+    try {
+      await apiFetch(`PATCH`, `/messages/${id}/read`, { tokenType: 'member' });
       setRows((prev) => prev.map((m) => m.id === id ? { ...m, read: true } : m));
+    } catch {
+      // silently ignore mark-read failures
     }
     setMarking((prev) => ({ ...prev, [id]: false }));
   }

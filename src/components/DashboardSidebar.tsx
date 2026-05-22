@@ -3,24 +3,28 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
-import { useRouter } from 'next/navigation';
+import { useDashboard } from '@/context/DashboardContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function DashboardSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
+  const { logout } = useDashboard();
 
   const handleLogout = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    router.push('/admin/signin');
+    await logout();
   };
 
   const navItems = [
     { name: 'لوحة التحكم', icon: 'dashboard', href: '/admin' },
     { name: 'الأعضاء', icon: 'group', href: '/admin/members' },
+    { name: 'مجالس الإدارة', icon: 'corporate_fare', href: '/admin/boards' },
+    { name: 'الإعلانات', icon: 'campaign', href: '/admin/announcements' },
+    { name: 'المدونة', icon: 'article', href: '/admin/blog' },
+    { name: 'الشؤون المالية', icon: 'payments', href: '/admin/finance' },
     { name: 'إدارة الانتخابات', icon: 'how_to_vote', href: '/admin/elections' },
+    { name: 'الأدوار', icon: 'badge', href: '/admin/roles' },
+    { name: 'فئات العضوية', icon: 'layers', href: '/admin/tiers' },
+    { name: 'حسابات المشرفين', icon: 'admin_panel_settings', href: '/admin/admin-accounts' },
     { name: 'إعدادات المجموعة', icon: 'settings', href: '/admin/settings' },
   ];
 
@@ -68,7 +72,11 @@ export function DashboardSidebar() {
           })}
         </nav>
       </div>
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+      <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-1">
+        <ThemeToggle
+          showLabel
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer text-sm font-medium"
+        />
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

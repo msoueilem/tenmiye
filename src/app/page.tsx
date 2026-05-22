@@ -1,7 +1,8 @@
 import React from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { TeamHierarchy } from '@/components/TeamHierarchy';
+import { BoardsSection } from '@/components/BoardsSection';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { InitiativesCarousel } from '@/components/InitiativesCarousel';
 import { JoinForm } from '@/components/JoinForm';
 import { ContactForm } from '@/components/ContactForm';
@@ -43,7 +44,7 @@ export default async function Home() {
             لا توجد بيانات حالياً - FORCE REFRESH
           </h1>
           <p className="text-slate-500">
-            يرجى إضافة مستند في Firestore بمسار settings-simple/public
+            يرجى إضافة مستند في Firestore بمسار settings/public
           </p>
         </div>
       </div>
@@ -56,6 +57,7 @@ export default async function Home() {
         <Header title={data.title} logoUrl={data.logoUrl} />
 
         <main className="flex flex-1 flex-col items-center">
+          <AnnouncementBanner />
           <div className="flex w-full max-w-[1280px] flex-col gap-10 px-4 py-5 md:px-10">
             {/* Hero Section */}
             <div className="@container">
@@ -214,9 +216,9 @@ export default async function Home() {
             {/* Initiatives Section */}
             <InitiativesCarousel initiatives={data.initiatives} />
 
-            {/* Hierarchy Section */}
+            {/* Boards Section */}
             <div id="hierarchy">
-              <TeamHierarchy data={data.teamHierarchy} />
+              <BoardsSection />
             </div>
 
             {/* Contact & Join Us Section */}

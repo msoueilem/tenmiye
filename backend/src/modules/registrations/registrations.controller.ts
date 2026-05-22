@@ -2,19 +2,14 @@ import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards } from '@ne
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { IsIn } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
 import { RegistrationsService } from './registrations.service';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
+import { ReviewRegistrationDto } from './dto/review-registration.dto';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/enums/permission.enum';
-
-class UpdateStatusDto {
-  @ApiProperty({ enum: ['approved', 'rejected'] })
-  @IsIn(['approved', 'rejected'])
-  status!: 'approved' | 'rejected';
-}
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtPayload } from '../../common/strategies/jwt.strategy';
 
 @ApiTags('registrations')
 @Controller('registrations')
@@ -40,11 +35,23 @@ export class RegistrationsController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Approve or reject a join request — admin only' })
+  @ApiOperation({
+    summary: 'Approve or reject a join request — admin only',
+    description:
+      'Approving creates a Firebase Auth account and a users document automatically. ' +
+      'Rejecting requires a rejectionReason.',
+  })
   @UseGuards(AuthGuard('jwt'), PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_REGISTRATIONS)
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto) {
-    return this.registrations.updateStatus(id, dto.status);
+  async review(
+    @Param('id') id: string,
+    @Body() dto: ReviewRegistrationDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (dto.status === 'approved') {
+      return this.registrations.approve(id, user.userId);
+    }
+    return this.registrations.reject(id, user.userId, dto.rejectionReason);
   }
 }

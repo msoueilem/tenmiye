@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch } from '@/lib/memberApi';
+import { apiFetch, ApiError } from '@/lib/api';
 
 interface Registration {
   id: string;
@@ -30,7 +29,6 @@ function statusBadge(status: Registration['status']) {
 }
 
 export default function RegistrationsPage() {
-  const { getAccessToken } = useMemberAuth();
   const [rows, setRows] = useState<Registration[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,19 +38,23 @@ export default function RegistrationsPage() {
   const [acting, setActing] = useState<Record<string, boolean>>({});
 
   const fetchPage = useCallback(async (cursor?: string) => {
-    const token = await getAccessToken();
-    if (!token) { setError('انتهت الجلسة.'); return; }
-
     const params = new URLSearchParams({ limit: '30' });
     if (cursor) params.set('cursor', cursor);
 
-    const res = await memberFetch(`/registrations?${params}`, token);
-    if (res.status === 403) { setError('ليس لديك صلاحية الوصول لهذه الصفحة.'); return; }
-    if (!res.ok) { setError('تعذّر تحميل الطلبات.'); return; }
-
-    const json = await res.json() as { data: Registration[]; nextCursor: string | null };
-    return json;
-  }, [getAccessToken]);
+    try {
+      return await apiFetch<{ data: Registration[]; nextCursor: string | null }>(
+        'GET',
+        `/registrations?${params}`,
+        { tokenType: 'member' },
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setError('ليس لديك صلاحية الوصول لهذه الصفحة.');
+      } else {
+        setError('تعذّر تحميل الطلبات.');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -79,17 +81,14 @@ export default function RegistrationsPage() {
 
   async function updateStatus(id: string, status: 'approved' | 'rejected') {
     setActing((prev) => ({ ...prev, [id]: true }));
-    const token = await getAccessToken();
-    if (!token) { setActing((prev) => ({ ...prev, [id]: false })); return; }
-
-    const res = await memberFetch(`/registrations/${id}/status`, token, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-
-    if (res.ok) {
+    try {
+      await apiFetch('PATCH', `/registrations/${id}/status`, {
+        body: { status },
+        tokenType: 'member',
+      });
       setRows((prev) => prev.map((r) => r.id === id ? { ...r, status } : r));
+    } catch {
+      // silently ignore status update failures
     }
     setActing((prev) => ({ ...prev, [id]: false }));
   }

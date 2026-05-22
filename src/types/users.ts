@@ -1,9 +1,15 @@
+export interface MemberSearchResult {
+  id: string;
+  name: string;
+  fullNameAr: string | null;
+}
+
 export interface UserMember {
   id: string;
   name: string;
   phoneNumber: string;
   status: 'active' | 'pending' | 'blocked';
-  createdAt: any;
+  createdAt: string;
   notes?: string;
   votedElections?: string[];
   contribution?: number;
@@ -24,6 +30,6 @@ export interface Admin {
   role: 'super-admin' | 'editor';
   status: 'active' | 'inactive' | 'blocked';
   permissions: string[];
-  createdAt: any;
-  lastLogin: any;
+  createdAt: string;
+  lastLogin: string;
 }

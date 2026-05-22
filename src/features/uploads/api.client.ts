@@ -1,34 +1,26 @@
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase/client';
+import { apiFetch, TokenType } from '@/lib/api';
 
-export async function uploadImage(
-  file: File,
-  path: string
-): Promise<string | null> {
-  if (!storage || !db) return null;
+interface UploadResult {
+  id: string;
+  downloadUrl: string;
+}
 
-  try {
-    const storageRef = ref(storage, path);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadUrl = await getDownloadURL(snapshot.ref);
+interface UploadOptions {
+  ownerType: string;
+  ownerId: string;
+  purpose: string;
+  tokenType: TokenType;
+}
 
-    try {
-      const uploadRef = doc(db, 'uploads-simple', snapshot.ref.name.replace(/\./g, '_'));
-      await setDoc(uploadRef, {
-        url: downloadUrl,
-        path: path,
-        createdAt: serverTimestamp(),
-        originalName: file.name,
-      });
-    } catch (firestoreError) {
-      console.error('Storage upload succeeded but Firestore record failed:', firestoreError);
-      return downloadUrl;
-    }
+export async function uploadFile(file: File, options: UploadOptions): Promise<UploadResult | null> {
+  const { ownerType, ownerId, purpose, tokenType } = options;
+  const formData = new FormData();
+  formData.append('file', file);
 
-    return downloadUrl;
-  } catch (error) {
-    console.error('Full upload process failed:', error);
-    return null;
-  }
+  const params = new URLSearchParams({ ownerType, ownerId, purpose });
+
+  return apiFetch<UploadResult>('POST', `/uploads?${params.toString()}`, {
+    formData,
+    tokenType,
+  });
 }

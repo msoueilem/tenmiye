@@ -4,17 +4,16 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
+import { useMemberAuth } from '@/context/MemberAuthContext';
 
 export default function ElectionThanksPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { logout } = useMemberAuth();
 
   React.useEffect(() => {
-    if (auth) signOut(auth);
-    sessionStorage.removeItem(`voter_session_${id}`);
-  }, [id]);
+    void logout();
+  }, [logout]);
 
   return (
     <div className="min-h-screen bg-[#f8fcf8] dark:bg-[#102210] flex flex-col" dir="rtl">

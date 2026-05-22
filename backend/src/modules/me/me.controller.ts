@@ -6,25 +6,25 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import { FieldValue } from 'firebase-admin/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { FirebaseService } from '../../common/firebase/firebase.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { UpdateMeDto } from './dto/update-me.dto';
-
-const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 
 @ApiTags('me')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), UserTypeGuard)
+@RequireUserType('member')
 @Controller('me')
 export class MeController {
   constructor(
     private users: UsersService,
     private firebase: FirebaseService,
+    private uploadsService: UploadsService,
   ) {}
 
   @ApiOperation({ summary: "Get the authenticated member's own profile (resolves profilePictureUrl)" })
@@ -34,8 +34,8 @@ export class MeController {
     let profilePictureUrl: string | null = null;
 
     if (profile.profilePictureId) {
-      const fileDoc = await this.firebase.db.collection('files').doc(profile.profilePictureId).get();
-      if (fileDoc.exists) profilePictureUrl = (fileDoc.data() as { url: string }).url ?? null;
+      const fileDoc = await this.firebase.db.collection('uploads').doc(profile.profilePictureId).get();
+      if (fileDoc.exists) profilePictureUrl = (fileDoc.data() as { downloadUrl: string }).downloadUrl ?? null;
     }
 
     return { ...profile, profilePictureUrl };
@@ -47,7 +47,7 @@ export class MeController {
     return this.users.update(user.userId, dto);
   }
 
-  @ApiOperation({ summary: 'Upload profile picture — stores file, creates files doc, updates profilePictureId' })
+  @ApiOperation({ summary: 'Upload profile picture — stores file, creates uploads doc, updates profilePictureId' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   @Post('profile-picture')
@@ -57,40 +57,15 @@ export class MeController {
     @UploadedFile() file: Express.Multer.File | undefined,
   ) {
     if (!file) throw new BadRequestException('No file provided');
-    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
-      throw new BadRequestException('Only JPEG, PNG, or WebP images are allowed');
-    }
-    if (file.size > MAX_PHOTO_BYTES) {
-      throw new BadRequestException('Image must be under 5 MB');
-    }
 
-    const ext = file.originalname.split('.').pop() ?? 'jpg';
-    const storagePath = `profile-pictures/${uuidv4()}.${ext}`;
-    const bucket = this.firebase.storage.bucket();
-    const fileRef = bucket.file(storagePath);
-
-    await fileRef.save(file.buffer, { metadata: { contentType: file.mimetype } });
-    await fileRef.makePublic();
-
-    const url = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
-
-    // Create files Firestore doc so profilePictureId reference is valid
-    const docRef = await this.firebase.db.collection('files').add({
-      url,
-      storagePath,
-      mimeType: file.mimetype,
-      originalName: file.originalname,
-      size: file.size,
-      fileType: 'image',
-      category: 'user-profile',
+    const result = await this.uploadsService.upload(file, {
+      ownerType: 'user',
+      ownerId: user.userId,
+      purpose: 'profile-picture',
       uploadedBy: user.userId,
-      createdAt: FieldValue.serverTimestamp(),
     });
-
-    // Update user's profilePictureId
-    await this.users.update(user.userId, { profilePictureId: docRef.id });
-
-    return { id: docRef.id, url };
+    await this.users.update(user.userId, { profilePictureId: result.id });
+    return { id: result.id, url: result.downloadUrl };
   }
 
   @ApiOperation({ summary: 'Search active members by name prefix — for board/committee election nomination UI' })
@@ -102,7 +77,7 @@ export class MeController {
       .collection('users')
       .where('status', '==', 'active')
       .where('fullName', '>=', trimmed)
-      .where('fullName', '<=', trimmed + '')
+      .where('fullName', '<=', trimmed + '￿')
       .limit(20)
       .get();
     return snapshot.docs.map((d) => {
@@ -116,16 +91,15 @@ export class MeController {
   async getMyVotes(@CurrentUser() user: JwtPayload) {
     const snapshot = await this.firebase.db
       .collection('votes')
-      .where('voterId', '==', user.userId)
-      .orderBy('createdAt', 'desc')
+      .where('userId', '==', user.userId)
+      .orderBy('castAt', 'desc')
       .get();
 
     if (snapshot.empty) return [];
 
-    // Fetch unique election titles in one batch
     const electionIds = [...new Set(snapshot.docs.map((d) => d.data().electionId as string))];
     const electionDocs = await Promise.all(
-      electionIds.map((id) => this.firebase.db.collection('electionProcesses').doc(id).get()),
+      electionIds.map((id) => this.firebase.db.collection('elections').doc(id).get()),
     );
     const electionTitles: Record<string, string> = {};
     for (const doc of electionDocs) {
@@ -133,14 +107,14 @@ export class MeController {
     }
 
     return snapshot.docs.map((d) => {
-      const data = d.data() as { electionId: string; selection?: string; nomineeId?: string; createdAt: unknown };
+      const data = d.data() as { electionId: string; electionType: string; choices: string[]; castAt: unknown };
       return {
         id: d.id,
         electionId: data.electionId,
         electionTitle: electionTitles[data.electionId] ?? data.electionId,
-        selection: data.selection ?? null,
-        nomineeId: data.nomineeId ?? null,
-        createdAt: data.createdAt,
+        electionType: data.electionType,
+        choices: data.choices,
+        castAt: data.castAt,
       };
     });
   }

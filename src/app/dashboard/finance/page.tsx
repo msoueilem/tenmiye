@@ -1,0 +1,245 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useMemberAuth } from '@/context/MemberAuthContext';
+import type { Transaction, PaymentChannel, FinanceSummary, CreateTransactionDto } from '@/types/finance';
+import {
+  getTransactions,
+  getPaymentChannels,
+  getFinanceSummary,
+  createTransaction,
+} from '@/features/finance/api.client';
+
+type Tab = 'summary' | 'add' | 'history';
+
+export default function MemberFinancePage() {
+  const { user } = useMemberAuth();
+  const permissions = user?.permissions ?? [];
+  const canRead = permissions.includes('READ_FINANCE');
+  const canContribute = permissions.includes('RECORD_CONTRIBUTIONS');
+  const canExpense = permissions.includes('RECORD_EXPENSES');
+  const canAdd = canContribute || canExpense;
+
+  const [tab, setTab] = useState<Tab>('summary');
+  const [summary, setSummary] = useState<FinanceSummary | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [channels, setChannels] = useState<PaymentChannel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [form, setForm] = useState<CreateTransactionDto>({
+    type: 'contribution',
+    amount: 0,
+    date: new Date().toISOString().slice(0, 10),
+    paymentChannelId: '',
+    description: '',
+  });
+
+  useEffect(() => {
+    if (!canRead) return;
+    Promise.all([getFinanceSummary(), getTransactions(), getPaymentChannels()])
+      .then(([s, t, c]) => {
+        setSummary(s);
+        setTransactions(t);
+        setChannels(c);
+      })
+      .catch(() => setError('فشل تحميل البيانات المالية'));
+  }, [canRead]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const created = await createTransaction(form);
+      setTransactions((prev) => [created, ...prev]);
+      setForm({ type: 'contribution', amount: 0, date: new Date().toISOString().slice(0, 10), paymentChannelId: '', description: '' });
+      setSuccess('تم تسجيل المعاملة بنجاح');
+      setTab('history');
+    } catch {
+      setError('فشل التسجيل');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!canRead) {
+    return (
+      <div className="py-8 text-center text-slate-400" dir="rtl">
+        ليس لديك صلاحية الوصول إلى الشؤون المالية
+      </div>
+    );
+  }
+
+  const tabs: { key: Tab; label: string; show: boolean }[] = [
+    { key: 'summary', label: 'الملخص', show: true },
+    { key: 'add', label: 'تسجيل معاملة', show: canAdd },
+    { key: 'history', label: 'السجل', show: true },
+  ];
+
+  return (
+    <div dir="rtl">
+      <h1 className="mb-6 text-xl font-bold text-[#0df20d]">الشؤون المالية</h1>
+      {error && <p className="mb-4 text-red-400">{error}</p>}
+      {success && <p className="mb-4 text-green-400">{success}</p>}
+
+      <div className="mb-6 flex gap-2 border-b border-white/10">
+        {tabs
+          .filter((t) => t.show)
+          .map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2 text-sm ${
+                tab === t.key
+                  ? 'border-b-2 border-[#0df20d] text-[#0df20d]'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+      </div>
+
+      {tab === 'summary' && summary && (
+        <div className="space-y-4 max-w-lg">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">المساهمات</p>
+              <p className="text-lg font-bold text-green-400">
+                {summary.totals.contribution} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">التبرعات</p>
+              <p className="text-lg font-bold text-green-300">
+                {summary.totals.donation} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">المصروفات</p>
+              <p className="text-lg font-bold text-red-400">
+                {summary.totals.expense} {summary.currency}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">إجمالي الدخل</p>
+              <p className="text-lg font-bold text-green-400">
+                {summary.income} {summary.currency}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/5 p-4 text-center">
+              <p className="mb-1 text-xs text-slate-400">الصافي</p>
+              <p className={`text-lg font-bold ${summary.net >= 0 ? 'text-[#0df20d]' : 'text-red-400'}`}>
+                {summary.net} {summary.currency}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">سنة {summary.year}{summary.month ? ` — شهر ${summary.month}` : ''}</p>
+        </div>
+      )}
+
+      {tab === 'add' && canAdd && (
+        <form onSubmit={handleSubmit} className="flex max-w-md flex-col gap-4">
+          <select
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+            value={form.type}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, type: e.target.value as CreateTransactionDto['type'] }))
+            }
+          >
+            {canContribute && <option value="contribution">مساهمة</option>}
+            {canExpense && <option value="expense">مصروف</option>}
+          </select>
+          <input
+            type="number"
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+            placeholder="المبلغ"
+            min={0}
+            value={form.amount || ''}
+            onChange={(e) => setForm((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
+            required
+          />
+          <input
+            type="date"
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+            value={form.date}
+            onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+            required
+          />
+          {channels.filter((c) => c.isActive).length > 0 && (
+            <select
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+              value={form.paymentChannelId}
+              onChange={(e) => setForm((p) => ({ ...p, paymentChannelId: e.target.value }))}
+              required
+            >
+              <option value="">اختر قناة الدفع</option>
+              {channels
+                .filter((c) => c.isActive)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          )}
+          <textarea
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#0df20d]/30"
+            placeholder="الوصف (اختياري)"
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            rows={2}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-lg bg-[#0df20d] px-4 py-3 font-bold text-slate-900 hover:bg-[#0be00b] disabled:opacity-50"
+          >
+            {loading ? 'جاري التسجيل...' : 'تسجيل'}
+          </button>
+        </form>
+      )}
+
+      {tab === 'history' && (
+        <div className="space-y-2">
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              className="rounded-lg border border-white/10 bg-white/5 p-3"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-white">{tx.notes ?? tx.description ?? tx.type}</p>
+                <p className="text-sm font-semibold text-[#0df20d]">
+                  {tx.amount} MRU
+                </p>
+              </div>
+              <p className="mt-1 text-xs text-slate-400">
+                <span
+                  className={
+                    tx.status === 'verified'
+                      ? 'text-green-400'
+                      : tx.status === 'rejected'
+                        ? 'text-red-400'
+                        : 'text-yellow-400'
+                  }
+                >
+                  {tx.status === 'verified' ? 'موثق' : tx.status === 'rejected' ? 'مرفوض' : 'معلق'}
+                </span>
+                {' • '}
+                {tx.createdAt.slice(0, 10)}
+              </p>
+            </div>
+          ))}
+          {transactions.length === 0 && (
+            <p className="py-8 text-center text-slate-500">لا توجد معاملات</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

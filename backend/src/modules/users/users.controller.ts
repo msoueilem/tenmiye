@@ -16,7 +16,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ListUsersDto } from './dto/list-users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 
 @ApiTags('users')
@@ -51,8 +53,10 @@ export class UsersController {
     return this.users.update(id, dto);
   }
 
-  @ApiOperation({ summary: 'Delete a user by ID' })
+  @ApiOperation({ summary: 'Delete a user by ID — admin only' })
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   remove(@Param('id') id: string) {
     return this.users.remove(id);
   }

@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { instanceToPlain } from 'class-transformer';
 import { FieldValue } from 'firebase-admin/firestore';
 import { FirebaseService } from '../../common/firebase/firebase.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
-const COLLECTION = 'settings-simple';
+const COLLECTION = 'settings';
 const DOC_ID = 'public';
 
 @Injectable()
@@ -21,7 +22,8 @@ export class SettingsService {
     const snap = await docRef.get();
     if (!snap.exists) throw new NotFoundException('Settings document not found');
 
-    const clean = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
+    const plain = instanceToPlain(dto);
+    const clean = Object.fromEntries(Object.entries(plain).filter(([, v]) => v !== undefined));
     await docRef.update({ ...clean, updatedAt: FieldValue.serverTimestamp() });
 
     const updated = await docRef.get();

@@ -13,9 +13,12 @@ import { ElectionsService } from './elections.service';
 import { CreateElectionDto } from './dto/create-election.dto';
 import { SubmitNominationDto } from './dto/submit-nomination.dto';
 import { CastVoteDto } from './dto/cast-vote.dto';
+import { AdvanceElectionDto } from './dto/advance-election.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -45,16 +48,30 @@ export class ElectionsController {
   }
 
   @ApiBearerAuth()
+  @ApiOperation({ summary: "Check whether the authenticated user has voted in this election" })
+  @Get(':id/my-vote')
+  @UseGuards(JwtAuthGuard)
+  getMyVote(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
+    return this.elections.getMyVote(id, req.user.userId);
+  }
+
+  @ApiOperation({ summary: 'Get top nominees by nomination count — no auth required' })
+  @Get(':id/nominations/top')
+  getTopNominees(@Param('id') id: string) {
+    return this.elections.getTopNominees(id);
+  }
+
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new election' })
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
   create(@Body() dto: CreateElectionDto, @Req() req: { user: JwtPayload }) {
-    return this.elections.create(dto, req.user);
+    return this.elections.create(dto, req.user.userId);
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update an election by ID' })
+  @ApiOperation({ summary: 'Update a draft election' })
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
@@ -63,35 +80,69 @@ export class ElectionsController {
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete an election by ID' })
+  @ApiOperation({ summary: 'Delete a draft election — admin only' })
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   @RequirePermissions(Permission.MANAGE_ELECTIONS)
   remove(@Param('id') id: string) {
     return this.elections.remove(id);
   }
 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Submit a nomination for an election' })
+  @ApiOperation({ summary: 'Advance election status (draft→nomination→dismissal→voting→completed)' })
+  @Post(':id/advance')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_ELECTIONS)
+  advance(
+    @Param('id') id: string,
+    @Body() dto: AdvanceElectionDto,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return this.elections.advance(id, dto, req.user.userId);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Finalize results for a completed board election' })
+  @Post(':id/finalize')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_ELECTIONS)
+  finalize(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
+    return this.elections.finalizeResults(id, req.user.userId);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Submit nominations for a board election' })
   @Post(':id/nominations')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
   submitNomination(
     @Param('id') id: string,
     @Body() dto: SubmitNominationDto,
     @Req() req: { user: JwtPayload },
   ) {
-    return this.elections.submitNomination(id, dto, req.user);
+    return this.elections.submitNomination(id, dto, req.user.userId);
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Opt out of nomination during the dismissal phase' })
+  @Delete(':id/nominations/me')
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
+  dismissSelf(@Param('id') id: string, @Req() req: { user: JwtPayload }) {
+    return this.elections.dismissSelf(id, req.user.userId);
   }
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cast a vote in an election' })
   @Post(':id/votes')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserTypeGuard)
+  @RequireUserType('member')
   castVote(
     @Param('id') id: string,
     @Body() dto: CastVoteDto,
     @Req() req: { user: JwtPayload },
   ) {
-    return this.elections.castVote(id, dto, req.user);
+    return this.elections.castVote(id, dto, req.user.userId);
   }
 }

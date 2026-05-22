@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isActiveAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email != null &&
+        firestore.exists(/databases/(default)/documents/admins-simple/$(request.auth.token.email)) &&
+        firestore.get(/databases/(default)/documents/admins-simple/$(request.auth.token.email)).data.status == 'active';
+    }
+
+    // Backend stores files at {ownerType}/{ownerId}/{filename}
+    match /user/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSelf(uid)
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    match /settings/{allPaths=**} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

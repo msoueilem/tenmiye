@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Still references admins-simple until adminAccounts adopts email-as-docId scheme
+    function isActiveAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email != null &&
+        exists(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/admins-simple/$(request.auth.token.email)).data.status == 'active';
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isActiveAdmin();
+      allow create, delete: if isActiveAdmin();
+      allow update: if isActiveAdmin() ||
+                    (isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoUrl']));
+    }
+
+    match /public-members/{uid} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /boards/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /elections/{electionId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+
+      match /nominations/{nomId} {
+        allow read: if isActiveAdmin();
+        allow write: if false; // all nomination writes go through backend Admin SDK
+      }
+    }
+
+    match /votes/{voteId} {
+      allow read: if isActiveAdmin() || (isSignedIn() && voteId.matches('^[^_]+_' + request.auth.uid + '$'));
+      allow write: if false;
+    }
+
+    match /admins-simple/{email} {
+      allow read: if isActiveAdmin() || (isSignedIn() && request.auth.token.email == email);
+      allow write: if isActiveAdmin();
+    }
+
+    match /adminAccounts/{docId} {
+      allow read: if isActiveAdmin() || (isSignedIn() && resource.data.googleEmail == request.auth.token.email);
+      allow write: if false; // all mutations go through the backend
+    }
+
+    match /roles/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /tiers/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /join-requests/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if isActiveAdmin();
+    }
+
+    match /messages/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if isActiveAdmin();
+    }
+
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /uploads/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /blogs/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /announcements/{docId} {
+      allow read: if true;
+      allow write: if isActiveAdmin();
+    }
+
+    match /transactions/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /paymentChannels/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

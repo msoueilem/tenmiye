@@ -9,7 +9,7 @@ export class UserResponseDto {
   @Expose() whatsappNumber!: string;
   @Expose() nationalId!: string | null;
   @Expose() city!: string | null;
-  @Expose() region!: string | null;
+  @Expose() regionId!: string | null;
   @Expose() roleId!: string;
   @Expose() tierId!: string;
   @Expose() profilePictureId!: string | null;
@@ -17,6 +17,7 @@ export class UserResponseDto {
   @Expose() approvedBy!: string | null;
   @Expose() approvedAt!: unknown;
   @Expose() lastLoginAt!: unknown;
+  @Expose() joinRequestId!: string | null;
   @Expose() outsidePlatform!: boolean;
   @Expose() createdAt!: unknown;
   @Expose() updatedAt!: unknown;

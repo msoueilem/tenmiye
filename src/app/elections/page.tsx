@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BackendElection, BackendElectionType, BackendElectionStatus } from '@/types/elections';
+import { Election, BackendElectionType, BackendElectionStatus } from '@/types/elections';
 import { getAllElections } from '@/features/elections/api.client';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
@@ -20,7 +20,7 @@ function statusLabel(status: BackendElectionStatus): string {
 }
 
 export default function PublicElectionsPage() {
-  const [elections, setElections] = useState<BackendElection[]>([]);
+  const [elections, setElections] = useState<Election[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

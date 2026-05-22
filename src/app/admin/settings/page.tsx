@@ -3,15 +3,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PublicLandingData, Initiative } from '@/types/landing';
 import { getPublicLandingData, updatePublicLandingData } from '@/features/landing/api.client';
-import { uploadImage } from '@/features/uploads/api.client';
-import { useDashboard } from '@/context/DashboardContext';
-import { useMemberAuth } from '@/context/MemberAuthContext';
+import { uploadFile } from '@/features/uploads/api.client';
 
 type MessageTarget = 'global' | 'logo' | 'favicon' | 'aspect' | 'initiative-modal' | 'stats' | 'achievements' | 'contact';
 
 export default function SettingsPage() {
-  const { user, admin } = useDashboard();
-  const { getAccessToken } = useMemberAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<PublicLandingData | null>(null);
@@ -191,9 +187,9 @@ export default function SettingsPage() {
        // We'll upload this one immediately to get a URL for the local list
        // or we could mark it as "to be uploaded". To keep it simple, we upload now.
        setMessage({ type: 'success', target: 'initiative-modal', text: 'جاري رفع الصورة...' });
-       const uploaded = await uploadImage(initiativeImageFile, `settings-simple/init_${Date.now()}`);
+       const uploaded = await uploadFile(initiativeImageFile, { ownerType: 'settings', ownerId: 'public', purpose: 'initiative-image', tokenType: 'admin' });
        if (uploaded) {
-         updatedInitiative.imageUrl = uploaded;
+         updatedInitiative.imageUrl = uploaded.downloadUrl;
        } else {
          setMessage({ type: 'error', target: 'initiative-modal', text: 'فشل في رفع الصورة.' });
          return;
@@ -270,18 +266,18 @@ export default function SettingsPage() {
       let aspectImageUrl = data.currentAspect?.imageUrl;
 
       if (logoFile) {
-        const uploadedLogo = await uploadImage(logoFile, `settings-simple/logo_${Date.now()}`);
-        if (uploadedLogo) logoUrl = uploadedLogo;
+        const uploadedLogo = await uploadFile(logoFile, { ownerType: 'settings', ownerId: 'public', purpose: 'logo', tokenType: 'admin' });
+        if (uploadedLogo) logoUrl = uploadedLogo.downloadUrl;
       }
 
       if (faviconFile) {
-        const uploadedFavicon = await uploadImage(faviconFile, `settings-simple/favicon_${Date.now()}`);
-        if (uploadedFavicon) faviconUrl = uploadedFavicon;
+        const uploadedFavicon = await uploadFile(faviconFile, { ownerType: 'settings', ownerId: 'public', purpose: 'favicon', tokenType: 'admin' });
+        if (uploadedFavicon) faviconUrl = uploadedFavicon.downloadUrl;
       }
 
       if (aspectImageFile) {
-        const uploadedAspect = await uploadImage(aspectImageFile, `settings-simple/aspect_${Date.now()}`);
-        if (uploadedAspect) aspectImageUrl = uploadedAspect;
+        const uploadedAspect = await uploadFile(aspectImageFile, { ownerType: 'settings', ownerId: 'public', purpose: 'aspect-image', tokenType: 'admin' });
+        if (uploadedAspect) aspectImageUrl = uploadedAspect.downloadUrl;
       }
 
       const updatedData = {
@@ -294,9 +290,7 @@ export default function SettingsPage() {
         } : undefined
       };
 
-      const token = await getAccessToken();
-      if (!token) throw new Error('انتهت الجلسة');
-      await updatePublicLandingData(updatedData, token);
+      await updatePublicLandingData(updatedData);
 
       setData(updatedData);
       setInitialData(updatedData);
@@ -326,7 +320,7 @@ export default function SettingsPage() {
     );
   };
 
-  if (loading || !user || !admin) {
+  if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>

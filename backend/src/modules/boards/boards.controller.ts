@@ -1,22 +1,14 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { BoardsService } from './boards.service';
 import { CreateBoardDto } from './dto/create-board.dto';
-import { CreateRoleDto } from './dto/create-role.dto';
+import { UpdateBoardDto } from './dto/update-board.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { Permission } from '../../common/enums/permission.enum';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UpdateBoardDto } from './dto/update-board.dto';
 
 @ApiTags('boards')
 @ApiBearerAuth()
@@ -44,24 +36,19 @@ export class BoardsController {
     return this.boards.create(dto);
   }
 
-  @ApiOperation({ summary: 'Update a board by ID' })
+  @ApiOperation({ summary: 'Update a board' })
   @Patch(':id')
   @RequirePermissions(Permission.MANAGE_BOARDS)
   update(@Param('id') id: string, @Body() dto: UpdateBoardDto) {
     return this.boards.update(id, dto);
   }
 
-  @ApiOperation({ summary: 'Delete a board by ID' })
+  @ApiOperation({ summary: 'Delete a board — admin only' })
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, UserTypeGuard, PermissionsGuard)
+  @RequireUserType('admin')
   @RequirePermissions(Permission.MANAGE_BOARDS)
   remove(@Param('id') id: string) {
     return this.boards.remove(id);
-  }
-
-  @ApiOperation({ summary: 'Create a role for a specific board' })
-  @Post(':boardId/roles')
-  @RequirePermissions(Permission.MANAGE_BOARDS)
-  createRole(@Param('boardId') boardId: string, @Body() dto: CreateRoleDto) {
-    return this.boards.createRole(boardId, dto);
   }
 }

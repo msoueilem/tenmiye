@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useMemberAuth } from '@/context/MemberAuthContext';
-import { memberFetch, parseApiError } from '@/lib/memberApi';
+import { apiFetch, ApiError } from '@/lib/api';
 
 interface MeProfile {
   id: string;
@@ -84,7 +83,6 @@ function Avatar({
 }
 
 export default function ProfilePage() {
-  const { getAccessToken } = useMemberAuth();
   const [profile, setProfile] = useState<MeProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -95,38 +93,32 @@ export default function ProfilePage() {
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const token = await getAccessToken();
-      if (!token) return;
-      const res = await memberFetch('/me', token);
-      if (!res.ok) return;
-      const data = (await res.json()) as MeProfile;
-      if (mounted) {
-        setProfile(data);
-        setPhotoUrl(data.profilePictureUrl);
-      }
+      try {
+        const data = await apiFetch<MeProfile>('GET', '/me', { tokenType: 'member' });
+        if (mounted) {
+          setProfile(data);
+          setPhotoUrl(data.profilePictureUrl);
+        }
+      } catch { /* stay on loading spinner if it fails */ }
+      finally { if (mounted) setLoading(false); }
     }
-    void load().finally(() => { if (mounted) setLoading(false); });
+    void load();
     return () => { mounted = false; };
-  }, [getAccessToken]);
+  }, []);
 
   async function handlePhotoUpload(file: File) {
     setUploading(true);
     try {
-      const token = await getAccessToken();
-      if (!token) return;
       const form = new FormData();
       form.append('file', file);
-      const res = await memberFetch('/me/profile-picture', token, { method: 'POST', body: form });
-      if (!res.ok) {
-        setSaveError(await parseApiError(res, 'فشل رفع الصورة.'));
-        setSaveStatus('error');
-        return;
-      }
-      const { id, url } = (await res.json()) as { id: string; url: string };
+      const { id, url } = await apiFetch<{ id: string; url: string }>('POST', '/me/profile-picture', {
+        formData: form,
+        tokenType: 'member',
+      });
       setPhotoUrl(url);
       setProfile((prev) => prev ? { ...prev, profilePictureId: id } : prev);
-    } catch {
-      setSaveError('حدث خطأ في الاتصال.');
+    } catch (e: unknown) {
+      setSaveError(e instanceof ApiError ? e.message : 'فشل رفع الصورة.');
       setSaveStatus('error');
     } finally {
       setUploading(false);
@@ -146,22 +138,11 @@ export default function ProfilePage() {
     });
 
     try {
-      const token = await getAccessToken();
-      if (!token) return;
-      const res = await memberFetch('/me', token, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        setSaveError(await parseApiError(res, 'حدث خطأ أثناء الحفظ.'));
-        setSaveStatus('error');
-        return;
-      }
+      await apiFetch('PATCH', '/me', { body, tokenType: 'member' });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
-    } catch {
-      setSaveError('حدث خطأ في الاتصال.');
+    } catch (e: unknown) {
+      setSaveError(e instanceof ApiError ? e.message : 'حدث خطأ أثناء الحفظ.');
       setSaveStatus('error');
     }
   }
