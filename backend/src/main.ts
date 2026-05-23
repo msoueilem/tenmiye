@@ -40,7 +40,8 @@ async function bootstrap() {
 
   const appConfig = app.get(ConfigService<AppConfig, true>);
   app.enableCors({
-    origin: appConfig.get('frontendUrl', { infer: true }),
+    origin: appConfig.get('frontendUrls', { infer: true }),
+    credentials: true,
   });
 
   const config = new DocumentBuilder()

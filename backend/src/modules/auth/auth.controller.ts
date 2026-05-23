@@ -105,11 +105,11 @@ export class AuthController {
     @Res() res: Response,
   ) {
     const tokens = await this.auth.issueAdminSession(user);
-    const frontendUrl = this.config.get('frontendUrl', { infer: true });
+    const frontendUrls = this.config.get('frontendUrls', { infer: true });
     const params = new URLSearchParams({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
     });
-    res.redirect(`${frontendUrl}/admin/auth-callback?${params.toString()}`);
+    res.redirect(`${frontendUrls[0]}/admin/auth-callback?${params.toString()}`);
   }
 }
