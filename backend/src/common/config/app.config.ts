@@ -1,6 +1,9 @@
 export const appConfig = () => ({
   port: parseInt(process.env.PORT ?? '8080', 10),
-  frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+  frontendUrls: (process.env.FRONTEND_URL ?? 'http://localhost:3000')
+    .split(',')
+    .map((u) => u.trim())
+    .filter(Boolean),
   jwt: {
     secret: process.env.JWT_SECRET ?? '',
   },
