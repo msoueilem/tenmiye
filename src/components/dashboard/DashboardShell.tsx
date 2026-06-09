@@ -169,6 +169,11 @@ export function DashboardShell({ children }: Props) {
 
   const visibleNav = NAV.filter((item) => hasAccess(item, user.permissions));
 
+  const currentNav = NAV.find(
+    (item) => pathname === item.href || pathname.startsWith(item.href + '/')
+  );
+  const currentTitle = currentNav?.label ?? 'بوابة الأعضاء';
+
   const sidebarContent = (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -246,7 +251,7 @@ export function DashboardShell({ children }: Props) {
       <div className="flex flex-1 flex-col lg:mr-60">
         {/* Mobile top bar */}
         <header className="flex items-center justify-between border-b border-white/10 bg-[#071a07] px-4 py-3 lg:hidden">
-          <p className="text-sm font-bold text-white">بوابة الأعضاء</p>
+          <p className="text-sm font-bold text-white">{currentTitle}</p>
           <button
             onClick={() => setSidebarOpen(true)}
             className="rounded-lg p-2 text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
