@@ -14,7 +14,7 @@ interface Member {
   whatsappNumber?: string;
   nationalId?: string | null;
   city?: string | null;
-  region?: string | null;
+  regionId?: string | null;
   status: 'pending' | 'active' | 'inactive' | 'blocked';
   isBlocked: boolean;
   outsideWhatsapp: boolean;
@@ -27,7 +27,7 @@ interface MemberFormData {
   whatsappNumber: string;
   nationalId: string;
   city: string;
-  region: string;
+  regionId: string;
   outsideWhatsapp: boolean;
 }
 
@@ -37,7 +37,7 @@ const EMPTY_FORM: MemberFormData = {
   whatsappNumber: '',
   nationalId: '',
   city: '',
-  region: '',
+  regionId: '',
   outsideWhatsapp: false,
 };
 
@@ -157,7 +157,7 @@ export default function MembersPage() {
       whatsappNumber: member.whatsappNumber ?? '',
       nationalId: member.nationalId ?? '',
       city: member.city ?? '',
-      region: member.region ?? '',
+      regionId: member.regionId ?? '',
       outsideWhatsapp: member.outsideWhatsapp,
     });
     setFormError('');
@@ -181,24 +181,24 @@ export default function MembersPage() {
     const body: Record<string, unknown> = {
       fullName: form.fullName,
       phoneNumber: form.phoneNumber,
-      outsideWhatsapp: form.outsideWhatsapp,
     };
     if (form.whatsappNumber) body.whatsappNumber = form.whatsappNumber;
     if (form.nationalId) body.nationalId = form.nationalId;
     if (form.city) body.city = form.city;
-    if (form.region) body.region = form.region;
+    if (form.regionId) body.regionId = form.regionId;
 
     try {
       if (modal === 'add') {
         if (!form.whatsappNumber) { setFormError('رقم واتساب مطلوب.'); setFormSaving(false); return; }
         body.whatsappNumber = form.whatsappNumber;
         const { id } = await apiFetch<{ id: string }>('POST', '/users', { body, tokenType: 'member' });
-        const newMember: Member = { id, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsideWhatsapp: form.outsideWhatsapp, isBlocked: false, status: 'pending', createdAt: new Date().toISOString() };
+        const newMember: Member = { id, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, regionId: form.regionId || null, outsideWhatsapp: form.outsideWhatsapp, isBlocked: false, status: 'pending', createdAt: new Date().toISOString() };
         setRows((prev) => [newMember, ...prev]);
         closeModal();
       } else if (modal === 'edit' && editing) {
+        body.outsideWhatsapp = form.outsideWhatsapp;
         await apiFetch('PATCH', `/users/${editing.id}`, { body, tokenType: 'member' });
-        setRows((prev) => prev.map((m) => m.id === editing.id ? { ...m, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber || m.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, region: form.region || null, outsideWhatsapp: form.outsideWhatsapp } : m));
+        setRows((prev) => prev.map((m) => m.id === editing.id ? { ...m, fullName: form.fullName, phoneNumber: form.phoneNumber, whatsappNumber: form.whatsappNumber || m.whatsappNumber, nationalId: form.nationalId || null, city: form.city || null, regionId: form.regionId || null, outsideWhatsapp: form.outsideWhatsapp } : m));
         closeModal();
       }
     } catch (e: unknown) {
@@ -311,7 +311,7 @@ export default function MembersPage() {
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-400">
                     <span dir="ltr">{m.phoneNumber}</span>
                     {m.city && <span>{m.city}</span>}
-                    {m.region && <span>{m.region}</span>}
+                    {m.regionId && <span>{m.regionId}</span>}
                     <span className="text-xs text-slate-600">{formatDate(m.createdAt)}</span>
                   </div>
                 </div>
@@ -404,7 +404,7 @@ export default function MembersPage() {
                   <input className={INPUT_CLS} value={form.city} onChange={(e) => setField('city', e.target.value)} placeholder="نواكشوط" />
                 </Field>
                 <Field label="الولاية">
-                  <input className={INPUT_CLS} value={form.region} onChange={(e) => setField('region', e.target.value)} placeholder="تيرس زمور" />
+                  <input className={INPUT_CLS} value={form.regionId} onChange={(e) => setField('regionId', e.target.value)} placeholder="تيرس زمور" />
                 </Field>
               </div>
 

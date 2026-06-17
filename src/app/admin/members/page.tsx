@@ -12,7 +12,7 @@ interface BackendUser {
   whatsappNumber: string;
   nationalId?: string | null;
   city?: string | null;
-  region?: string | null;
+  regionId?: string | null;
   roleId: string;
   tierId: string;
   profilePictureId?: string | null;
@@ -30,14 +30,14 @@ type UserForm = {
   whatsappNumber: string;
   nationalId: string;
   city: string;
-  region: string;
+  regionId: string;
   tierId: string;
   status: 'active' | 'pending' | 'blocked';
 };
 
 const EMPTY_FORM: UserForm = {
   fullName: '', fullNameAr: '', phoneNumber: '', whatsappNumber: '',
-  nationalId: '', city: '', region: '', tierId: 'standard', status: 'active',
+  nationalId: '', city: '', regionId: '', tierId: 'standard', status: 'active',
 };
 
 function statusBadge(status: BackendUser['status']) {
@@ -121,7 +121,7 @@ export default function MembersPage() {
       whatsappNumber: u.whatsappNumber,
       nationalId: u.nationalId ?? '',
       city: u.city ?? '',
-      region: u.region ?? '',
+      regionId: u.regionId ?? '',
       tierId: u.tierId,
       status: u.status,
     });
@@ -149,7 +149,7 @@ export default function MembersPage() {
       whatsappNumber: form.whatsappNumber.trim(),
       nationalId: form.nationalId.trim() || undefined,
       city: form.city.trim() || undefined,
-      region: form.region.trim() || undefined,
+      regionId: form.regionId.trim() || undefined,
       tierId: form.tierId,
     };
     
@@ -308,7 +308,7 @@ export default function MembersPage() {
                 ['الواتساب', viewingUser.whatsappNumber],
                 ['رقم الهوية', viewingUser.nationalId],
                 ['المدينة', viewingUser.city],
-                ['المنطقة', viewingUser.region],
+                ['المنطقة', viewingUser.regionId],
                 ['الحالة', viewingUser.status],
                 ['الدور', viewingUser.roleId],
               ] as [string, string | null | undefined][]).filter(([, v]) => v).map(([label, val]) => (
@@ -342,7 +342,7 @@ export default function MembersPage() {
                 { label: 'رقم الواتساب *', key: 'whatsappNumber' },
                 { label: 'رقم الهوية الوطنية', key: 'nationalId' },
                 { label: 'المدينة', key: 'city' },
-                { label: 'المنطقة', key: 'region' },
+                { label: 'المنطقة', key: 'regionId' },
               ] as { label: string; key: keyof UserForm }[]).map(({ label, key }) => (
                 <div key={key}>
                   <label className="block text-xs font-bold text-slate-500 mb-1">{label}</label>
