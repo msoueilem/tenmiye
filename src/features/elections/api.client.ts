@@ -90,9 +90,10 @@ interface CreateElectionPayload {
 export async function updateScheduleApi(
   id: string,
   dates: Partial<Pick<CreateElectionPayload, 'nominationStart' | 'nominationEnd' | 'dismissalStart' | 'dismissalEnd' | 'votingStart' | 'votingEnd' | 'startTime' | 'endTime'>>,
+  tokenType: 'admin' | 'member' = 'member',
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await apiFetch('PATCH', `/elections/${id}/schedule`, { body: dates, tokenType: 'member' });
+    await apiFetch('PATCH', `/elections/${id}/schedule`, { body: dates, tokenType });
     return { ok: true };
   } catch (e: unknown) {
     const msg = e instanceof ApiError ? e.message : 'حدث خطأ أثناء تحديث المواعيد';
@@ -100,9 +101,9 @@ export async function updateScheduleApi(
   }
 }
 
-export async function createElectionApi(data: CreateElectionPayload): Promise<{ id: string } | null> {
+export async function createElectionApi(data: CreateElectionPayload, tokenType: 'admin' | 'member' = 'member'): Promise<{ id: string } | null> {
   try {
-    return await apiFetch<{ id: string }>('POST', '/elections', { body: data, tokenType: 'member' });
+    return await apiFetch<{ id: string }>('POST', '/elections', { body: data, tokenType });
   } catch {
     return null;
   }
@@ -122,11 +123,12 @@ export async function advanceElectionApi(
   id: string,
   targetStatus: 'nomination' | 'dismissal' | 'voting' | 'completed' | 'cancelled',
   extra?: AdvanceExtra,
+  tokenType: 'admin' | 'member' = 'member',
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     await apiFetch('POST', `/elections/${id}/advance`, {
       body: { status: targetStatus, ...extra },
-      tokenType: 'member',
+      tokenType,
     });
     return { ok: true };
   } catch (e: unknown) {
@@ -138,9 +140,10 @@ export async function advanceElectionApi(
 export async function updateElectionApi(
   id: string,
   data: Partial<Pick<Election, 'title' | 'description' | 'type'>>,
+  tokenType: 'admin' | 'member' = 'member',
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await apiFetch('PATCH', `/elections/${id}`, { body: data, tokenType: 'member' });
+    await apiFetch('PATCH', `/elections/${id}`, { body: data, tokenType });
     return { ok: true };
   } catch (e: unknown) {
     const msg = e instanceof ApiError ? e.message : 'حدث خطأ أثناء التعديل';
@@ -181,9 +184,9 @@ export async function dismissSelfApi(
   }
 }
 
-export async function deleteElectionApi(id: string): Promise<boolean> {
+export async function deleteElectionApi(id: string, tokenType: 'admin' | 'member' = 'member'): Promise<boolean> {
   try {
-    await apiFetch('DELETE', `/elections/${id}`, { tokenType: 'member' });
+    await apiFetch('DELETE', `/elections/${id}`, { tokenType });
     return true;
   } catch {
     return false;
