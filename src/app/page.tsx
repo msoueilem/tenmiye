@@ -6,6 +6,9 @@ import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { InitiativesCarousel } from '@/components/InitiativesCarousel';
 import { JoinForm } from '@/components/JoinForm';
 import { ContactForm } from '@/components/ContactForm';
+import { CountUp } from '@/components/ui/CountUp';
+import { FloatingJoinCta } from '@/components/ui/FloatingJoinCta';
+import { TestimonialsSection } from '@/components/TestimonialsSection';
 import { getPublicLandingData } from '@/features/landing/api.client';
 
 export const dynamic = 'force-dynamic';
@@ -104,9 +107,7 @@ export default async function Home() {
                 <p className="text-base leading-normal font-medium text-slate-600 dark:text-slate-400">
                   مشروع نشط
                 </p>
-                <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
-                  {data.activeProjectsCount || '0'}
-                </p>
+                <CountUp end={Number(data.activeProjectsCount) || 0} />
               </div>
 
               {/* Completed Projects */}
@@ -119,9 +120,7 @@ export default async function Home() {
                 <p className="text-base leading-normal font-medium text-slate-600 dark:text-slate-400">
                   مشروع منجز
                 </p>
-                <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
-                  {data.projectsCount || '0'}
-                </p>
+                <CountUp end={Number(data.projectsCount) || 0} />
               </div>
 
               {/* Members */}
@@ -134,9 +133,7 @@ export default async function Home() {
                 <p className="text-base leading-normal font-medium text-slate-600 dark:text-slate-400">
                   عضو مسجل
                 </p>
-                <p className="tracking-light text-4xl leading-tight font-bold text-slate-900 dark:text-white">
-                  +{data.membersCount?.toLocaleString() || '0'}
-                </p>
+                <CountUp end={Number(data.membersCount) || 0} prefix="+" />
               </div>
             </div>
 
@@ -221,6 +218,9 @@ export default async function Home() {
               <BoardsSection />
             </div>
 
+            {/* Testimonials Section */}
+            <TestimonialsSection />
+
             {/* Contact & Join Us Section */}
             <div
               className="mb-10 flex flex-col gap-8 px-4 py-8 md:flex-row"
@@ -290,6 +290,8 @@ export default async function Home() {
             </div>
           </div>
         </main>
+
+        <FloatingJoinCta />
 
         <Footer title={data.title} logoUrl={data.logoUrl} />
       </div>

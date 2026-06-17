@@ -8,6 +8,7 @@ import {
   updateAdminAccount,
   deleteAdminAccount,
 } from '@/features/admin-accounts/api.client';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type Mode = 'list' | 'create' | 'edit';
 
@@ -42,6 +43,7 @@ export default function AdminAccountsPage() {
   const [editForm, setEditForm] = useState<UpdateAdminAccountDto>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     getAdminAccounts().then(setAccounts).catch(() => setError('فشل تحميل حسابات المشرفين'));
@@ -61,12 +63,13 @@ export default function AdminAccountsPage() {
     setMode('edit');
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المشرف؟')) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     setLoading(true);
     try {
-      await deleteAdminAccount(id);
-      setAccounts((prev) => prev.filter((a) => a.id !== id));
+      await deleteAdminAccount(deleteTarget);
+      setAccounts((prev) => prev.filter((a) => a.id !== deleteTarget));
+      setDeleteTarget(null);
     } catch {
       setError('فشل الحذف');
     } finally {
@@ -300,7 +303,7 @@ export default function AdminAccountsPage() {
                 تعديل
               </button>
               <button
-                onClick={() => handleDelete(account.id)}
+                onClick={() => setDeleteTarget(account.id)}
                 disabled={loading}
                 className="text-sm text-red-400 hover:underline disabled:opacity-50"
               >
@@ -313,6 +316,16 @@ export default function AdminAccountsPage() {
           <p className="py-8 text-center text-slate-500">لا توجد حسابات مشرفين</p>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="حذف المشرف"
+        message="هل أنت متأكد من حذف هذا المشرف؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmLabel="نعم، احذف"
+        loading={loading}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
