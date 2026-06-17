@@ -135,7 +135,7 @@ export default function ElectionsManagementPage() {
         title: form.title.trim(),
         description: form.description.trim() || undefined,
         type: form.type,
-      });
+      }, 'admin');
       if (!res.ok) setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء التعديل' });
       else { setIsModalOpen(false); void fetchElections(); }
     } else {
@@ -166,7 +166,7 @@ export default function ElectionsManagementPage() {
         payload.boardConfig = { seatsCount: seats };
       }
 
-      const res = await createElectionApi(payload);
+      const res = await createElectionApi(payload, 'admin');
       if (!res) setMessage({ type: 'error', text: 'حدث خطأ أثناء الإنشاء' });
       else { setIsModalOpen(false); void fetchElections(); }
     }
@@ -176,19 +176,19 @@ export default function ElectionsManagementPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('هل أنت متأكد من حذف هذه الانتخابات؟')) return;
-    await deleteElectionApi(id);
+    await deleteElectionApi(id, 'admin');
     void fetchElections();
   }
 
   async function handleAdvance(e: Election) {
     const target = nextStatus(e.status, e.type);
     if (!target) return;
-    await advanceElectionApi(e.id, target);
+    await advanceElectionApi(e.id, target, undefined, 'admin');
     void fetchElections();
   }
 
   async function handleCancel(id: string) {
-    await advanceElectionApi(id, 'cancelled');
+    await advanceElectionApi(id, 'cancelled', undefined, 'admin');
     void fetchElections();
   }
 
