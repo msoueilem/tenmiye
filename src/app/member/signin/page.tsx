@@ -328,7 +328,7 @@ function MemberSignInForm() {
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200">مرحباً بك! يرجى تعيين كلمة مرور لتسهيل الدخول في المرات القادمة</p>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">كلمة المرور الجديدة</label>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">كلمة المرور الجديدة <span className="font-normal text-slate-400">(8 أحرف على الأقل)</span></label>
                 <input
                   className="w-full h-14 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 font-bold text-lg outline-none focus:ring-4 focus:ring-[#0df20d]/10 transition-all"
                   type="password"
@@ -336,7 +336,7 @@ function MemberSignInForm() {
                   onChange={e => setNewPassword(e.target.value)}
                   required
                   autoFocus
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <div>
@@ -347,7 +347,7 @@ function MemberSignInForm() {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <button
@@ -402,7 +402,7 @@ function MemberSignInForm() {
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200">أدخل كلمة مرور جديدة لحسابك</p>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">كلمة المرور الجديدة</label>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">كلمة المرور الجديدة <span className="font-normal text-slate-400">(8 أحرف على الأقل)</span></label>
                 <input
                   className="w-full h-14 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 font-bold text-lg outline-none focus:ring-4 focus:ring-[#0df20d]/10 transition-all"
                   type="password"
@@ -410,7 +410,7 @@ function MemberSignInForm() {
                   onChange={e => setNewPassword(e.target.value)}
                   required
                   autoFocus
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <div>
@@ -421,7 +421,7 @@ function MemberSignInForm() {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <button
