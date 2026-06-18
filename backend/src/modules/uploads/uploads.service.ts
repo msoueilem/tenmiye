@@ -57,9 +57,15 @@ export class UploadsService {
 
     const bucket = this.firebase.storage.bucket();
     const fileRef = bucket.file(storagePath);
-    await fileRef.save(file.buffer, { metadata: { contentType: file.mimetype } });
+    const downloadToken = uuidv4();
+    await fileRef.save(file.buffer, {
+      metadata: {
+        contentType: file.mimetype,
+        metadata: { firebaseStorageDownloadTokens: downloadToken },
+      },
+    });
 
-    const { url: downloadUrl, expiresAt: urlExpiresAt } = await this.generateSignedUrl(storagePath);
+    const downloadUrl = this.buildDownloadUrl(storagePath, downloadToken);
     const nowTs = Timestamp.now();
 
     const docRef = await this.firebase.db.collection(COLLECTION).add({
@@ -69,7 +75,7 @@ export class UploadsService {
       sizeBytes: file.size,
       storagePath,
       downloadUrl,
-      urlExpiresAt: Timestamp.fromDate(urlExpiresAt),
+      urlExpiresAt: null,
       storageDeleted: false,
       storageDeletedAt: null,
       ownerType: ctx.ownerType,
@@ -178,11 +184,12 @@ export class UploadsService {
 
     const data = doc.data() as { storagePath: string; urlExpiresAt: Timestamp | null; deleted: boolean };
 
-    if (!data.deleted && data.urlExpiresAt && data.urlExpiresAt.toMillis() <= Date.now()) {
-      const { url, expiresAt } = await this.generateSignedUrl(data.storagePath);
+    // Migrate legacy docs that still carry an expiring signed URL to a permanent one.
+    if (!data.deleted && data.urlExpiresAt) {
+      const url = await this.generatePermanentUrl(data.storagePath);
       await docRef.update({
         downloadUrl: url,
-        urlExpiresAt: Timestamp.fromDate(expiresAt),
+        urlExpiresAt: null,
         updatedAt: FieldValue.serverTimestamp(),
       });
       return { id: doc.id, ...serializeDoc(doc.data()), downloadUrl: url } as UploadRecord;
@@ -191,13 +198,29 @@ export class UploadsService {
     return { id: doc.id, ...serializeDoc(doc.data()) } as UploadRecord;
   }
 
-  private async generateSignedUrl(storagePath: string): Promise<{ url: string; expiresAt: Date }> {
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const [url] = await this.firebase.storage
-      .bucket()
-      .file(storagePath)
-      .getSignedUrl({ action: 'read', expires: expiresAt });
-    return { url, expiresAt };
+  /**
+   * Builds a permanent Firebase Storage download URL backed by a download token.
+   * Unlike signed URLs, these never expire (the token grants access until revoked).
+   */
+  private buildDownloadUrl(storagePath: string, token: string): string {
+    const bucketName = this.firebase.storage.bucket().name;
+    const encodedPath = encodeURIComponent(storagePath);
+    return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
+  }
+
+  /**
+   * Returns a permanent download URL for an existing object, reusing its download
+   * token if present or assigning one. Used to migrate objects off legacy signed URLs.
+   */
+  private async generatePermanentUrl(storagePath: string): Promise<string> {
+    const file = this.firebase.storage.bucket().file(storagePath);
+    const [metadata] = await file.getMetadata();
+    let token = metadata.metadata?.firebaseStorageDownloadTokens as string | undefined;
+    if (!token) {
+      token = uuidv4();
+      await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: token } });
+    }
+    return this.buildDownloadUrl(storagePath, token);
   }
 
   async findAll(
