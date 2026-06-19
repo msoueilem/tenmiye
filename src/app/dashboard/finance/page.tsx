@@ -104,10 +104,10 @@ export default function MemberFinancePage() {
     setChannelError('');
     try {
       if (editingChannel) {
-        const updated = await updatePaymentChannel(editingChannel.id, channelForm);
+        const updated = await updatePaymentChannel(editingChannel.id, channelForm, 'member');
         setChannels((prev) => prev.map((c) => c.id === editingChannel.id ? updated : c));
       } else {
-        const created = await createPaymentChannel(channelForm);
+        const created = await createPaymentChannel(channelForm, 'member');
         setChannels((prev) => [...prev, created]);
       }
       setShowChannelForm(false);
