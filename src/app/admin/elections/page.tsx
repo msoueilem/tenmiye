@@ -176,19 +176,25 @@ export default function ElectionsManagementPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('هل أنت متأكد من حذف هذه الانتخابات؟')) return;
-    await deleteElectionApi(id, 'admin');
+    setMessage(null);
+    const ok = await deleteElectionApi(id, 'admin');
+    if (!ok) { setMessage({ type: 'error', text: 'حدث خطأ أثناء الحذف' }); return; }
     void fetchElections();
   }
 
   async function handleAdvance(e: Election) {
     const target = nextStatus(e.status, e.type);
     if (!target) return;
-    await advanceElectionApi(e.id, target, undefined, 'admin');
+    setMessage(null);
+    const res = await advanceElectionApi(e.id, target, undefined, 'admin');
+    if (!res.ok) { setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء تحديث الحالة' }); return; }
     void fetchElections();
   }
 
   async function handleCancel(id: string) {
-    await advanceElectionApi(id, 'cancelled', undefined, 'admin');
+    setMessage(null);
+    const res = await advanceElectionApi(id, 'cancelled', undefined, 'admin');
+    if (!res.ok) { setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء الإلغاء' }); return; }
     void fetchElections();
   }
 
@@ -215,6 +221,12 @@ export default function ElectionsManagementPage() {
           إنشاء عملية تصويت
         </button>
       </div>
+
+      {message && !isModalOpen && (
+        <div className={`mb-6 p-3 rounded-lg text-sm font-bold border ${message.type === 'success' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
+          {message.text}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {elections.map((e) => {
