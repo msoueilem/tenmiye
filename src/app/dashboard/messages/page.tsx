@@ -75,11 +75,12 @@ export default function MessagesPage() {
 
   async function markRead(id: string) {
     setMarking((prev) => ({ ...prev, [id]: true }));
+    setError('');
     try {
       await apiFetch(`PATCH`, `/messages/${id}/read`, { tokenType: 'member' });
       setRows((prev) => prev.map((m) => m.id === id ? { ...m, read: true } : m));
-    } catch {
-      // silently ignore mark-read failures
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'تعذّر تحديث الرسالة.');
     }
     setMarking((prev) => ({ ...prev, [id]: false }));
   }

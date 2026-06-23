@@ -81,14 +81,15 @@ export default function RegistrationsPage() {
 
   async function updateStatus(id: string, status: 'approved' | 'rejected') {
     setActing((prev) => ({ ...prev, [id]: true }));
+    setError('');
     try {
       await apiFetch('PATCH', `/registrations/${id}/status`, {
         body: { status },
         tokenType: 'member',
       });
       setRows((prev) => prev.map((r) => r.id === id ? { ...r, status } : r));
-    } catch {
-      // silently ignore status update failures
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'تعذّر تحديث حالة الطلب.');
     }
     setActing((prev) => ({ ...prev, [id]: false }));
   }
