@@ -176,17 +176,23 @@ export default function MembersPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('هل أنت متأكد من حذف هذا العضو؟')) return;
-    await apiFetch('DELETE', `/users/${id}`, { tokenType: 'admin' }).catch(() => null);
-    setUsers((p) => p.filter((u) => u.id !== id));
+    setError('');
+    try {
+      await apiFetch('DELETE', `/users/${id}`, { tokenType: 'admin' });
+      setUsers((p) => p.filter((u) => u.id !== id));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'تعذّر حذف العضو.');
+    }
   }
 
   async function toggleStatus(u: BackendUser) {
     const newStatus = u.status === 'active' ? 'blocked' : 'active';
+    setError('');
     try {
       await apiFetch('PATCH', `/users/${u.id}`, { body: { status: newStatus }, tokenType: 'admin' });
       setUsers((p) => p.map((x) => x.id === u.id ? { ...x, status: newStatus } : x));
-    } catch {
-      // silently ignore
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'تعذّر تحديث حالة العضو.');
     }
   }
 
