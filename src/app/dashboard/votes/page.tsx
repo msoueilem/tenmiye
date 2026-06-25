@@ -31,9 +31,9 @@ function formatDate(castAt: VoteRecord['castAt']): string {
 }
 
 function typeLabel(type: string): string {
-  if (type === 'general_vote') return 'استفتاء';
-  if (type === 'board_election') return 'انتخابات مجلس الإدارة';
-  if (type === 'committee_election') return 'انتخابات لجنة';
+  if (type === 'yes_no') return 'استفتاء نعم / لا';
+  if (type === 'multiple_choice') return 'اختيار متعدد';
+  if (type === 'board') return 'انتخابات مجلس';
   return type;
 }
 
