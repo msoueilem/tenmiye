@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
+import type { Role } from '@/types/roles';
 
 interface BackendUser {
   id: string;
@@ -52,6 +53,7 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [roleNames, setRoleNames] = useState<Record<string, string>>({});
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | BackendUser['status']>('all');
@@ -91,6 +93,12 @@ export default function MembersPage() {
     void load();
     return () => { mounted = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    apiFetch<Role[]>('GET', '/roles', { tokenType: 'admin' })
+      .then((roles) => setRoleNames(Object.fromEntries(roles.map((r) => [r.id, r.name]))))
+      .catch(() => { /* leave map empty → fall back to raw roleId */ });
   }, []);
 
   async function loadMore() {
@@ -316,7 +324,7 @@ export default function MembersPage() {
                 ['المدينة', viewingUser.city],
                 ['المنطقة', viewingUser.regionId],
                 ['الحالة', viewingUser.status],
-                ['الدور', viewingUser.roleId],
+                ['الدور', roleNames[viewingUser.roleId] ?? viewingUser.roleId],
               ] as [string, string | null | undefined][]).filter(([, v]) => v).map(([label, val]) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-slate-500">{label}</span>
