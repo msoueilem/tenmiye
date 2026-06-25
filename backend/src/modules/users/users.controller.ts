@@ -34,6 +34,14 @@ export class UsersController {
     return this.users.findAll(query);
   }
 
+  @ApiOperation({ summary: 'Search active members by name (AR/FR) or phone — elections admin' })
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_ELECTIONS)
+  @Get('search')
+  search(@Query('q') q: string) {
+    return this.users.search(q);
+  }
+
   @ApiOperation({ summary: 'Get a user by ID — any authenticated member' })
   @Get(':id')
   findOne(@Param('id') id: string) {

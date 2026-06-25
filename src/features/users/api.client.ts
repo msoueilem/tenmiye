@@ -5,8 +5,8 @@ import { UserMember, Admin, MemberSearchResult } from '@/types/users';
 
 export async function searchMembers(queryStr: string): Promise<MemberSearchResult[]> {
   if (queryStr.length < 2) return [];
-  return apiFetch('GET', `/me/members/search?q=${encodeURIComponent(queryStr)}`, {
-    tokenType: 'member',
+  return apiFetch('GET', `/users/search?q=${encodeURIComponent(queryStr)}`, {
+    tokenType: 'admin',
   });
 }
 

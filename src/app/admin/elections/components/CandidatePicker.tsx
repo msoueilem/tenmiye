@@ -79,7 +79,7 @@ export function CandidatePicker({ onSelect, excludeIds = [] }: CandidatePickerPr
                     <span className="material-symbols-outlined text-sm text-[#0b3d0b]">person</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-bold">{member.name}</span>
+                    <span className="text-sm font-bold">{member.fullName}</span>
                     {member.fullNameAr && (
                       <span className="text-[10px] text-slate-500">{member.fullNameAr}</span>
                     )}

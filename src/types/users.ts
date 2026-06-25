@@ -1,7 +1,11 @@
 export interface MemberSearchResult {
   id: string;
-  name: string;
+  fullName: string;
   fullNameAr: string | null;
+  fullNameFr: string | null;
+  phoneNumber: string | null;
+  whatsappNumber: string | null;
+  photoUrl: string | null;
 }
 
 export interface UserMember {
