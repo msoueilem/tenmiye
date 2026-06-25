@@ -126,19 +126,25 @@ export default function MembersPage() {
 
   async function updateStatus(id: string, status: 'active' | 'blocked') {
     setActing((prev) => ({ ...prev, [id]: true }));
+    setError('');
     try {
       await apiFetch(`PATCH`, `/users/${id}`, { body: { status }, tokenType: 'member' });
       setRows((prev) => prev.map((m) => m.id === id ? { ...m, status } : m));
-    } catch { /* silently ignore — row stays unchanged */ }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'تعذّر تحديث حالة العضو.');
+    }
     setActing((prev) => ({ ...prev, [id]: false }));
   }
 
   async function toggleBooleanField(id: string, field: 'isBlocked' | 'outsideWhatsapp', current: boolean) {
     setActing((prev) => ({ ...prev, [`${id}_${field}`]: true }));
+    setError('');
     try {
       await apiFetch('PATCH', `/users/${id}`, { body: { [field]: !current }, tokenType: 'member' });
       setRows((prev) => prev.map((m) => m.id === id ? { ...m, [field]: !current } : m));
-    } catch { /* silently ignore */ }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'تعذّر تحديث العضو.');
+    }
     setActing((prev) => ({ ...prev, [`${id}_${field}`]: false }));
   }
 
