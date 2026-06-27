@@ -253,7 +253,8 @@ export default function MembersPage() {
       </div>
 
       <div className="bg-white dark:bg-[#1a331a] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[28rem]">
           <thead className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
             <tr>
               <th className="text-right p-4 font-bold text-slate-600 dark:text-slate-400">الاسم</th>
@@ -296,6 +297,7 @@ export default function MembersPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {nextCursor && (
