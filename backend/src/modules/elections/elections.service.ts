@@ -63,10 +63,37 @@ export class ElectionsService {
     const doc = await this.firebase.db.collection(COL).doc(id).get();
     if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
 
-    const data = doc.data() as ElectionData;
+    const data = doc.data() as ElectionData & {
+      options?: { id: string; label: string }[];
+      results?: {
+        rankings?: { candidateUserId: string; voteCount: number }[];
+        winners?: string[];
+        shortlist?: string[];
+      } | null;
+    };
 
     if (data.type === 'board') {
-      return { id, type: 'board', results: (doc.data() as Record<string, unknown>).results ?? null };
+      const stored = data.results ?? null;
+      if (!stored) return { id, type: 'board', results: null };
+
+      const rankings = stored.rankings ?? [];
+      const winners = stored.winners ?? [];
+      const shortlist = stored.shortlist ?? [];
+      const names = await this.resolveUserNames([
+        ...rankings.map((r) => r.candidateUserId),
+        ...winners,
+        ...shortlist,
+      ]);
+
+      return {
+        id,
+        type: 'board',
+        results: {
+          rankings: rankings.map((r) => ({ ...r, name: names[r.candidateUserId] ?? null })),
+          winners: winners.map((uid) => ({ candidateUserId: uid, name: names[uid] ?? null })),
+          shortlist: shortlist.map((uid) => ({ candidateUserId: uid, name: names[uid] ?? null })),
+        },
+      };
     }
 
     // Tally votes for yes_no and multiple_choice
@@ -83,11 +110,36 @@ export class ElectionsService {
       }
     }
 
+    // Resolve each optionId to its human label from the election document.
+    const optionLabels: Record<string, string> = {};
+    for (const opt of data.options ?? []) optionLabels[opt.id] = opt.label;
+
     const rankings = Object.entries(tally)
-      .map(([optionId, voteCount]) => ({ optionId, voteCount }))
+      .map(([optionId, voteCount]) => ({ optionId, voteCount, label: optionLabels[optionId] ?? null }))
       .sort((a, b) => b.voteCount - a.voteCount);
 
     return { id, type: data.type, rankings, totalVoters: votesSnap.size };
+  }
+
+  /** Batch-resolve user ids to a display name (Arabic preferred), for results rendering. */
+  private async resolveUserNames(ids: string[]): Promise<Record<string, string>> {
+    const unique = [...new Set(ids)].filter(Boolean);
+    if (unique.length === 0) return {};
+
+    const refs = unique.map((uid) => this.firebase.db.collection('users').doc(uid));
+    const docs = await this.firebase.db.getAll(...refs);
+
+    const names: Record<string, string> = {};
+    for (const userDoc of docs) {
+      if (!userDoc.exists) continue;
+      const u = userDoc.data() as {
+        fullName?: string;
+        fullNameAr?: string | null;
+        fullNameFr?: string | null;
+      };
+      names[userDoc.id] = u.fullNameAr || u.fullName || u.fullNameFr || userDoc.id;
+    }
+    return names;
   }
 
   // ─── Admin operations ──────────────────────────────────────────────────────
@@ -355,9 +407,12 @@ export class ElectionsService {
       }
     }
 
-    const nominees = Object.entries(tally)
+    const sorted = Object.entries(tally)
       .map(([userId, nominationCount]) => ({ userId, nominationCount }))
       .sort((a, b) => b.nominationCount - a.nominationCount);
+
+    const names = await this.resolveUserNames(sorted.map((n) => n.userId));
+    const nominees = sorted.map((n) => ({ ...n, name: names[n.userId] ?? null }));
 
     return { nominees };
   }

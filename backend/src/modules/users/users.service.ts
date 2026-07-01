@@ -48,12 +48,13 @@ export class UsersService {
     return plainToInstance(UserResponseDto, { id: doc.id, ...serializeDoc(doc.data()) }, { excludeExtraneousValues: true });
   }
 
-  // Search active members by name (AR/FR) or phone. Single-field range queries
-  // avoid composite indexes; status filtering and dedup happen in JS.
+  // Search active members by name (AR/FR) or phone. Firestore range queries are
+  // byte-ordered (case-sensitive, prefix-only), which made the picker unusable for
+  // Arabic names and mixed case. Membership is small, so we load the active members
+  // once and match a normalized, case-insensitive *substring* in JS.
   async search(q: string): Promise<MemberSearchResult[]> {
     if (!q || q.trim().length < 2) return [];
-    const trimmed = q.trim();
-    const end = trimmed + '￿';
+    const needle = this.normalizeForSearch(q);
     const db = this.firebase.db;
 
     type UserDoc = {
@@ -66,22 +67,8 @@ export class UsersService {
       status?: string;
     };
 
-    const isNumeric = /^[\d+\s-]{2,}$/.test(trimmed);
+    const snap = await db.collection('users').where('status', '==', 'active').limit(1000).get();
 
-    const queries = [
-      db.collection('users').where('fullName', '>=', trimmed).where('fullName', '<=', end).limit(20).get(),
-      db.collection('users').where('fullNameAr', '>=', trimmed).where('fullNameAr', '<=', end).limit(20).get(),
-      db.collection('users').where('fullNameFr', '>=', trimmed).where('fullNameFr', '<=', end).limit(20).get(),
-      ...(isNumeric
-        ? [
-            db.collection('users').where('phoneNumber', '==', trimmed).limit(5).get(),
-            db.collection('users').where('whatsappNumber', '==', trimmed).limit(5).get(),
-          ]
-        : []),
-    ];
-
-    const snapshots = await Promise.allSettled(queries);
-    const seen = new Set<string>();
     type RawResult = {
       id: string;
       fullName: string;
@@ -93,24 +80,23 @@ export class UsersService {
     };
     const raw: RawResult[] = [];
 
-    for (const snap of snapshots) {
-      if (snap.status !== 'fulfilled') continue;
-      for (const doc of snap.value.docs) {
-        if (seen.has(doc.id)) continue;
-        seen.add(doc.id);
-        const d = doc.data() as UserDoc;
-        if (d.status !== 'active') continue;
-        raw.push({
-          id: doc.id,
-          fullName: d.fullName ?? '',
-          fullNameAr: d.fullNameAr ?? null,
-          fullNameFr: d.fullNameFr ?? null,
-          phoneNumber: d.phoneNumber ?? null,
-          whatsappNumber: d.whatsappNumber ?? null,
-          profilePictureId: d.profilePictureId ?? null,
-        });
-        if (raw.length >= 20) break;
-      }
+    for (const doc of snap.docs) {
+      const d = doc.data() as UserDoc;
+      const haystack = this.normalizeForSearch(
+        [d.fullName, d.fullNameAr, d.fullNameFr, d.phoneNumber, d.whatsappNumber]
+          .filter(Boolean)
+          .join(' '),
+      );
+      if (!haystack.includes(needle)) continue;
+      raw.push({
+        id: doc.id,
+        fullName: d.fullName ?? '',
+        fullNameAr: d.fullNameAr ?? null,
+        fullNameFr: d.fullNameFr ?? null,
+        phoneNumber: d.phoneNumber ?? null,
+        whatsappNumber: d.whatsappNumber ?? null,
+        profilePictureId: d.profilePictureId ?? null,
+      });
       if (raw.length >= 20) break;
     }
 
@@ -128,6 +114,21 @@ export class UsersService {
       ...rest,
       photoUrl: profilePictureId ? (urlMap[profilePictureId] ?? null) : null,
     }));
+  }
+
+  /**
+   * Fold text for tolerant search: lowercase (Latin), strip Arabic diacritics,
+   * and normalize alef/ya/ta-marbuta variants so «أحمد» matches «احمد», etc.
+   */
+  private normalizeForSearch(s: string): string {
+    return s
+      .toLowerCase()
+      .replace(/[ً-ْ]/g, '') // tashkeel (Arabic diacritics)
+      .replace(/[أإآ]/g, 'ا') // أ إ آ → ا
+      .replace(/ى/g, 'ي') // ى → ي
+      .replace(/ة/g, 'ه') // ة → ه
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   async create(dto: CreateUserDto): Promise<{ id: string }> {
