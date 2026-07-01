@@ -30,17 +30,39 @@ export async function getElectionResults(id: string): Promise<ElectionResults | 
       id?: string;
       electionId?: string;
       type?: string;
-      rankings?: { optionId: string; voteCount: number }[];
-      results?: { selection: string; count: number }[];
+      // yes_no / multiple_choice: a flat ranking of options, each with its human label
+      rankings?: { optionId: string; voteCount: number; label?: string | null }[];
+      // board: an object (or null until finalized), NOT a flat array; candidates carry a resolved name
+      results?: { rankings?: { candidateUserId: string; voteCount: number; name?: string | null }[] } | null;
     };
     const electionId = data.electionId ?? data.id ?? id;
-    const results = data.results ?? (data.rankings ?? []).map((r) => ({
-      selection: r.optionId,
-      count: r.voteCount,
-    }));
+    // Board results come back as an object { rankings: [{candidateUserId, voteCount, name}], … }
+    // or null before finalization; every other type returns a flat `rankings` array of options.
+    // Normalize both into ElectionResults['results'] (with a display label) so the page never
+    // calls .reduce on an object and never shows a raw id/UID.
+    const results = data.type === 'board'
+      ? (data.results?.rankings ?? []).map((r) => ({ selection: r.candidateUserId, count: r.voteCount, label: r.name ?? undefined }))
+      : (data.rankings ?? []).map((r) => ({ selection: r.optionId, count: r.voteCount, label: r.label ?? undefined }));
     return { electionId, results };
   } catch {
     return null;
+  }
+}
+
+export interface TopNominee {
+  userId: string;
+  nominationCount: number;
+  name?: string | null;
+}
+
+export async function getTopNominationsApi(id: string): Promise<TopNominee[]> {
+  try {
+    const res = await fetch(`${config.apiUrl}/elections/${id}/nominations/top`);
+    if (!res.ok) return [];
+    const data = await res.json() as { nominees?: TopNominee[] };
+    return data.nominees ?? [];
+  } catch {
+    return [];
   }
 }
 
@@ -190,5 +212,15 @@ export async function deleteElectionApi(id: string, tokenType: 'admin' | 'member
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function finalizeElectionApi(id: string, tokenType: 'admin' | 'member' = 'member'): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await apiFetch('POST', `/elections/${id}/finalize`, { tokenType });
+    return { ok: true };
+  } catch (e: unknown) {
+    const msg = e instanceof ApiError ? e.message : 'حدث خطأ أثناء إعلان النتائج';
+    return { ok: false, error: msg };
   }
 }
