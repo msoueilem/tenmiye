@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/Card';
 import { AlertBox } from '@/components/ui/AlertBox';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { VoteOptionsYesNo } from '@/features/elections/components/VoteOptionsYesNo';
+import { VoteOptionsList } from '@/features/elections/components/VoteOptionsList';
 import { ResultsYesNo } from '@/features/elections/components/ResultsYesNo';
 
 function resultsToStats(results: ElectionResults['results']): Record<string, number> {
@@ -162,6 +163,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const stats = results ? resultsToStats(results.results) : {};
   const isGeneralVote = election.type === 'yes_no';
+  const isMultipleChoice = election.type === 'multiple_choice';
 
   // Phase labels
   const phaseLabel = isNomination
@@ -265,6 +267,13 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
           </h2>
           {isGeneralVote ? (
             <VoteOptionsYesNo
+              disabled={!user || hasVoted || submitting}
+              selections={selections}
+              setSelections={setSelections}
+            />
+          ) : isMultipleChoice ? (
+            <VoteOptionsList
+              options={election.options ?? []}
               disabled={!user || hasVoted || submitting}
               selections={selections}
               setSelections={setSelections}
