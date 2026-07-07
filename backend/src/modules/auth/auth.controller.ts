@@ -64,6 +64,7 @@ export class AuthController {
     return this.auth.resetPassword(dto.sessionInfo, dto.code, dto.newPassword);
   }
 
+  @Throttle({ default: { ttl: 600_000, limit: 5 } })
   @ApiOperation({ summary: 'Login with phone + password (after password is set)' })
   @Post('login')
   login(@Body() dto: LoginDto) {
