@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, use, useCallback } from 'react';
+import React, { useState, useEffect, use, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 import { apiFetch } from '@/lib/api';
@@ -47,6 +48,8 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PublicMember[]>([]);
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'error' | 'done'>('idle');
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -76,14 +79,29 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     return () => { mounted = false; };
   }, [electionId, getAccessToken]);
 
-  const handleSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
-    if (trimmed.length < 2) { setSearchResults([]); return; }
+    if (trimmed.length < 2) { setSearchResults([]); setSearchStatus('idle'); return; }
+    setSearchStatus('loading');
     try {
       const res = await apiFetch<PublicMember[]>('GET', `/me/members/search?q=${encodeURIComponent(trimmed)}`, { tokenType: 'member' });
       setSearchResults(res);
-    } catch { /* ignore */ }
+      setSearchStatus('done');
+    } catch {
+      setSearchResults([]);
+      setSearchStatus('error');
+    }
   }, []);
+
+  // Debounce keystrokes so we hit the search endpoint at most once per 300 ms.
+  const handleQueryChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) { setSearchResults([]); setSearchStatus('idle'); return; }
+    searchTimer.current = setTimeout(() => void runSearch(q), 300);
+  }, [runSearch]);
+
+  useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current); }, []);
 
   const toggleMember = (uid: string, max: number, member?: PublicMember) => {
     setSelections((prev) => {
@@ -99,7 +117,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const handleSubmitNominations = async () => {
     const token = await getAccessToken();
-    if (!token) { router.push('/dashboard/login'); return; }
+    if (!token) { router.push(`/member/signin?redirect=/elections/${electionId}/vote`); return; }
     setSubmitting(true);
     setError('');
     const result = await submitNominationsApi(electionId, selections);
@@ -115,7 +133,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const handleDismissSelf = async () => {
     const token = await getAccessToken();
-    if (!token) { router.push('/dashboard/login'); return; }
+    if (!token) { router.push(`/member/signin?redirect=/elections/${electionId}/vote`); return; }
     setSubmitting(true);
     setError('');
     const result = await dismissSelfApi(electionId);
@@ -129,7 +147,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const handleSubmitVote = async () => {
     const token = await getAccessToken();
-    if (!token) { router.push('/dashboard/login'); return; }
+    if (!token) { router.push(`/member/signin?redirect=/elections/${electionId}/vote`); return; }
     setSubmitting(true);
     setError('');
     const result = await castVoteApi(electionId, selections, token);
@@ -164,6 +182,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
   const stats = results ? resultsToStats(results.results) : {};
   const isGeneralVote = election.type === 'yes_no';
   const isMultipleChoice = election.type === 'multiple_choice';
+  const signInHref = `/member/signin?redirect=/elections/${electionId}/vote`;
 
   // Phase labels
   const phaseLabel = isNomination
@@ -217,17 +236,27 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
             selectedMembers={selectedMembers}
             onToggle={(uid, member) => toggleMember(uid, seatsCount, member)}
             searchQuery={searchQuery}
-            setSearchQuery={(q) => { setSearchQuery(q); void handleSearch(q); }}
+            setSearchQuery={handleQueryChange}
             searchResults={searchResults}
+            searchStatus={searchStatus}
           />
           <div className="mt-4">
-            <PrimaryButton
-              onClick={handleSubmitNominations}
-              disabled={!user || submitting || selections.length !== seatsCount}
-              loading={submitting}
-            >
-              {!user ? 'سجّل الدخول للترشيح' : `تأكيد الترشيحات (${selections.length}/${seatsCount})`}
-            </PrimaryButton>
+            {!user ? (
+              <Link
+                href={signInHref}
+                className="mt-6 block w-full py-4 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors text-center"
+              >
+                سجّل الدخول للترشيح
+              </Link>
+            ) : (
+              <PrimaryButton
+                onClick={handleSubmitNominations}
+                disabled={submitting || selections.length !== seatsCount}
+                loading={submitting}
+              >
+                {`تأكيد الترشيحات (${selections.length}/${seatsCount})`}
+              </PrimaryButton>
+            )}
           </div>
         </Card>
       )}
@@ -290,19 +319,29 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                 selectedMembers={selectedMembers}
                 onToggle={(uid, member) => toggleMember(uid, seatsCount, member)}
                 searchQuery={searchQuery}
-                setSearchQuery={(q) => { setSearchQuery(q); void handleSearch(q); }}
+                setSearchQuery={handleQueryChange}
                 searchResults={searchResults}
+                searchStatus={searchStatus}
               />
             </>
           )}
           <div className="mt-4">
-            <PrimaryButton
-              onClick={handleSubmitVote}
-              disabled={!user || hasVoted || submitting || selections.length === 0}
-              loading={submitting}
-            >
-              {!user ? 'سجّل الدخول للتصويت' : 'تأكيد التصويت'}
-            </PrimaryButton>
+            {!user ? (
+              <Link
+                href={signInHref}
+                className="mt-6 block w-full py-4 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors text-center"
+              >
+                سجّل الدخول للتصويت
+              </Link>
+            ) : (
+              <PrimaryButton
+                onClick={handleSubmitVote}
+                disabled={hasVoted || submitting || selections.length === 0}
+                loading={submitting}
+              >
+                تأكيد التصويت
+              </PrimaryButton>
+            )}
           </div>
         </Card>
       )}
@@ -397,6 +436,7 @@ function MemberSearchPicker({
   searchQuery,
   setSearchQuery,
   searchResults,
+  searchStatus,
 }: {
   disabled: boolean;
   selections: string[];
@@ -405,6 +445,7 @@ function MemberSearchPicker({
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   searchResults: PublicMember[];
+  searchStatus: 'idle' | 'loading' | 'error' | 'done';
 }) {
   const unselectedResults = searchResults.filter((m) => !selections.includes(m.id));
 
@@ -433,6 +474,17 @@ function MemberSearchPicker({
         dir="auto"
       />
 
+      {/* Search feedback so the box is never a silent blank */}
+      {searchStatus === 'loading' && (
+        <p className="text-sm text-slate-400 py-1">جاري البحث...</p>
+      )}
+      {searchStatus === 'error' && (
+        <p className="text-sm text-red-500 py-1">تعذّر البحث. حاول مرة أخرى.</p>
+      )}
+      {searchStatus === 'done' && searchQuery.trim().length >= 2 && unselectedResults.length === 0 && (
+        <p className="text-sm text-slate-400 py-1">لا توجد نتائج مطابقة. جرّب بداية اسم العضو.</p>
+      )}
+
       {/* Search results — hide already-selected ones to avoid duplication */}
       {unselectedResults.map((m) => (
         <MemberRow key={m.id} m={m} selected={false} disabled={disabled} onToggle={onToggle} />
@@ -441,14 +493,14 @@ function MemberSearchPicker({
   );
 }
 
-function ResultsList({ results }: { results: { selection: string; count: number }[] }) {
+function ResultsList({ results }: { results: { selection: string; count: number; label?: string }[] }) {
   const total = results.reduce((s, r) => s + r.count, 0);
   return (
     <div className="flex flex-col gap-3">
       {results.map((r) => (
         <div key={r.selection} className="flex flex-col gap-1">
           <div className="flex justify-between text-sm">
-            <span className="font-mono text-xs text-slate-600 truncate max-w-xs">{r.selection}</span>
+            <span className={r.label ? 'font-semibold text-slate-700 truncate max-w-xs' : 'font-mono text-xs text-slate-600 truncate max-w-xs'}>{r.label ?? r.selection}</span>
             <span className="font-bold text-slate-800">
               {r.count} ({total ? Math.round((r.count / total) * 100) : 0}%)
             </span>
