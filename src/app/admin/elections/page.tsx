@@ -8,7 +8,10 @@ import {
   updateElectionApi,
   deleteElectionApi,
   getElectionResults,
+  getTopNominationsApi,
   advanceElectionApi,
+  finalizeElectionApi,
+  type TopNominee,
 } from '@/features/elections/api.client';
 
 type ElectionForm = {
@@ -17,6 +20,14 @@ type ElectionForm = {
   type: BackendElectionType;
   seatsCount: string;
   multiOptions: string[];
+  // Board phase windows (datetime-local strings). Stored at creation so the
+  // status-advance steps (nomination → dismissal → voting) have their dates.
+  nominationStart: string;
+  nominationEnd: string;
+  dismissalStart: string;
+  dismissalEnd: string;
+  votingStart: string;
+  votingEnd: string;
 };
 
 const EMPTY_FORM: ElectionForm = {
@@ -25,7 +36,34 @@ const EMPTY_FORM: ElectionForm = {
   type: 'yes_no',
   seatsCount: '3',
   multiOptions: ['', ''],
+  nominationStart: '',
+  nominationEnd: '',
+  dismissalStart: '',
+  dismissalEnd: '',
+  votingStart: '',
+  votingEnd: '',
 };
+
+/** Format a Date as a `datetime-local` input value (YYYY-MM-DDTHH:mm, local time). */
+function toLocalInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Sensible default board schedule: each phase opens a day apart, starting now. */
+function defaultSchedule(): Pick<ElectionForm, 'nominationStart' | 'nominationEnd' | 'dismissalStart' | 'dismissalEnd' | 'votingStart' | 'votingEnd'> {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const at = (d: number) => toLocalInput(new Date(now + d * day));
+  return {
+    nominationStart: at(0),
+    nominationEnd: at(1),
+    dismissalStart: at(1),
+    dismissalEnd: at(2),
+    votingStart: at(2),
+    votingEnd: at(3),
+  };
+}
 
 function typeLabel(type: BackendElectionType): string {
   if (type === 'yes_no') return 'استفتاء نعم / لا';
@@ -71,6 +109,8 @@ export default function ElectionsManagementPage() {
 
   const [resultsElection, setResultsElection] = useState<Election | null>(null);
   const [results, setResults] = useState<ElectionResults | null>(null);
+  const [nominees, setNominees] = useState<TopNominee[] | null>(null);
+  const [resultsMode, setResultsMode] = useState<'nominations' | 'pending-finalize' | 'results'>('results');
   const [resultsLoading, setResultsLoading] = useState(false);
 
   useEffect(() => { void fetchElections(); }, []);
@@ -89,7 +129,7 @@ export default function ElectionsManagementPage() {
 
   function openCreate() {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, ...defaultSchedule() });
     setMessage(null);
     setIsModalOpen(true);
   }
@@ -97,6 +137,7 @@ export default function ElectionsManagementPage() {
   function openEdit(e: Election) {
     setEditingId(e.id);
     setForm({
+      ...EMPTY_FORM,
       title: e.title,
       description: e.description ?? '',
       type: e.type,
@@ -110,7 +151,20 @@ export default function ElectionsManagementPage() {
   async function openResults(e: Election) {
     setResultsElection(e);
     setResultsLoading(true);
-    setResults(await getElectionResults(e.id));
+    setResults(null);
+    setNominees(null);
+
+    if (e.type === 'board' && (e.status === 'nomination' || e.status === 'dismissal')) {
+      // Board pre-vote phases: show who has been nominated (results aren't computed yet).
+      setResultsMode('nominations');
+      setNominees(await getTopNominationsApi(e.id));
+    } else if (e.type === 'board' && e.status === 'voting') {
+      // Votes are cast but board results only exist after finalize.
+      setResultsMode('pending-finalize');
+    } else {
+      setResultsMode('results');
+      setResults(await getElectionResults(e.id));
+    }
     setResultsLoading(false);
   }
 
@@ -163,7 +217,31 @@ export default function ElectionsManagementPage() {
           setIsSaving(false);
           return;
         }
+
+        const schedule = [
+          form.nominationStart, form.nominationEnd,
+          form.dismissalStart, form.dismissalEnd,
+          form.votingStart, form.votingEnd,
+        ];
+        if (schedule.some((v) => !v)) {
+          setMessage({ type: 'error', text: 'يرجى تحديد جميع مواعيد المراحل (الترشيح، الإقصاء، التصويت)' });
+          setIsSaving(false);
+          return;
+        }
+        const times = schedule.map((v) => new Date(v).getTime());
+        if (times.some((t) => isNaN(t)) || times.some((t, i) => i > 0 && t < times[i - 1])) {
+          setMessage({ type: 'error', text: 'يجب أن تكون المواعيد متسلسلة: الترشيح ثم الإقصاء ثم التصويت' });
+          setIsSaving(false);
+          return;
+        }
+
         payload.boardConfig = { seatsCount: seats };
+        payload.nominationStart = new Date(form.nominationStart).toISOString();
+        payload.nominationEnd = new Date(form.nominationEnd).toISOString();
+        payload.dismissalStart = new Date(form.dismissalStart).toISOString();
+        payload.dismissalEnd = new Date(form.dismissalEnd).toISOString();
+        payload.votingStart = new Date(form.votingStart).toISOString();
+        payload.votingEnd = new Date(form.votingEnd).toISOString();
       }
 
       const res = await createElectionApi(payload, 'admin');
@@ -188,6 +266,14 @@ export default function ElectionsManagementPage() {
     setMessage(null);
     const res = await advanceElectionApi(e.id, target, undefined, 'admin');
     if (!res.ok) { setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء تحديث الحالة' }); return; }
+    void fetchElections();
+  }
+
+  async function handleFinalize(e: Election) {
+    if (!confirm('سيتم احتساب الأصوات وإعلان الفائزين وإنهاء الانتخابات نهائياً. هل تريد المتابعة؟')) return;
+    setMessage(null);
+    const res = await finalizeElectionApi(e.id, 'admin');
+    if (!res.ok) { setMessage({ type: 'error', text: res.error ?? 'حدث خطأ أثناء إعلان النتائج' }); return; }
     void fetchElections();
   }
 
@@ -255,13 +341,17 @@ export default function ElectionsManagementPage() {
 
               <div className="mt-auto space-y-3">
                 <div className="flex gap-2 border-t pt-3 border-slate-100 dark:border-slate-800">
-                  {advance && e.status !== 'cancelled' && (
+                  {e.type === 'board' && e.status === 'voting' ? (
+                    <button onClick={() => void handleFinalize(e)} className="flex-1 cursor-pointer py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">
+                      إنهاء وإعلان النتائج
+                    </button>
+                  ) : advance && e.status !== 'cancelled' ? (
                     <button onClick={() => void handleAdvance(e)} className="flex-1 cursor-pointer py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">
                       {e.status === 'draft' ? (e.type === 'board' ? 'بدء الترشيح' : 'بدء التصويت') :
                        e.status === 'nomination' ? 'الانتقال للإقصاء' :
                        e.status === 'dismissal' ? 'بدء التصويت' : 'إنهاء'}
                     </button>
-                  )}
+                  ) : null}
                   {e.status !== 'completed' && e.status !== 'cancelled' && (
                     <button onClick={() => void handleCancel(e.id)} className="flex-1 cursor-pointer py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">
                       إلغاء
@@ -365,15 +455,45 @@ export default function ElectionsManagementPage() {
               )}
 
               {!editingId && form.type === 'board' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">عدد المقاعد *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
-                    value={form.seatsCount}
-                    onChange={(e) => setForm({ ...form, seatsCount: e.target.value })}
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">عدد المقاعد *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                      value={form.seatsCount}
+                      onChange={(e) => setForm({ ...form, seatsCount: e.target.value })}
+                    />
+                  </div>
+
+                  <p className="text-xs font-bold text-slate-500 pt-1">مواعيد المراحل * (يمكنك تعديل القيم الافتراضية)</p>
+
+                  {([
+                    ['نافذة الترشيح', 'nominationStart', 'nominationEnd'],
+                    ['نافذة الإقصاء', 'dismissalStart', 'dismissalEnd'],
+                    ['نافذة التصويت', 'votingStart', 'votingEnd'],
+                  ] as const).map(([label, startKey, endKey]) => (
+                    <div key={startKey}>
+                      <label className="block text-xs font-semibold text-slate-400 mb-1">{label}</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="datetime-local"
+                          aria-label={`${label} — البداية`}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
+                          value={form[startKey]}
+                          onChange={(e) => setForm({ ...form, [startKey]: e.target.value })}
+                        />
+                        <input
+                          type="datetime-local"
+                          aria-label={`${label} — النهاية`}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
+                          value={form[endKey]}
+                          onChange={(e) => setForm({ ...form, [endKey]: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -401,7 +521,7 @@ export default function ElectionsManagementPage() {
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 flex justify-between items-center">
               <h3 className="font-black text-xl flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#0df20d]">analytics</span>
-                نتائج: {resultsElection.title}
+                {resultsMode === 'nominations' ? 'الترشيحات' : 'نتائج'}: {resultsElection.title}
               </h3>
               <button onClick={() => setResultsElection(null)} className="cursor-pointer text-slate-400 hover:text-slate-600">
                 <span className="material-symbols-outlined">close</span>
@@ -413,6 +533,33 @@ export default function ElectionsManagementPage() {
                 <div className="flex justify-center py-8">
                   <div className="w-8 h-8 border-4 border-[#0df20d] border-t-transparent rounded-full animate-spin" />
                 </div>
+              ) : resultsMode === 'nominations' ? (
+                !nominees || nominees.length === 0 ? (
+                  <p className="text-center text-slate-400 py-8">لا توجد ترشيحات بعد.</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-slate-500">عدد الترشيحات لكل عضو</p>
+                    {nominees.map((n) => {
+                      const max = nominees[0].nominationCount || 1;
+                      const pct = (n.nominationCount / max) * 100;
+                      return (
+                        <div key={n.userId} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold">
+                            <span className="truncate max-w-xs">{n.name ?? n.userId}</span>
+                            <span>{n.nominationCount} ترشيح</span>
+                          </div>
+                          <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-[#0df20d] transition-all duration-500" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )
+              ) : resultsMode === 'pending-finalize' ? (
+                <p className="text-center text-slate-400 py-8">
+                  تم جمع الأصوات. اضغط «إنهاء وإعلان النتائج» على بطاقة الانتخابات لعرض النتائج والفائزين.
+                </p>
               ) : !results || results.results.length === 0 ? (
                 <p className="text-center text-slate-400 py-8">لا توجد أصوات بعد.</p>
               ) : (
@@ -426,7 +573,7 @@ export default function ElectionsManagementPage() {
                     return (
                       <div key={r.selection} className="space-y-1">
                         <div className="flex justify-between text-xs font-bold">
-                          <span className="truncate max-w-xs">{r.selection}</span>
+                          <span className="truncate max-w-xs">{r.label ?? r.selection}</span>
                           <span>{pct.toFixed(1)}% ({r.count})</span>
                         </div>
                         <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
