@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, use, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemberAuth } from '@/context/MemberAuthContext';
 import { apiFetch } from '@/lib/api';
@@ -115,7 +116,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const handleSubmitNominations = async () => {
     const token = await getAccessToken();
-    if (!token) { router.push('/dashboard/login'); return; }
+    if (!token) { router.push(`/member/signin?redirect=/elections/${electionId}/vote`); return; }
     setSubmitting(true);
     setError('');
     const result = await submitNominationsApi(electionId, selections);
@@ -131,7 +132,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const handleDismissSelf = async () => {
     const token = await getAccessToken();
-    if (!token) { router.push('/dashboard/login'); return; }
+    if (!token) { router.push(`/member/signin?redirect=/elections/${electionId}/vote`); return; }
     setSubmitting(true);
     setError('');
     const result = await dismissSelfApi(electionId);
@@ -145,7 +146,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const handleSubmitVote = async () => {
     const token = await getAccessToken();
-    if (!token) { router.push('/dashboard/login'); return; }
+    if (!token) { router.push(`/member/signin?redirect=/elections/${electionId}/vote`); return; }
     setSubmitting(true);
     setError('');
     const result = await castVoteApi(electionId, selections, token);
@@ -179,6 +180,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   const stats = results ? resultsToStats(results.results) : {};
   const isGeneralVote = election.type === 'yes_no';
+  const signInHref = `/member/signin?redirect=/elections/${electionId}/vote`;
 
   // Phase labels
   const phaseLabel = isNomination
@@ -237,13 +239,22 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
             searchStatus={searchStatus}
           />
           <div className="mt-4">
-            <PrimaryButton
-              onClick={handleSubmitNominations}
-              disabled={!user || submitting || selections.length !== seatsCount}
-              loading={submitting}
-            >
-              {!user ? 'سجّل الدخول للترشيح' : `تأكيد الترشيحات (${selections.length}/${seatsCount})`}
-            </PrimaryButton>
+            {!user ? (
+              <Link
+                href={signInHref}
+                className="mt-6 block w-full py-4 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors text-center"
+              >
+                سجّل الدخول للترشيح
+              </Link>
+            ) : (
+              <PrimaryButton
+                onClick={handleSubmitNominations}
+                disabled={submitting || selections.length !== seatsCount}
+                loading={submitting}
+              >
+                {`تأكيد الترشيحات (${selections.length}/${seatsCount})`}
+              </PrimaryButton>
+            )}
           </div>
         </Card>
       )}
@@ -306,13 +317,22 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
             </>
           )}
           <div className="mt-4">
-            <PrimaryButton
-              onClick={handleSubmitVote}
-              disabled={!user || hasVoted || submitting || selections.length === 0}
-              loading={submitting}
-            >
-              {!user ? 'سجّل الدخول للتصويت' : 'تأكيد التصويت'}
-            </PrimaryButton>
+            {!user ? (
+              <Link
+                href={signInHref}
+                className="mt-6 block w-full py-4 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors text-center"
+              >
+                سجّل الدخول للتصويت
+              </Link>
+            ) : (
+              <PrimaryButton
+                onClick={handleSubmitVote}
+                disabled={hasVoted || submitting || selections.length === 0}
+                loading={submitting}
+              >
+                تأكيد التصويت
+              </PrimaryButton>
+            )}
           </div>
         </Card>
       )}
