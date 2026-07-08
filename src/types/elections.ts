@@ -36,7 +36,7 @@ export interface Vote {
 
 export interface ElectionResults {
   electionId: string;
-  results: { selection: string; count: number }[];
+  results: { selection: string; count: number; label?: string }[];
 }
 
 export interface PublicMember {
