@@ -19,9 +19,11 @@ function BoardCard({ board }: { board: Board }) {
         </p>
       )}
       <div className="mt-auto flex items-center gap-2 pt-2 text-xs text-slate-400">
-        <span>
-          {board.termStartDate.slice(0, 4)} – {board.termEndDate.slice(0, 4)}
-        </span>
+        {board.termStartDate && board.termEndDate && (
+          <span>
+            {board.termStartDate.slice(0, 4)} – {board.termEndDate.slice(0, 4)}
+          </span>
+        )}
         {isActive && (
           <span className="rounded-full bg-green-700/30 px-2 py-0.5 text-green-400">
             نشط
