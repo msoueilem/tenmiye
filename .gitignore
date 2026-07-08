@@ -63,8 +63,8 @@ yarn-error.log*
 coverage/
 dist/
 
-# Scripts
-scripts/
+# Scripts (root only — keep backend/scripts tracked)
+/scripts/
 
 # Gemini
 .gemini/
