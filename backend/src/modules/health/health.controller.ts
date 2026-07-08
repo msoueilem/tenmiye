@@ -1,28 +1,29 @@
 import { Controller, Get } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 
 @SkipThrottle()
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
-  constructor(private firebase: FirebaseService) {}
+  constructor(@InjectConnection() private readonly connection: Connection) {}
 
-  @ApiOperation({ summary: 'Health check — verifies API and Firestore connectivity' })
+  @ApiOperation({ summary: 'Health check — verifies API and MongoDB connectivity' })
   @Get()
-  async check(): Promise<{ status: string; firestore: string; timestamp: string }> {
-    let firestore = 'ok';
+  async check(): Promise<{ status: string; mongodb: string; timestamp: string }> {
+    let mongodb = 'ok';
 
     try {
-      await this.firebase.db.collection('health').limit(1).get();
+      await this.connection.db?.admin().ping();
     } catch {
-      firestore = 'unreachable';
+      mongodb = 'unreachable';
     }
 
     return {
-      status: firestore === 'ok' ? 'ok' : 'degraded',
-      firestore,
+      status: mongodb === 'ok' ? 'ok' : 'degraded',
+      mongodb,
       timestamp: new Date().toISOString(),
     };
   }

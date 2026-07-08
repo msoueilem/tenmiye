@@ -4,6 +4,8 @@ export const appConfig = () => ({
     .split(',')
     .map((u) => u.trim())
     .filter(Boolean),
+  mongodbUri:
+    process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/tenmiye?replicaSet=rs0',
   jwt: {
     secret: process.env.JWT_SECRET ?? '',
   },
