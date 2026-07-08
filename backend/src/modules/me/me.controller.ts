@@ -1,6 +1,6 @@
 import {
   Controller, Get, Patch, Post, Body, UseGuards, Query,
-  UseInterceptors, UploadedFile, BadRequestException,
+  UseInterceptors, UploadedFile, BadRequestException, NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -34,8 +34,12 @@ export class MeController {
     let profilePictureUrl: string | null = null;
 
     if (profile.profilePictureId) {
-      const fileDoc = await this.firebase.db.collection('uploads').doc(profile.profilePictureId).get();
-      if (fileDoc.exists) profilePictureUrl = (fileDoc.data() as { downloadUrl: string }).downloadUrl ?? null;
+      try {
+        const file = await this.uploadsService.findById(profile.profilePictureId);
+        profilePictureUrl = file.downloadUrl ?? null;
+      } catch (err) {
+        if (!(err instanceof NotFoundException)) throw err;
+      }
     }
 
     return { ...profile, profilePictureUrl };
@@ -77,6 +81,8 @@ export class MeController {
   @ApiOperation({ summary: "Get the authenticated member's vote history enriched with election title" })
   @Get('votes')
   async getMyVotes(@CurrentUser() user: JwtPayload) {
+    // TODO(mongo-migration): votes + elections still live in Firestore; migrate
+    // this read to Mongo when the elections module is migrated.
     const snapshot = await this.firebase.db
       .collection('votes')
       .where('userId', '==', user.userId)
