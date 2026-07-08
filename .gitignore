@@ -29,6 +29,9 @@ build/
 uploads-data/
 backend/uploads-data/
 
+# Docker deploy secrets (templates end in .example and are tracked)
+deploy/backend.env
+
 # Firebase
 .firebase/
 firebase-debug.log*
