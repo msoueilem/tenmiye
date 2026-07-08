@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { ConfigModule } from '@nestjs/config';
-import { appConfig } from './common/config/app.config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { appConfig, AppConfig } from './common/config/app.config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { FirebaseModule } from './common/firebase/firebase.module';
 import { DatabaseModule } from './common/database/database.module';
@@ -27,6 +28,16 @@ import { AdminAccountsModule } from './modules/admin-accounts/admin-accounts.mod
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }),
+    ServeStaticModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppConfig, true>) => [
+        {
+          rootPath: config.get('uploads', { infer: true }).dir,
+          serveRoot: '/uploads',
+          serveStaticOptions: { fallthrough: false, index: false },
+        },
+      ],
+    }),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
     ScheduleModule.forRoot(),
     FirebaseModule,

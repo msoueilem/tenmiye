@@ -25,6 +25,10 @@ build/
 # Allow .env.example
 !.env.example
 
+# Local file uploads (default UPLOADS_DIR)
+uploads-data/
+backend/uploads-data/
+
 # Firebase
 .firebase/
 firebase-debug.log*
