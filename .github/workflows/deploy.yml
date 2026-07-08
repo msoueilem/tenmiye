@@ -1,15 +1,16 @@
-# Deploy: on every push to main, SSH to the VPS, pull main, rebuild and restart
-# the docker-compose stack under /opt/tenmiye. Images are built on the VPS.
+# Deploy: on every push to dev (the default branch), SSH to the VPS, pull dev,
+# rebuild and restart the docker-compose stack under /opt/tenmiye. Images build
+# on the VPS.
 name: deploy
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
   workflow_dispatch: {} # manual "Run workflow" button
 
 # Never let two deploys race.
 concurrency:
-  group: deploy-main
+  group: deploy-dev
   cancel-in-progress: false
 
 permissions:
@@ -32,10 +33,10 @@ jobs:
             set -e
             cd "$DEPLOY_PATH"
 
-            echo "==> Sync main"
-            git fetch origin main
-            git checkout main 2>/dev/null || git checkout -b main origin/main
-            git reset --hard origin/main
+            echo "==> Sync dev"
+            git fetch origin dev
+            git checkout dev 2>/dev/null || git checkout -b dev origin/dev
+            git reset --hard origin/dev
 
             echo "==> Write compose env (.env)"
             umask 077
