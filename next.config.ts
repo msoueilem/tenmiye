@@ -1,7 +1,18 @@
 import type { NextConfig } from 'next';
 
-if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_API_URL) {
-  throw new Error('Missing required environment variable: NEXT_PUBLIC_API_URL');
+const REQUIRED_PRODUCTION_ENV_VARS = [
+  'NEXT_PUBLIC_API_URL',
+  'NEXT_PUBLIC_FIREBASE_API_KEY',
+  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+];
+
+if (process.env.NODE_ENV === 'production') {
+  for (const key of REQUIRED_PRODUCTION_ENV_VARS) {
+    if (!process.env[key]) {
+      throw new Error(`Missing required environment variable: ${key}`);
+    }
+  }
 }
 
 const nextConfig: NextConfig = {
