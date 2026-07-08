@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { appConfig } from './common/config/app.config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { FirebaseModule } from './common/firebase/firebase.module';
+import { DatabaseModule } from './common/database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { BoardsModule } from './modules/boards/boards.module';
@@ -29,6 +30,7 @@ import { AdminAccountsModule } from './modules/admin-accounts/admin-accounts.mod
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
     ScheduleModule.forRoot(),
     FirebaseModule,
+    DatabaseModule,
     AuthModule,
     UsersModule,
     BoardsModule,

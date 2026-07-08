@@ -7,6 +7,7 @@ import { AppConfig } from './common/config/app.config';
 
 const REQUIRED_ENV = [
   'JWT_SECRET',
+  'MONGODB_URI',
   'FIREBASE_PROJECT_ID',
   'FIREBASE_CLIENT_EMAIL',
   'FIREBASE_PRIVATE_KEY',
