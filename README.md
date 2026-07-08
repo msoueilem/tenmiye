@@ -1,92 +1,100 @@
-# Will Group for Development - Landing Page
+# Will Group for Development — منصة مجموعة الإرادة لتنمية الغدية
 
-This project is a landing page for the "Will Group for Development" (مجموعة الإرادة لتنمية الغدية), built with Next.js (App Router), TypeScript, and Tailwind CSS. Data is fetched dynamically from Firebase Firestore.
+A membership, voting/elections, and CMS platform for the "Will Group for
+Development" in Mauritania. Public Arabic landing site + member area + admin
+dashboard.
 
-## Prerequisites
+## Architecture
 
-- Node.js (Version 18 or later)
-- Firebase account with Firestore enabled
+Three tiers, fully self-hostable on a single VPS:
 
-## Environment Setup
+| Tier | Stack | Notes |
+|---|---|---|
+| **Frontend** | Next.js 16 (App Router), React 19, Tailwind 4 | Arabic, RTL. Pure REST client. |
+| **Backend** | NestJS 10 REST API | Served under **`/api`**. Swagger at `/api/docs`, OpenAPI at `/api/openapi.json`. |
+| **Database** | MongoDB (single-node replica set) | Replica set is required for multi-document transactions (voting). |
+| **File storage** | Local disk | Served at `/uploads`. |
+| **Auth** | JWT (member + admin). SMS OTP via Firebase Phone Auth; admin sign-in via Google OAuth | Firebase is used **only** for SMS + OAuth — not for data. |
 
-1. Install required dependencies:
+The frontend talks to the backend over REST; the backend owns all data access
+(Mongoose) and auth.
 
+## Run with Docker (recommended)
+
+Everything (Mongo + backend + frontend + an nginx gateway) runs via
+`docker-compose`, exposed on a single port.
+
+1. **Backend secrets** — copy the template and fill it in:
    ```bash
-   npm install
+   cp deploy/backend.env.example deploy/backend.env
+   # set JWT_SECRET, FIREBASE_*, GOOGLE_* (and optionally SEED_ADMIN_EMAIL)
    ```
 
-2. Create a `.env` file in the root directory and add your Firebase keys (see `.env.example`):
-
+2. **Public URL + port** — create `.env` in the repo root (used by compose):
    ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=tenmiye-gdy.firebaseapp.com
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=tenmiye-gdy
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=tenmiye-gdy.firebasestorage.app
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=414092387059
-   NEXT_PUBLIC_FIREBASE_APP_ID=1:414092387059:web:...
+   PUBLIC_URL=http://YOUR_HOST:8095
+   GATEWAY_PORT=8095
    ```
 
-3. Run the project in development mode:
+3. **Build & start:**
    ```bash
-   npm run dev
+   docker compose up -d --build
    ```
 
-## Available Scripts
+4. **Seed initial data** (settings, roles, tiers, admin account) — idempotent:
+   ```bash
+   docker compose run --rm backend node scripts/seed.mjs
+   ```
 
-- `npm run dev`: Starts the development server.
-- `npm run build`: Builds the project for production.
-- `npm run start`: Starts the production server after building.
-- `npm run lint`: Checks for code quality using ESLint.
-- `npm run format`: Formats code using Prettier.
-- `npm run type-check`: Runs TypeScript type checks.
-- `npm run clean`: Removes the `.next` build directory.
+The app is then available at `PUBLIC_URL`:
 
-## Database Setup (Firestore)
+- Site: `PUBLIC_URL/`
+- API: `PUBLIC_URL/api` · Swagger: `PUBLIC_URL/api/docs` · OpenAPI: `PUBLIC_URL/api/openapi.json`
+- Uploads: `PUBLIC_URL/uploads/<path>`
 
-A single document must be created in Firestore for the landing page to work:
+> **Google admin sign-in** requires a real domain (Google OAuth rejects bare IPs).
+> Set `GOOGLE_CALLBACK_URL=https://your-domain/api/auth/google/callback` and add
+> the same redirect URI in the Google Cloud console. Member SMS-OTP login and the
+> public site work on an IP.
 
-- **Collection:** `settings-simple`
-- **Document:** `public`
+## Local development (without Docker)
 
-### Required Fields:
+Requires Node ≥ 18 and a local MongoDB running as a single-node replica set.
 
-- `aboutText` (string): "About Us" section text.
-- `membersCount` (number): Number of members.
-- `contact` (map):
-  - `whatsapp` (string)
-  - `phone` (string)
-  - `email` (string)
-  - `address` (string)
-- `initiatives` (array of maps):
-  - `title` (string)
-  - `description` (string)
-- `teamHierarchy` (map): Team structure (see example below).
+```bash
+# backend
+cd backend
+cp .env.example .env        # fill in secrets; MONGODB_URI defaults to the local rs0
+npm install
+npm run start:dev           # http://localhost:8080/api  (docs at /api/docs)
 
-### Team Hierarchy JSON Example (teamHierarchy):
-
-```json
-{
-  "teams": [
-    {
-      "team_name": "Senior Management",
-      "head": {
-        "name": "John Doe",
-        "title": "Group President",
-        "photo": "IMAGE_URL"
-      },
-      "members": [
-        {
-          "name": "Jane Smith",
-          "title": "Vice President",
-          "photo": "IMAGE_URL"
-        }
-      ]
-    }
-  ]
-}
+# frontend (repo root, separate shell)
+npm install
+NEXT_PUBLIC_API_URL=http://localhost:8080/api npm run dev   # http://localhost:3000
 ```
 
-## Important Notes
+### Frontend scripts
+- `npm run dev` / `build` / `start` — Next.js dev / production build / serve
+- `npm run lint` · `npm run format` · `npm run type-check`
 
-- Ensure Firestore security rules allow public read access for the `settings-simple/public` document.
-- The page supports Dark Mode and uses Noto Sans Arabic fonts.
+### Backend scripts (in `backend/`)
+- `npm run start:dev` — watch mode
+- `npm run build` · `npm run type-check` · `npm run lint`
+- `node scripts/seed.mjs` — seed a fresh database
+
+## Environment variables
+
+**Backend** (`backend/.env` or `deploy/backend.env`): `JWT_SECRET`, `MONGODB_URI`,
+`PORT`, `FRONTEND_URL`, `UPLOADS_DIR`, `UPLOADS_PUBLIC_BASE_URL`,
+`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`,
+`FIREBASE_WEB_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+`GOOGLE_CALLBACK_URL`.
+
+**Frontend**: `NEXT_PUBLIC_API_URL` (browser, build-time), `API_INTERNAL_URL`
+(server-side, optional — used in Docker to reach the backend internally).
+
+## Notes
+
+- UI is Arabic-only with `dir="rtl"`.
+- Migration from Firebase Firestore/Storage to MongoDB + local disk is tracked in
+  `docs/specs/mongodb-migration-and-vps-deployment.md`.
