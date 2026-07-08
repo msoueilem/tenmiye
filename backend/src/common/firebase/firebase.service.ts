@@ -3,16 +3,20 @@ import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
 import { AppConfig } from '../config/app.config';
 
+/**
+ * Firebase is retained ONLY for authentication: SMS OTP (Identity Toolkit) and
+ * verifying the ID token returned by the phone-auth exchange. All application
+ * data lives in MongoDB and all files on local disk — there is intentionally no
+ * Firestore (`db`) or Cloud Storage (`storage`) handle here anymore.
+ */
 @Injectable()
 export class FirebaseService implements OnModuleInit {
-  db!: admin.firestore.Firestore;
   auth!: admin.auth.Auth;
-  storage!: admin.storage.Storage;
 
   constructor(private config: ConfigService<AppConfig, true>) {}
 
   onModuleInit() {
-    const { projectId, clientEmail, privateKey, storageBucket } = this.config.get('firebase', { infer: true });
+    const { projectId, clientEmail, privateKey } = this.config.get('firebase', { infer: true });
 
     if (!projectId || !clientEmail || !privateKey) {
       throw new Error(
@@ -23,12 +27,9 @@ export class FirebaseService implements OnModuleInit {
     if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-        storageBucket: storageBucket || `${projectId}.firebasestorage.app`,
       });
     }
 
-    this.db = admin.firestore();
     this.auth = admin.auth();
-    this.storage = admin.storage();
   }
 }
