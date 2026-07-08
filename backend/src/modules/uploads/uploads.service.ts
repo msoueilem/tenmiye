@@ -1,16 +1,19 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
+import { promises as fs } from 'fs';
+import { join, resolve, sep } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { FirebaseService } from '../../common/firebase/firebase.service';
-import { serializeDoc } from '../../common/utils/firestore';
+import { AppConfig } from '../../common/config/app.config';
+import { serialize } from '../../common/database/serialize';
+import { Upload, UploadDocument } from './schemas/upload.schema';
 import {
   CreateUploadContext,
   DeletionReason,
   UploadRecord,
   UploadResult,
 } from './interfaces/upload.interface';
-
-const COLLECTION = 'uploads';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -39,9 +42,25 @@ function extensionFromFile(mimeType: string, originalName: string): string {
   return mimeMap[mimeType] ?? 'bin';
 }
 
+/** Owner segments come from user input; keep them filesystem-safe (no separators, no `..`). */
+function safeSegment(value: string): string {
+  const cleaned = (value ?? '').replace(/[^A-Za-z0-9_-]/g, '_');
+  return cleaned.length ? cleaned : 'unknown';
+}
+
 @Injectable()
 export class UploadsService {
-  constructor(private firebase: FirebaseService) {}
+  private readonly dir: string;
+  private readonly publicBaseUrl: string;
+
+  constructor(
+    @InjectModel(Upload.name) private readonly model: Model<UploadDocument>,
+    config: ConfigService<AppConfig, true>,
+  ) {
+    const uploads = config.get('uploads', { infer: true });
+    this.dir = resolve(uploads.dir);
+    this.publicBaseUrl = uploads.publicBaseUrl;
+  }
 
   async upload(file: Express.Multer.File, ctx: CreateUploadContext): Promise<UploadResult> {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -52,59 +71,33 @@ export class UploadsService {
     }
 
     const ext = extensionFromFile(file.mimetype, file.originalname);
-    const filename = `${ctx.purpose}-${uuidv4()}.${ext}`;
-    const storagePath = `${ctx.ownerType}/${ctx.ownerId}/${filename}`;
+    const filename = `${safeSegment(ctx.purpose)}-${uuidv4()}.${ext}`;
+    const storagePath = `${safeSegment(ctx.ownerType)}/${safeSegment(ctx.ownerId)}/${filename}`;
 
-    const bucket = this.firebase.storage.bucket();
-    const fileRef = bucket.file(storagePath);
-    const downloadToken = uuidv4();
-    await fileRef.save(file.buffer, {
-      metadata: {
-        contentType: file.mimetype,
-        metadata: { firebaseStorageDownloadTokens: downloadToken },
-      },
-    });
+    const absPath = this.toAbsolute(storagePath);
+    await fs.mkdir(join(absPath, '..'), { recursive: true });
+    await fs.writeFile(absPath, file.buffer);
 
-    const downloadUrl = this.buildDownloadUrl(storagePath, downloadToken);
-    const nowTs = Timestamp.now();
+    const downloadUrl = this.buildDownloadUrl(storagePath);
+    const now = new Date();
 
-    const docRef = await this.firebase.db.collection(COLLECTION).add({
+    const doc = await this.model.create({
       originalName: file.originalname,
       mimeType: file.mimetype,
       extension: ext,
       sizeBytes: file.size,
       storagePath,
       downloadUrl,
-      urlExpiresAt: null,
-      storageDeleted: false,
-      storageDeletedAt: null,
       ownerType: ctx.ownerType,
       ownerId: ctx.ownerId,
       purpose: ctx.purpose,
-      status: 'active',
-      validationStatus: 'passed',
-      validationErrors: null,
       uploadedBy: ctx.uploadedBy,
-      uploadedAt: FieldValue.serverTimestamp(),
-      deleted: false,
-      deletedAt: null,
-      deletedBy: null,
-      deletionReason: null,
-      deletionNote: null,
-      replacedBy: null,
-      replacedAt: null,
-      dimensions: null,
-      thumbnailPath: null,
-      thumbnailUrl: null,
-      referenceCount: 0,
-      history: [{ action: 'uploaded', by: ctx.uploadedBy, at: nowTs, note: null }],
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: null,
+      uploadedAt: now,
+      history: [{ action: 'uploaded', by: ctx.uploadedBy, at: now, note: null }],
     });
 
     return {
-      id: docRef.id,
+      id: doc.id,
       downloadUrl,
       storagePath,
       mimeType: file.mimetype,
@@ -119,29 +112,29 @@ export class UploadsService {
     deletionReason: DeletionReason = 'manual',
     deletionNote?: string,
   ): Promise<void> {
-    const docRef = this.firebase.db.collection(COLLECTION).doc(uploadId);
-    const doc = await docRef.get();
+    const doc = await this.byId(uploadId);
+    await this.deleteFromDisk(doc.storagePath);
 
-    if (!doc.exists) throw new NotFoundException(`Upload ${uploadId} not found`);
-
-    const { storagePath, history = [] } = doc.data() as { storagePath: string; history: unknown[] };
-
-    await this.firebase.storage.bucket().file(storagePath).delete({ ignoreNotFound: true });
-
-    const nowTs = Timestamp.now();
-    await docRef.update({
-      deleted: true,
-      deletedAt: FieldValue.serverTimestamp(),
-      deletedBy,
-      deletionReason,
-      deletionNote: deletionNote ?? null,
-      storageDeleted: true,
-      storageDeletedAt: FieldValue.serverTimestamp(),
-      status: 'deleted',
-      history: [...history, { action: 'deleted', by: deletedBy, at: nowTs, note: deletionNote ?? null }],
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: deletedBy,
-    });
+    const now = new Date();
+    await this.model.updateOne(
+      { _id: doc._id },
+      {
+        $set: {
+          deleted: true,
+          deletedAt: now,
+          deletedBy,
+          deletionReason,
+          deletionNote: deletionNote ?? null,
+          storageDeleted: true,
+          storageDeletedAt: now,
+          status: 'deleted',
+          updatedBy: deletedBy,
+        },
+        $push: {
+          history: { action: 'deleted', by: deletedBy, at: now, note: deletionNote ?? null },
+        },
+      },
+    );
   }
 
   async replace(
@@ -149,98 +142,85 @@ export class UploadsService {
     file: Express.Multer.File,
     ctx: CreateUploadContext,
   ): Promise<UploadResult> {
-    const oldDocRef = this.firebase.db.collection(COLLECTION).doc(uploadId);
-    const oldDoc = await oldDocRef.get();
-
-    if (!oldDoc.exists) throw new NotFoundException(`Upload ${uploadId} not found`);
-
+    const oldDoc = await this.byId(uploadId);
     const result = await this.upload(file, ctx);
 
-    const nowTs = Timestamp.now();
-    const { storagePath: oldPath, history = [] } = oldDoc.data() as { storagePath: string; history: unknown[] };
+    const now = new Date();
+    await this.model.updateOne(
+      { _id: oldDoc._id },
+      {
+        $set: {
+          replacedBy: result.id,
+          replacedAt: now,
+          status: 'deleted',
+          deleted: true,
+          deletedAt: now,
+          deletedBy: ctx.uploadedBy,
+          deletionReason: 'replaced' as DeletionReason,
+          updatedBy: ctx.uploadedBy,
+        },
+        $push: {
+          history: {
+            action: 'deleted',
+            by: ctx.uploadedBy,
+            at: now,
+            note: 'replaced by new upload',
+          },
+        },
+      },
+    );
 
-    await oldDocRef.update({
-      replacedBy: result.id,
-      replacedAt: FieldValue.serverTimestamp(),
-      status: 'deleted',
-      deleted: true,
-      deletedAt: FieldValue.serverTimestamp(),
-      deletedBy: ctx.uploadedBy,
-      deletionReason: 'replaced' as DeletionReason,
-      history: [...history, { action: 'deleted', by: ctx.uploadedBy, at: nowTs, note: 'replaced by new upload' }],
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: ctx.uploadedBy,
-    });
-
-    await this.firebase.storage.bucket().file(oldPath).delete({ ignoreNotFound: true });
-
+    await this.deleteFromDisk(oldDoc.storagePath);
     return result;
   }
 
   async findById(uploadId: string): Promise<UploadRecord> {
-    const docRef = this.firebase.db.collection(COLLECTION).doc(uploadId);
-    const doc = await docRef.get();
-    if (!doc.exists) throw new NotFoundException(`Upload ${uploadId} not found`);
-
-    const data = doc.data() as { storagePath: string; urlExpiresAt: Timestamp | null; deleted: boolean };
-
-    // Migrate legacy docs that still carry an expiring signed URL to a permanent one.
-    if (!data.deleted && data.urlExpiresAt) {
-      const url = await this.generatePermanentUrl(data.storagePath);
-      await docRef.update({
-        downloadUrl: url,
-        urlExpiresAt: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      return { id: doc.id, ...serializeDoc(doc.data()), downloadUrl: url } as UploadRecord;
-    }
-
-    return { id: doc.id, ...serializeDoc(doc.data()) } as UploadRecord;
-  }
-
-  /**
-   * Builds a permanent Firebase Storage download URL backed by a download token.
-   * Unlike signed URLs, these never expire (the token grants access until revoked).
-   */
-  private buildDownloadUrl(storagePath: string, token: string): string {
-    const bucketName = this.firebase.storage.bucket().name;
-    const encodedPath = encodeURIComponent(storagePath);
-    return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
-  }
-
-  /**
-   * Returns a permanent download URL for an existing object, reusing its download
-   * token if present or assigning one. Used to migrate objects off legacy signed URLs.
-   */
-  private async generatePermanentUrl(storagePath: string): Promise<string> {
-    const file = this.firebase.storage.bucket().file(storagePath);
-    const [metadata] = await file.getMetadata();
-    let token = metadata.metadata?.firebaseStorageDownloadTokens as string | undefined;
-    if (!token) {
-      token = uuidv4();
-      await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: token } });
-    }
-    return this.buildDownloadUrl(storagePath, token);
+    const doc = await this.byId(uploadId);
+    return serialize(doc) as unknown as UploadRecord;
   }
 
   async findAll(
     limit = 20,
     cursor?: string,
   ): Promise<{ data: UploadRecord[]; nextCursor: string | null }> {
-    let query = this.firebase.db
-      .collection(COLLECTION)
-      .where('deleted', '==', false)
-      .orderBy('createdAt', 'desc')
-      .limit(limit);
-
-    if (cursor) {
-      const cursorDoc = await this.firebase.db.collection(COLLECTION).doc(cursor).get();
-      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    const filter: Record<string, unknown> = { deleted: false };
+    if (cursor && Types.ObjectId.isValid(cursor)) {
+      filter._id = { $lt: new Types.ObjectId(cursor) };
     }
 
-    const snapshot = await query.get();
-    const data = snapshot.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }) as UploadRecord);
-    const nextCursor = snapshot.docs.length === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
+    const docs = await this.model.find(filter).sort({ _id: -1 }).limit(limit).lean();
+    const data = docs.map((d) => serialize(d) as unknown as UploadRecord);
+    const nextCursor = docs.length === limit ? String(docs[docs.length - 1]._id) : null;
     return { data, nextCursor };
+  }
+
+  private async byId(uploadId: string) {
+    const doc = Types.ObjectId.isValid(uploadId)
+      ? await this.model.findById(uploadId).lean()
+      : null;
+    if (!doc) throw new NotFoundException(`Upload ${uploadId} not found`);
+    return doc;
+  }
+
+  /** Resolves a storagePath under the uploads dir, guarding against traversal. */
+  private toAbsolute(storagePath: string): string {
+    const abs = resolve(this.dir, storagePath);
+    if (abs !== this.dir && !abs.startsWith(this.dir + sep)) {
+      throw new BadRequestException('Invalid storage path');
+    }
+    return abs;
+  }
+
+  private async deleteFromDisk(storagePath: string): Promise<void> {
+    try {
+      await fs.unlink(this.toAbsolute(storagePath));
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
+  }
+
+  private buildDownloadUrl(storagePath: string): string {
+    const encoded = storagePath.split('/').map(encodeURIComponent).join('/');
+    return `${this.publicBaseUrl}/uploads/${encoded}`;
   }
 }

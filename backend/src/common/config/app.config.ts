@@ -1,3 +1,5 @@
+import { join } from 'path';
+
 export const appConfig = () => ({
   port: parseInt(process.env.PORT ?? '8080', 10),
   frontendUrls: (process.env.FRONTEND_URL ?? 'http://localhost:3000')
@@ -6,6 +8,15 @@ export const appConfig = () => ({
     .filter(Boolean),
   mongodbUri:
     process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/tenmiye?replicaSet=rs0',
+  uploads: {
+    // Filesystem directory where uploaded files are stored on the VPS.
+    dir: process.env.UPLOADS_DIR ?? join(process.cwd(), 'uploads-data'),
+    // Public origin used to build download URLs, e.g. https://host -> https://host/uploads/<path>
+    publicBaseUrl: (
+      process.env.UPLOADS_PUBLIC_BASE_URL ??
+      `http://localhost:${process.env.PORT ?? '8080'}`
+    ).replace(/\/+$/, ''),
+  },
   jwt: {
     secret: process.env.JWT_SECRET ?? '',
   },
