@@ -5,9 +5,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { FirebaseService } from '../../common/firebase/firebase.service';
-import { serializeDoc } from '../../common/utils/firestore';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Connection, Model, Types } from 'mongoose';
+import { Election, ElectionDocument } from './schemas/election.schema';
+import { Vote, VoteDocument } from './schemas/vote.schema';
+import { Nomination, NominationDocument } from './schemas/nomination.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { serialize } from '../../common/database/serialize';
 import { CreateElectionDto } from './dto/create-election.dto';
 import { UpdateElectionDto } from './dto/update-election.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
@@ -15,13 +19,11 @@ import { AdvanceElectionDto } from './dto/advance-election.dto';
 import { SubmitNominationDto } from './dto/submit-nomination.dto';
 import { CastVoteDto } from './dto/cast-vote.dto';
 
-const COL = 'elections';
-
 type Nominee = {
   userId: string;
   addedInRound: number;
   status: 'pending' | 'confirmed' | 'dismissed';
-  dismissedAt: Timestamp | null;
+  dismissedAt: Date | null;
   dismissedInRound: number | null;
 };
 
@@ -33,47 +35,53 @@ type BoardConfig = {
 };
 
 type ElectionData = {
+  _id: Types.ObjectId;
   type: 'yes_no' | 'multiple_choice' | 'board';
   status: string;
   boardConfig: BoardConfig | null;
   nominees: Nominee[] | null;
   currentRound: number | null;
-};
+  rounds?: Record<string, unknown>[] | null;
+  options?: { id: string; label: string }[];
+  results?: Record<string, unknown> | null;
+} & Record<string, unknown>;
+
+const asDate = (v?: string | Date | null): Date | null =>
+  v == null ? null : v instanceof Date ? v : new Date(v);
 
 @Injectable()
 export class ElectionsService {
   private readonly logger = new Logger(ElectionsService.name);
 
-  constructor(private readonly firebase: FirebaseService) {}
+  constructor(
+    @InjectConnection() private readonly connection: Connection,
+    @InjectModel(Election.name) private readonly elections: Model<ElectionDocument>,
+    @InjectModel(Vote.name) private readonly votes: Model<VoteDocument>,
+    @InjectModel(Nomination.name) private readonly nominations: Model<NominationDocument>,
+    @InjectModel(User.name) private readonly users: Model<UserDocument>,
+  ) {}
 
   // ─── Public reads ──────────────────────────────────────────────────────────
 
   async findAll() {
-    const snap = await this.firebase.db.collection(COL).orderBy('createdAt', 'desc').get();
-    return snap.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }));
+    const docs = await this.elections.find().sort({ createdAt: -1 }).lean();
+    return docs.map(serialize);
   }
 
   async findOne(id: string) {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-    return { id: doc.id, ...serializeDoc(doc.data()) };
+    const doc = await this.byId(id);
+    return serialize(doc);
   }
 
   async getResults(id: string) {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
+    const data = (await this.byId(id)) as ElectionData;
 
-    const data = doc.data() as ElectionData & {
-      options?: { id: string; label: string }[];
-      results?: {
+    if (data.type === 'board') {
+      const stored = (data.results ?? null) as {
         rankings?: { candidateUserId: string; voteCount: number }[];
         winners?: string[];
         shortlist?: string[];
       } | null;
-    };
-
-    if (data.type === 'board') {
-      const stored = data.results ?? null;
       if (!stored) return { id, type: 'board', results: null };
 
       const rankings = stored.rankings ?? [];
@@ -96,21 +104,10 @@ export class ElectionsService {
       };
     }
 
-    // Tally votes for yes_no and multiple_choice
-    const votesSnap = await this.firebase.db
-      .collection('votes')
-      .where('electionId', '==', id)
-      .get();
-
+    const votes = await this.votes.find({ electionId: id }).lean();
     const tally: Record<string, number> = {};
-    for (const voteDoc of votesSnap.docs) {
-      const choices = (voteDoc.data() as { choices: string[] }).choices;
-      for (const choice of choices) {
-        tally[choice] = (tally[choice] ?? 0) + 1;
-      }
-    }
+    for (const v of votes) for (const choice of v.choices ?? []) tally[choice] = (tally[choice] ?? 0) + 1;
 
-    // Resolve each optionId to its human label from the election document.
     const optionLabels: Record<string, string> = {};
     for (const opt of data.options ?? []) optionLabels[opt.id] = opt.label;
 
@@ -118,26 +115,21 @@ export class ElectionsService {
       .map(([optionId, voteCount]) => ({ optionId, voteCount, label: optionLabels[optionId] ?? null }))
       .sort((a, b) => b.voteCount - a.voteCount);
 
-    return { id, type: data.type, rankings, totalVoters: votesSnap.size };
+    return { id, type: data.type, rankings, totalVoters: votes.length };
   }
 
-  /** Batch-resolve user ids to a display name (Arabic preferred), for results rendering. */
+  /** Batch-resolve user ids to a display name (Arabic preferred). */
   private async resolveUserNames(ids: string[]): Promise<Record<string, string>> {
-    const unique = [...new Set(ids)].filter(Boolean);
+    const unique = [...new Set(ids)].filter((x) => x && Types.ObjectId.isValid(x));
     if (unique.length === 0) return {};
-
-    const refs = unique.map((uid) => this.firebase.db.collection('users').doc(uid));
-    const docs = await this.firebase.db.getAll(...refs);
-
+    const docs = await this.users
+      .find({ _id: { $in: unique } })
+      .select('fullName fullNameAr fullNameFr')
+      .lean();
     const names: Record<string, string> = {};
-    for (const userDoc of docs) {
-      if (!userDoc.exists) continue;
-      const u = userDoc.data() as {
-        fullName?: string;
-        fullNameAr?: string | null;
-        fullNameFr?: string | null;
-      };
-      names[userDoc.id] = u.fullNameAr || u.fullName || u.fullNameFr || userDoc.id;
+    for (const u of docs) {
+      const uu = u as { fullName?: string; fullNameAr?: string | null; fullNameFr?: string | null };
+      names[String(u._id)] = uu.fullNameAr || uu.fullName || uu.fullNameFr || String(u._id);
     }
     return names;
   }
@@ -152,486 +144,334 @@ export class ElectionsService {
       throw new BadRequestException('boardConfig is required for board elections');
     }
 
-    const boardConfig = dto.type === 'board' && dto.boardConfig
-      ? {
-          seatsCount: dto.boardConfig.seatsCount,
-          targetNominees: dto.boardConfig.targetNominees ?? dto.boardConfig.seatsCount * 2,
-          shortlistCount: dto.boardConfig.shortlistCount ?? 2,
-          dismissalWindowHours: dto.boardConfig.dismissalWindowHours ?? 24,
-        }
-      : null;
+    const boardConfig =
+      dto.type === 'board' && dto.boardConfig
+        ? {
+            seatsCount: dto.boardConfig.seatsCount,
+            targetNominees: dto.boardConfig.targetNominees ?? dto.boardConfig.seatsCount * 2,
+            shortlistCount: dto.boardConfig.shortlistCount ?? 2,
+            dismissalWindowHours: dto.boardConfig.dismissalWindowHours ?? 24,
+          }
+        : null;
 
-    const ts = (v?: string) => (v ? Timestamp.fromDate(new Date(v)) : null);
-
-    const ref = await this.firebase.db.collection(COL).add({
+    const doc = await this.elections.create({
       title: dto.title,
       description: dto.description ?? null,
       type: dto.type,
       status: 'draft',
       options: dto.type !== 'board' ? (dto.options ?? []).map((o) => ({ id: o.id, label: o.label })) : [],
-      startTime: ts(dto.startTime),
-      endTime: ts(dto.endTime),
-      // Board elections may pre-schedule their phases at creation time
-      nominationStart: ts(dto.nominationStart),
-      nominationEnd: ts(dto.nominationEnd),
-      dismissalStart: ts(dto.dismissalStart),
-      dismissalEnd: ts(dto.dismissalEnd),
-      votingStart: ts(dto.votingStart),
-      votingEnd: ts(dto.votingEnd),
+      startTime: asDate(dto.startTime),
+      endTime: asDate(dto.endTime),
+      nominationStart: asDate(dto.nominationStart),
+      nominationEnd: asDate(dto.nominationEnd),
+      dismissalStart: asDate(dto.dismissalStart),
+      dismissalEnd: asDate(dto.dismissalEnd),
+      votingStart: asDate(dto.votingStart),
+      votingEnd: asDate(dto.votingEnd),
       boardConfig,
       nominees: dto.type === 'board' ? [] : null,
       rounds: dto.type === 'board' ? [] : null,
       currentRound: null,
       results: null,
       createdBy,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
-    return { id: ref.id };
+    return { id: doc.id };
   }
 
   async update(id: string, dto: UpdateElectionDto): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-    if (doc.data()?.status !== 'draft') {
+    const data = await this.byId(id);
+    if (data.status !== 'draft') {
       throw new BadRequestException('Only draft elections can be edited directly — use /advance to change status');
     }
-
     const payload = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
-    await this.firebase.db.collection(COL).doc(id).update({
-      ...payload,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await this.elections.updateOne({ _id: id }, { $set: payload });
   }
 
   async updateSchedule(id: string, dto: UpdateScheduleDto): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
+    const data = (await this.byId(id)) as ElectionData;
+    const payload: Record<string, unknown> = {};
 
-    const data = doc.data() as ElectionData & Record<string, unknown>;
-    const ts = (v?: string) => (v ? Timestamp.fromDate(new Date(v)) : undefined);
-    const payload: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
-
-    const map: Array<[keyof UpdateScheduleDto, string]> = [
-      ['nominationStart', 'nominationStart'],
-      ['nominationEnd', 'nominationEnd'],
-      ['dismissalStart', 'dismissalStart'],
-      ['dismissalEnd', 'dismissalEnd'],
-      ['votingStart', 'votingStart'],
-      ['votingEnd', 'votingEnd'],
-      ['startTime', 'startTime'],
-      ['endTime', 'endTime'],
+    const dateKeys: (keyof UpdateScheduleDto)[] = [
+      'nominationStart', 'nominationEnd', 'dismissalStart', 'dismissalEnd',
+      'votingStart', 'votingEnd', 'startTime', 'endTime',
     ];
-
-    for (const [dtoKey, dbKey] of map) {
-      if (dto[dtoKey] !== undefined) payload[dbKey] = ts(dto[dtoKey]);
+    for (const k of dateKeys) {
+      if (dto[k] !== undefined) payload[k] = asDate(dto[k]);
     }
 
-    // Also patch the current round's timestamps so the phase restarts with the new dates
     if (data.type === 'board' && data.currentRound != null) {
       const rounds = ((data.rounds as Record<string, unknown>[]) ?? []).map((r) => {
         if ((r as { roundNumber: number }).roundNumber !== data.currentRound) return r;
         const updated = { ...r };
-        if (dto.nominationStart) updated.nominationStart = ts(dto.nominationStart);
-        if (dto.nominationEnd)   updated.nominationEnd   = ts(dto.nominationEnd);
-        if (dto.dismissalStart)  updated.dismissalStart  = ts(dto.dismissalStart);
-        if (dto.dismissalEnd)    updated.dismissalEnd    = ts(dto.dismissalEnd);
+        if (dto.nominationStart) updated.nominationStart = asDate(dto.nominationStart);
+        if (dto.nominationEnd) updated.nominationEnd = asDate(dto.nominationEnd);
+        if (dto.dismissalStart) updated.dismissalStart = asDate(dto.dismissalStart);
+        if (dto.dismissalEnd) updated.dismissalEnd = asDate(dto.dismissalEnd);
         return updated;
       });
       payload.rounds = rounds;
     }
 
-    await this.firebase.db.collection(COL).doc(id).update(payload);
+    await this.elections.updateOne({ _id: id }, { $set: payload });
   }
 
   async remove(id: string): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-    if (doc.data()?.status !== 'draft') {
-      throw new BadRequestException('Only draft elections can be deleted');
-    }
-    await this.firebase.db.collection(COL).doc(id).delete();
+    const data = await this.byId(id);
+    if (data.status !== 'draft') throw new BadRequestException('Only draft elections can be deleted');
+    await this.elections.deleteOne({ _id: data._id });
   }
 
-  async advance(id: string, dto: AdvanceElectionDto, userId: string): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-
-    const data = doc.data() as ElectionData & Record<string, unknown>;
+  async advance(id: string, dto: AdvanceElectionDto, _userId: string): Promise<void> {
+    const data = (await this.byId(id)) as ElectionData;
     const from = data.status;
     const to = dto.status;
-
     this.assertValidTransition(from, to, data.type);
 
-    const update: Record<string, unknown> = {
-      status: to,
-      updatedAt: FieldValue.serverTimestamp(),
-    };
+    const update: Record<string, unknown> = { status: to };
 
     if (to === 'nomination') {
-      // Fall back to dates pre-stored on the election document if not provided in the request
-      const stored = data as Record<string, { toDate?: () => Date } | null>;
-      const toISO = (ts: { toDate?: () => Date } | null | undefined) =>
-        ts?.toDate ? ts.toDate().toISOString() : undefined;
-
-      const nomStart = dto.nominationStart ?? toISO(stored.nominationStart);
-      const nomEnd   = dto.nominationEnd   ?? toISO(stored.nominationEnd);
-      const disStart = dto.dismissalStart  ?? toISO(stored.dismissalStart);
-      const disEnd   = dto.dismissalEnd    ?? toISO(stored.dismissalEnd);
-
+      const nomStart = dto.nominationStart ?? asDate(data.nominationStart as Date)?.toISOString();
+      const nomEnd = dto.nominationEnd ?? asDate(data.nominationEnd as Date)?.toISOString();
+      const disStart = dto.dismissalStart ?? asDate(data.dismissalStart as Date)?.toISOString();
+      const disEnd = dto.dismissalEnd ?? asDate(data.dismissalEnd as Date)?.toISOString();
       if (!nomStart || !nomEnd || !disStart || !disEnd) {
         throw new BadRequestException('nominationStart, nominationEnd, dismissalStart, dismissalEnd are required');
       }
       const roundNumber = (data.currentRound ?? 0) + 1;
       const newRound = {
         roundNumber,
-        nominationStart: Timestamp.fromDate(new Date(nomStart)),
-        nominationEnd:   Timestamp.fromDate(new Date(nomEnd)),
-        dismissalStart:  Timestamp.fromDate(new Date(disStart)),
-        dismissalEnd:    Timestamp.fromDate(new Date(disEnd)),
+        nominationStart: new Date(nomStart),
+        nominationEnd: new Date(nomEnd),
+        dismissalStart: new Date(disStart),
+        dismissalEnd: new Date(disEnd),
         status: 'nomination',
       };
-      const existingRounds = (data.rounds as unknown[]) ?? [];
-      update.rounds = [...existingRounds, newRound];
+      update.rounds = [...((data.rounds as unknown[]) ?? []), newRound];
       update.currentRound = roundNumber;
     }
 
     if (to === 'dismissal') {
-      // Mark current round as in dismissal
       const rounds = (data.rounds as Record<string, unknown>[]) ?? [];
       const currentRound = data.currentRound ?? 1;
       update.rounds = rounds.map((r) =>
-        (r as { roundNumber: number }).roundNumber === currentRound
-          ? { ...r, status: 'dismissal' }
-          : r,
+        (r as { roundNumber: number }).roundNumber === currentRound ? { ...r, status: 'dismissal' } : r,
       );
     }
 
-    if (to === 'voting') {
-      if (data.type === 'board') {
-        const stored = data as Record<string, { toDate?: () => Date } | null>;
-        const toISO = (ts: { toDate?: () => Date } | null | undefined) =>
-          ts?.toDate ? ts.toDate().toISOString() : undefined;
-        const votStart = dto.votingStart ?? toISO(stored.votingStart);
-        const votEnd   = dto.votingEnd   ?? toISO(stored.votingEnd);
-        if (!votStart || !votEnd) {
-          throw new BadRequestException('votingStart and votingEnd are required for board elections');
-        }
-        update.votingStart = Timestamp.fromDate(new Date(votStart));
-        update.votingEnd   = Timestamp.fromDate(new Date(votEnd));
-        // Mark current round as completed
-        const rounds = (data.rounds as Record<string, unknown>[]) ?? [];
-        update.rounds = rounds.map((r) =>
-          (r as { roundNumber: number }).roundNumber === data.currentRound
-            ? { ...r, status: 'completed' }
-            : r,
-        );
+    if (to === 'voting' && data.type === 'board') {
+      const votStart = dto.votingStart ?? asDate(data.votingStart as Date)?.toISOString();
+      const votEnd = dto.votingEnd ?? asDate(data.votingEnd as Date)?.toISOString();
+      if (!votStart || !votEnd) {
+        throw new BadRequestException('votingStart and votingEnd are required for board elections');
       }
+      update.votingStart = new Date(votStart);
+      update.votingEnd = new Date(votEnd);
+      const rounds = (data.rounds as Record<string, unknown>[]) ?? [];
+      update.rounds = rounds.map((r) =>
+        (r as { roundNumber: number }).roundNumber === data.currentRound ? { ...r, status: 'completed' } : r,
+      );
     }
 
-    if (to === 'cancelled') {
-      update.cancellationReason = dto.reason ?? null;
-    }
+    if (to === 'cancelled') update.cancellationReason = dto.reason ?? null;
 
-    await this.firebase.db.collection(COL).doc(id).update(update);
+    await this.elections.updateOne({ _id: id }, { $set: update });
   }
 
   async finalizeResults(id: string, finalizedBy: string): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-
-    const data = doc.data() as ElectionData & Record<string, unknown>;
+    const data = (await this.byId(id)) as ElectionData;
     if (data.type !== 'board') throw new BadRequestException('Only board elections need manual finalization');
     if (data.status !== 'voting') throw new BadRequestException('Election must be in voting status to finalize');
 
-    const votesSnap = await this.firebase.db
-      .collection('votes')
-      .where('electionId', '==', id)
-      .get();
-
+    const votes = await this.votes.find({ electionId: id }).lean();
     const tally: Record<string, number> = {};
-    for (const voteDoc of votesSnap.docs) {
-      const choices = (voteDoc.data() as { choices: string[] }).choices;
-      for (const userId of choices) {
-        tally[userId] = (tally[userId] ?? 0) + 1;
-      }
-    }
+    for (const v of votes) for (const uid of v.choices ?? []) tally[uid] = (tally[uid] ?? 0) + 1;
 
     const cfg = data.boardConfig!;
     const rankings = Object.entries(tally)
       .map(([candidateUserId, voteCount]) => ({ candidateUserId, voteCount }))
       .sort((a, b) => b.voteCount - a.voteCount);
-
     const winners = rankings.slice(0, cfg.seatsCount).map((r) => r.candidateUserId);
     const shortlist = rankings.slice(cfg.seatsCount, cfg.seatsCount + cfg.shortlistCount).map((r) => r.candidateUserId);
 
-    await this.firebase.db.collection(COL).doc(id).update({
-      status: 'completed',
-      results: {
-        rankings,
-        winners,
-        shortlist,
-        finalizedAt: Timestamp.now(),
-        finalizedBy,
-      },
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await this.elections.updateOne(
+      { _id: id },
+      { $set: { status: 'completed', results: { rankings, winners, shortlist, finalizedAt: new Date(), finalizedBy } } },
+    );
   }
 
   async getMyVote(id: string, userId: string) {
-    const voteRef = this.firebase.db.collection('votes').doc(`${id}_${userId}`);
-    const doc = await voteRef.get();
-    if (!doc.exists) return { voted: false, choices: null };
-    const data = doc.data() as { choices: string[]; castAt: unknown };
-    return { voted: true, choices: data.choices, castAt: data.castAt };
+    const doc = await this.votes.findById(`${id}_${userId}`).lean();
+    if (!doc) return { voted: false, choices: null };
+    return { voted: true, choices: doc.choices, castAt: doc.castAt };
   }
 
   async getTopNominees(id: string) {
-    const electionDoc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!electionDoc.exists) throw new NotFoundException(`Election ${id} not found`);
-
-    const data = electionDoc.data() as ElectionData;
+    const data = (await this.byId(id)) as ElectionData;
     if (data.type !== 'board') return { nominees: [] };
 
-    // Tally how many nominators included each nominee
-    const nominationsSnap = await this.firebase.db
-      .collection(COL).doc(id)
-      .collection('nominations')
-      .get();
-
+    const noms = await this.nominations.find({ electionId: id }).lean();
     const tally: Record<string, number> = {};
-    for (const nomDoc of nominationsSnap.docs) {
-      const nominees = (nomDoc.data() as { nominees: string[] }).nominees ?? [];
-      for (const uid of nominees) {
-        tally[uid] = (tally[uid] ?? 0) + 1;
-      }
-    }
+    for (const n of noms) for (const uid of n.nominees ?? []) tally[uid] = (tally[uid] ?? 0) + 1;
 
     const sorted = Object.entries(tally)
       .map(([userId, nominationCount]) => ({ userId, nominationCount }))
       .sort((a, b) => b.nominationCount - a.nominationCount);
-
     const names = await this.resolveUserNames(sorted.map((n) => n.userId));
-    const nominees = sorted.map((n) => ({ ...n, name: names[n.userId] ?? null }));
-
-    return { nominees };
+    return { nominees: sorted.map((n) => ({ ...n, name: names[n.userId] ?? null })) };
   }
 
   // ─── Member operations ─────────────────────────────────────────────────────
 
   async getMyNomination(id: string, userId: string): Promise<{ submitted: boolean; nominees: string[] }> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-    const data = doc.data() as ElectionData;
+    const data = (await this.byId(id)) as ElectionData;
     const currentRound = data.currentRound ?? 1;
-    const nomRef = this.firebase.db.collection(COL).doc(id).collection('nominations').doc(userId);
-    const nomDoc = await nomRef.get();
-    if (!nomDoc.exists) return { submitted: false, nominees: [] };
-    const nomData = nomDoc.data() as { nominees: string[]; round: number };
-    if (nomData.round !== currentRound) return { submitted: false, nominees: [] };
-    return { submitted: true, nominees: nomData.nominees };
+    const nom = await this.nominations.findById(`${id}_${userId}`).lean();
+    if (!nom || nom.round !== currentRound) return { submitted: false, nominees: [] };
+    return { submitted: true, nominees: nom.nominees };
   }
 
   async submitNomination(id: string, dto: SubmitNominationDto, userId: string): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-
-    const data = doc.data() as ElectionData;
+    const data = (await this.byId(id)) as ElectionData;
     if (data.type !== 'board') throw new BadRequestException('Nominations are only for board elections');
     if (data.status !== 'nomination') throw new BadRequestException('Election is not in the nomination phase');
 
     const currentRound = data.currentRound!;
     const cfg = data.boardConfig!;
-
     if (dto.nominees.length !== cfg.seatsCount) {
       throw new BadRequestException(`You must nominate exactly ${cfg.seatsCount} people`);
     }
 
-    // Validate all nominees exist in one batch read
-    const nomineeRefs = dto.nominees.map((uid) =>
-      this.firebase.db.collection('users').doc(uid),
-    );
-    if (nomineeRefs.length > 0) {
-      const nomineeDocs = await this.firebase.db.getAll(...nomineeRefs);
-      for (const nomineeDoc of nomineeDocs) {
-        if (!nomineeDoc.exists) {
-          throw new BadRequestException(`User ${nomineeDoc.id} not found`);
+    const validIds = dto.nominees.filter((u) => Types.ObjectId.isValid(u));
+    const found = await this.users.countDocuments({ _id: { $in: validIds } });
+    if (found !== dto.nominees.length) throw new BadRequestException('One or more nominees not found');
+
+    const nomId = `${id}_${userId}`;
+    const session = await this.connection.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const existing = await this.nominations.findById(nomId).session(session).lean();
+        if (existing && existing.round === currentRound) {
+          throw new BadRequestException('You have already submitted nominations for this round');
         }
-      }
-    }
 
-    const nomRef = this.firebase.db.collection(COL).doc(id).collection('nominations').doc(userId);
+        await this.nominations.updateOne(
+          { _id: nomId },
+          { $set: { electionId: id, nominatorUserId: userId, nominees: dto.nominees, round: currentRound, submittedAt: new Date() } },
+          { upsert: true, session },
+        );
 
-    await this.firebase.db.runTransaction(async (tx) => {
-      const existingNomDoc = await tx.get(nomRef);
-      if (existingNomDoc.exists && (existingNomDoc.data() as { round: number }).round === currentRound) {
-        throw new BadRequestException('You have already submitted nominations for this round');
-      }
+        const election = await this.elections.findById(id).select('nominees').session(session).lean();
+        const existingIds = new Set(((election?.nominees as Nominee[]) ?? []).map((n) => n.userId));
+        const newNominees: Nominee[] = dto.nominees
+          .filter((uid) => !existingIds.has(uid))
+          .map((uid) => ({ userId: uid, addedInRound: currentRound, status: 'pending', dismissedAt: null, dismissedInRound: null }));
 
-      // Write to subcollection
-      tx.set(nomRef, {
-        nominatorUserId: userId,
-        nominees: dto.nominees,
-        round: currentRound,
-        submittedAt: Timestamp.now(),
+        if (newNominees.length > 0) {
+          await this.elections.updateOne({ _id: id }, { $push: { nominees: { $each: newNominees } } }, { session });
+        }
       });
-
-      // Add new nominees to the pool (skip already-present ones)
-      const existingIds = new Set((data.nominees ?? []).map((n) => n.userId));
-      const newNominees = dto.nominees
-        .filter((uid) => !existingIds.has(uid))
-        .map((uid): Nominee => ({
-          userId: uid,
-          addedInRound: currentRound,
-          status: 'pending',
-          dismissedAt: null,
-          dismissedInRound: null,
-        }));
-
-      if (newNominees.length > 0) {
-        tx.update(this.firebase.db.collection(COL).doc(id), {
-          nominees: FieldValue.arrayUnion(...newNominees),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      }
-    });
+    } finally {
+      await session.endSession();
+    }
   }
 
   async dismissSelf(id: string, userId: string): Promise<void> {
-    const doc = await this.firebase.db.collection(COL).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Election ${id} not found`);
-
-    const data = doc.data() as ElectionData;
+    const data = (await this.byId(id)) as ElectionData;
     if (data.status !== 'dismissal') throw new BadRequestException('Election is not in the dismissal phase');
 
-    const nominees = data.nominees ?? [];
+    const nominees = (data.nominees ?? []) as Nominee[];
     const idx = nominees.findIndex((n) => n.userId === userId && n.status === 'pending');
     if (idx === -1) throw new ForbiddenException('You are not a pending nominee in this election');
 
     const updated = [...nominees];
-    updated[idx] = {
-      ...updated[idx],
-      status: 'dismissed',
-      dismissedAt: Timestamp.now(),
-      dismissedInRound: data.currentRound,
-    };
-
-    await this.firebase.db.collection(COL).doc(id).update({
-      nominees: updated,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    updated[idx] = { ...updated[idx], status: 'dismissed', dismissedAt: new Date(), dismissedInRound: data.currentRound };
+    await this.elections.updateOne({ _id: id }, { $set: { nominees: updated } });
   }
 
   async castVote(id: string, dto: CastVoteDto, userId: string): Promise<void> {
-    const electionRef = this.firebase.db.collection(COL).doc(id);
-    const voteRef = this.firebase.db.collection('votes').doc(`${id}_${userId}`);
+    const voteId = `${id}_${userId}`;
+    const session = await this.connection.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const election = (await this.elections.findById(id).session(session).lean()) as ElectionData | null;
+        if (!election) throw new NotFoundException(`Election ${id} not found`);
 
-    await this.firebase.db.runTransaction(async (tx) => {
-      const [electionSnap, existing] = await Promise.all([tx.get(electionRef), tx.get(voteRef)]);
+        const existing = await this.votes.findById(voteId).session(session).lean();
+        if (existing) throw new ForbiddenException('You have already voted in this election');
 
-      if (!electionSnap.exists) throw new NotFoundException(`Election ${id} not found`);
-      if (existing.exists) throw new ForbiddenException('You have already voted in this election');
-
-      const data = electionSnap.data() as ElectionData;
-      if (data.status !== 'voting') throw new BadRequestException('Election is not in the voting phase');
-
-      if (data.type === 'yes_no' && dto.choices.length !== 1) {
-        throw new BadRequestException('Yes/No elections require exactly 1 choice');
-      }
-      if (data.type === 'board') {
-        if (dto.choices.length !== data.boardConfig!.seatsCount) {
-          throw new BadRequestException(`Board elections require exactly ${data.boardConfig!.seatsCount} choices`);
+        if (election.status !== 'voting') throw new BadRequestException('Election is not in the voting phase');
+        if (election.type === 'yes_no' && dto.choices.length !== 1) {
+          throw new BadRequestException('Yes/No elections require exactly 1 choice');
         }
-      }
+        if (election.type === 'board' && dto.choices.length !== election.boardConfig!.seatsCount) {
+          throw new BadRequestException(`Board elections require exactly ${election.boardConfig!.seatsCount} choices`);
+        }
 
-      tx.set(voteRef, {
-        electionId: id,
-        userId,
-        electionType: data.type,
-        choices: dto.choices,
-        castAt: FieldValue.serverTimestamp(),
+        await this.votes.create(
+          [{ _id: voteId, electionId: id, userId, electionType: election.type, choices: dto.choices, castAt: new Date() }],
+          { session },
+        );
       });
-    });
+    } finally {
+      await session.endSession();
+    }
   }
 
   // ─── Scheduler helpers ─────────────────────────────────────────────────────
 
   async autoConfirmExpiredDismissals(): Promise<void> {
-    const now = Timestamp.now();
-
-    const snap = await this.firebase.db
-      .collection(COL)
-      .where('status', '==', 'dismissal')
-      .get();
-
-    for (const electionDoc of snap.docs) {
+    const now = Date.now();
+    const docs = (await this.elections.find({ status: 'dismissal' }).lean()) as unknown as ElectionData[];
+    for (const data of docs) {
       try {
-        const data = electionDoc.data() as ElectionData & {
-          rounds: { roundNumber: number; dismissalEnd: Timestamp; status: string }[];
-        };
+        const rounds = (data.rounds as { roundNumber: number; dismissalEnd: Date; status: string }[]) ?? [];
+        const currentRound = rounds.find((r) => r.roundNumber === data.currentRound);
+        if (!currentRound || new Date(currentRound.dismissalEnd).getTime() > now) continue;
 
-        const currentRound = data.rounds?.find((r) => r.roundNumber === data.currentRound);
-        if (!currentRound || currentRound.dismissalEnd.toMillis() > now.toMillis()) continue;
-
-        const nominees = data.nominees ?? [];
-        const updated = nominees.map((n) =>
-          n.status === 'pending'
-            ? { ...n, status: 'confirmed' as const }
-            : n,
+        const nominees = ((data.nominees ?? []) as Nominee[]).map((n) =>
+          n.status === 'pending' ? { ...n, status: 'confirmed' as const } : n,
         );
+        const confirmed = nominees.filter((n) => n.status === 'confirmed').length;
+        const hasEnough = confirmed >= data.boardConfig!.targetNominees;
 
-        const confirmed = updated.filter((n) => n.status === 'confirmed').length;
-        const cfg = data.boardConfig!;
-        const hasEnough = confirmed >= cfg.targetNominees;
-
-        await this.firebase.db.collection(COL).doc(electionDoc.id).update({
-          nominees: updated,
-          status: hasEnough ? 'voting' : 'nomination',
-          updatedAt: FieldValue.serverTimestamp(),
-        });
+        await this.elections.updateOne(
+          { _id: data._id },
+          { $set: { nominees, status: hasEnough ? 'voting' : 'nomination' } },
+        );
       } catch (err: unknown) {
-        this.logger.error(`autoConfirmExpiredDismissals failed for election ${electionDoc.id}`, err);
+        this.logger.error(`autoConfirmExpiredDismissals failed for election ${String(data._id)}`, err);
       }
     }
   }
 
   async autoCloseExpiredVoting(): Promise<void> {
-    const now = Timestamp.now();
-
-    const snap = await this.firebase.db
-      .collection(COL)
-      .where('status', '==', 'voting')
-      .get();
-
-    for (const electionDoc of snap.docs) {
+    const now = Date.now();
+    const docs = (await this.elections.find({ status: 'voting' }).lean()) as unknown as ElectionData[];
+    for (const data of docs) {
       try {
-        const data = electionDoc.data() as ElectionData & {
-          endTime: Timestamp | null;
-          votingEnd: Timestamp | null;
-        };
-
-        const deadline = data.type === 'board' ? data.votingEnd : data.endTime;
-        if (!deadline || deadline.toMillis() > now.toMillis()) continue;
+        const deadline = (data.type === 'board' ? data.votingEnd : data.endTime) as Date | null;
+        if (!deadline || new Date(deadline).getTime() > now) continue;
 
         if (data.type === 'board') {
           this.logger.warn(
-            `Board election ${electionDoc.id} votingEnd has passed — admin must call POST /elections/${electionDoc.id}/finalize`,
+            `Board election ${String(data._id)} votingEnd has passed — admin must call POST /elections/${String(data._id)}/finalize`,
           );
           continue;
         }
-
-        // yes_no / multiple_choice: auto-complete
-        await this.firebase.db.collection(COL).doc(electionDoc.id).update({
-          status: 'completed',
-          updatedAt: FieldValue.serverTimestamp(),
-        });
+        await this.elections.updateOne({ _id: data._id }, { $set: { status: 'completed' } });
       } catch (err: unknown) {
-        this.logger.error(`autoCloseExpiredVoting failed for election ${electionDoc.id}`, err);
+        this.logger.error(`autoCloseExpiredVoting failed for election ${String(data._id)}`, err);
       }
     }
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
+
+  private async byId(id: string): Promise<ElectionData> {
+    const doc = Types.ObjectId.isValid(id) ? await this.elections.findById(id).lean() : null;
+    if (!doc) throw new NotFoundException(`Election ${id} not found`);
+    return doc as unknown as ElectionData;
+  }
 
   private assertValidTransition(from: string, to: string, type: string): void {
     const valid: Record<string, string[]> = {
@@ -642,11 +482,9 @@ export class ElectionsService {
       completed: [],
       cancelled: [],
     };
-
     if (to === 'nomination' && type !== 'board') {
       throw new BadRequestException('Only board elections have nomination phases — advance directly to voting');
     }
-
     if (!valid[from]?.includes(to)) {
       throw new BadRequestException(`Cannot transition from '${from}' to '${to}'`);
     }
