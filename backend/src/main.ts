@@ -39,6 +39,10 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
+  // All API routes are served under /api (e.g. /api/health, /api/auth/...).
+  // Static uploads remain at /uploads (served by ServeStaticModule).
+  app.setGlobalPrefix('api');
+
   const appConfig = app.get(ConfigService<AppConfig, true>);
   app.enableCors({
     origin: appConfig.get('frontendUrls', { infer: true }),
@@ -49,11 +53,15 @@ async function bootstrap() {
     .setTitle('Tenmiye API')
     .setDescription('Will Group for Development — backend API')
     .setVersion('1.0')
+    .addServer('/api')
     .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  // Swagger UI at /api/docs, OpenAPI JSON at /api/openapi.json
+  SwaggerModule.setup('api/docs', app, document, {
+    jsonDocumentUrl: 'api/openapi.json',
+  });
 
   await app.listen(appConfig.get('port', { infer: true }));
 }
