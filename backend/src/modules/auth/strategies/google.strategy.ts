@@ -1,20 +1,16 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { Strategy, Profile } from 'passport-google-oauth20';
-import { FirebaseService } from '../../../common/firebase/firebase.service';
 import { AppConfig } from '../../../common/config/app.config';
-
-interface AdminAccount {
-  id: string;
-  userId: string;
-  permissions: string[];
-}
+import { AdminAccount, AdminAccountDocument } from '../../admin-accounts/schemas/admin-account.schema';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
-    private firebase: FirebaseService,
+    @InjectModel(AdminAccount.name) private readonly adminAccounts: Model<AdminAccountDocument>,
     config: ConfigService<AppConfig, true>,
   ) {
     const { clientId, clientSecret, callbackUrl } = config.get('google', { infer: true });
@@ -36,22 +32,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const email = profile.emails?.[0]?.value;
     if (!email) throw new ForbiddenException('No email in Google profile');
 
-    const snapshot = await this.firebase.db
-      .collection('adminAccounts')
-      .where('googleEmail', '==', email)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) throw new ForbiddenException('Not an authorized admin');
-
-    const doc = snapshot.docs[0];
-    const account = { id: doc.id, ...doc.data() } as AdminAccount & { googleEmail: string };
+    const account = await this.adminAccounts.findOne({ googleEmail: email }).lean();
+    if (!account) throw new ForbiddenException('Not an authorized admin');
 
     return {
-      userId: account.userId,
-      adminAccountId: account.id,
+      userId: (account as { userId?: string }).userId ?? '',
+      adminAccountId: String(account._id),
       type: 'admin' as const,
-      permissions: account.permissions,
+      permissions: (account as { permissions?: string[] }).permissions ?? [],
       googleEmail: email,
     };
   }
