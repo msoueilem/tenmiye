@@ -1,48 +1,40 @@
 import { Injectable } from '@nestjs/common';
-import { FieldValue } from 'firebase-admin/firestore';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Message, MessageDocument } from './schemas/message.schema';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { serializeDoc } from '../../common/utils/firestore';
-
-const COLLECTION = 'messages';
+import { serialize } from '../../common/database/serialize';
 
 @Injectable()
 export class MessagesService {
-  constructor(private firebase: FirebaseService) {}
+  constructor(
+    @InjectModel(Message.name) private readonly model: Model<MessageDocument>,
+  ) {}
 
   async create(dto: CreateMessageDto): Promise<{ id: string }> {
-    const ref = await this.firebase.db.collection(COLLECTION).add({
-      ...dto,
-      read: false,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    return { id: ref.id };
+    const doc = await this.model.create({ ...dto, read: false });
+    return { id: doc.id };
   }
 
   async findAll(
     limit = 20,
     cursor?: string,
   ): Promise<{ data: Record<string, unknown>[]; nextCursor: string | null }> {
-    let query = this.firebase.db
-      .collection(COLLECTION)
-      .orderBy('createdAt', 'desc')
-      .limit(limit);
-
-    if (cursor) {
-      const cursorDoc = await this.firebase.db.collection(COLLECTION).doc(cursor).get();
-      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    // Newest first. `_id` is monotonic with insertion time, so it doubles as a
+    // stable, unique pagination cursor (no ties, unlike a createdAt sort).
+    const filter: Record<string, unknown> = {};
+    if (cursor && Types.ObjectId.isValid(cursor)) {
+      filter._id = { $lt: new Types.ObjectId(cursor) };
     }
 
-    const snapshot = await query.get();
-    const data = snapshot.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }));
-    const nextCursor = snapshot.docs.length === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
+    const docs = await this.model.find(filter).sort({ _id: -1 }).limit(limit).lean();
+    const data = docs.map(serialize);
+    const nextCursor =
+      docs.length === limit ? String(docs[docs.length - 1]._id) : null;
     return { data, nextCursor };
   }
 
   async markRead(id: string): Promise<void> {
-    await this.firebase.db.collection(COLLECTION).doc(id).update({
-      read: true,
-      readAt: FieldValue.serverTimestamp(),
-    });
+    await this.model.updateOne({ _id: id }, { read: true, readAt: new Date() });
   }
 }
