@@ -6,13 +6,16 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequireUserType } from '../../common/decorators/user-type.decorator';
 import { UserTypeGuard } from '../../common/guards/user-type.guard';
 import { JwtPayload } from '../../common/strategies/jwt.strategy';
 import { UsersService } from '../users/users.service';
-import { FirebaseService } from '../../common/firebase/firebase.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { Vote, VoteDocument } from '../elections/schemas/vote.schema';
+import { Election, ElectionDocument } from '../elections/schemas/election.schema';
 import { UpdateMeDto } from './dto/update-me.dto';
 
 @ApiTags('me')
@@ -23,8 +26,9 @@ import { UpdateMeDto } from './dto/update-me.dto';
 export class MeController {
   constructor(
     private users: UsersService,
-    private firebase: FirebaseService,
     private uploadsService: UploadsService,
+    @InjectModel(Vote.name) private readonly votes: Model<VoteDocument>,
+    @InjectModel(Election.name) private readonly elections: Model<ElectionDocument>,
   ) {}
 
   @ApiOperation({ summary: "Get the authenticated member's own profile (resolves profilePictureUrl)" })
@@ -81,40 +85,23 @@ export class MeController {
   @ApiOperation({ summary: "Get the authenticated member's vote history enriched with election title" })
   @Get('votes')
   async getMyVotes(@CurrentUser() user: JwtPayload) {
-    // TODO(mongo-migration): votes + elections still live in Firestore; migrate
-    // this read to Mongo when the elections module is migrated.
-    const snapshot = await this.firebase.db
-      .collection('votes')
-      .where('userId', '==', user.userId)
-      .get();
+    const votes = await this.votes.find({ userId: user.userId }).lean();
+    if (votes.length === 0) return [];
 
-    if (snapshot.empty) return [];
+    const electionIds = [...new Set(votes.map((v) => v.electionId))].filter((id) => Types.ObjectId.isValid(id));
+    const elections = await this.elections.find({ _id: { $in: electionIds } }).select('title').lean();
+    const titles: Record<string, string> = {};
+    for (const e of elections) titles[String(e._id)] = (e as { title?: string }).title ?? String(e._id);
 
-    const electionIds = [...new Set(snapshot.docs.map((d) => d.data().electionId as string))];
-    const electionDocs = await Promise.all(
-      electionIds.map((id) => this.firebase.db.collection('elections').doc(id).get()),
-    );
-    const electionTitles: Record<string, string> = {};
-    for (const doc of electionDocs) {
-      if (doc.exists) electionTitles[doc.id] = (doc.data() as { title?: string }).title ?? doc.id;
-    }
-
-    return snapshot.docs
-      .map((d) => {
-        const data = d.data() as { electionId: string; electionType: string; choices: string[]; castAt: { _seconds?: number; seconds?: number } | null };
-        return {
-          id: d.id,
-          electionId: data.electionId,
-          electionTitle: electionTitles[data.electionId] ?? data.electionId,
-          electionType: data.electionType,
-          choices: data.choices,
-          castAt: data.castAt,
-        };
-      })
-      .sort((a, b) => {
-        const aSeconds = a.castAt?._seconds ?? a.castAt?.seconds ?? 0;
-        const bSeconds = b.castAt?._seconds ?? b.castAt?.seconds ?? 0;
-        return bSeconds - aSeconds;
-      });
+    return votes
+      .map((v) => ({
+        id: v._id,
+        electionId: v.electionId,
+        electionTitle: titles[v.electionId] ?? v.electionId,
+        electionType: v.electionType,
+        choices: v.choices,
+        castAt: v.castAt,
+      }))
+      .sort((a, b) => (b.castAt?.getTime() ?? 0) - (a.castAt?.getTime() ?? 0));
   }
 }
