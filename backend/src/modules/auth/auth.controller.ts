@@ -22,12 +22,15 @@ import { AppConfig } from '../../common/config/app.config';
 export class AuthController {
   constructor(
     private auth: AuthService,
-    private config: ConfigService<AppConfig, true>,
+    private config: ConfigService<AppConfig, true>
   ) {}
 
   // ─── Phone check (pre-login) ─────────────────────────────────────────────────
 
-  @ApiOperation({ summary: 'Check if phone is a registered member and whether they have a password' })
+  @ApiOperation({
+    summary:
+      'Check if phone is a registered member and whether they have a password',
+  })
   @Post('phone/check')
   checkPhone(@Body() dto: CheckPhoneDto) {
     return this.auth.checkPhone(dto.phone);
@@ -39,10 +42,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Send SMS OTP — returns sessionInfo' })
   @Post('phone/request-otp')
   requestOtp(@Body() dto: RequestOtpDto) {
-    return this.auth.requestOtp(dto.phone);
+    return this.auth.requestOtp(dto.phone, dto.recaptchaToken);
   }
 
-  @ApiOperation({ summary: 'Verify SMS OTP — returns JWT + requiresPasswordSetup flag' })
+  @ApiOperation({
+    summary: 'Verify SMS OTP — returns JWT + requiresPasswordSetup flag',
+  })
   @Post('phone/verify-otp')
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.auth.verifyOtp(dto.sessionInfo, dto.code);
@@ -58,20 +63,27 @@ export class AuthController {
     return this.auth.setPassword(user.userId, dto.password);
   }
 
-  @ApiOperation({ summary: 'Reset forgotten password — requires a fresh OTP verification' })
+  @ApiOperation({
+    summary: 'Reset forgotten password — requires a fresh OTP verification',
+  })
   @Post('phone/reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto.sessionInfo, dto.code, dto.newPassword);
   }
 
   @Throttle({ default: { ttl: 600_000, limit: 5 } })
-  @ApiOperation({ summary: 'Login with phone + password (after password is set)' })
+  @ApiOperation({
+    summary: 'Login with phone + password (after password is set)',
+  })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.loginWithPassword(dto.phone, dto.password);
   }
 
-  @ApiOperation({ summary: 'Exchange refresh token for a new token pair (rotates refresh token)' })
+  @ApiOperation({
+    summary:
+      'Exchange refresh token for a new token pair (rotates refresh token)',
+  })
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto) {
     return this.auth.refresh(dto.refreshToken);
@@ -83,7 +95,10 @@ export class AuthController {
     return this.auth.logout(dto.refreshToken);
   }
 
-  @ApiOperation({ summary: 'Logout all sessions — revokes every refresh token for the current user' })
+  @ApiOperation({
+    summary:
+      'Logout all sessions — revokes every refresh token for the current user',
+  })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('logout-all')
@@ -98,12 +113,21 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   googleAuth() {}
 
-  @ApiOperation({ summary: 'Google Authentication Callback — redirects to frontend with tokens' })
+  @ApiOperation({
+    summary:
+      'Google Authentication Callback — redirects to frontend with tokens',
+  })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleCallback(
-    @CurrentUser() user: { userId: string; type: 'admin'; permissions: string[]; googleEmail: string },
-    @Res() res: Response,
+    @CurrentUser()
+    user: {
+      userId: string;
+      type: 'admin';
+      permissions: string[];
+      googleEmail: string;
+    },
+    @Res() res: Response
   ) {
     const tokens = await this.auth.issueAdminSession(user);
     const frontendUrls = this.config.get('frontendUrls', { infer: true });
