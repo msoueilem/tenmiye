@@ -4,163 +4,115 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { FieldValue } from 'firebase-admin/firestore';
-import { FirebaseService } from '../../common/firebase/firebase.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { JoinRequest, JoinRequestDocument } from './schemas/join-request.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { Role, RoleDocument } from '../roles/schemas/role.schema';
+import { Tier, TierDocument } from '../tiers/schemas/tier.schema';
+import { serialize } from '../../common/database/serialize';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
-import { serializeDoc } from '../../common/utils/firestore';
-
-const COLLECTION = 'join-requests';
-const COUNTRY_CODE = '+222';
-
-type JoinRequestData = {
-  fullName: string;
-  phone: string;
-  tierId?: string;
-  city?: string;
-  status: string;
-};
 
 @Injectable()
 export class RegistrationsService {
-  constructor(private firebase: FirebaseService) {}
+  constructor(
+    @InjectModel(JoinRequest.name) private readonly model: Model<JoinRequestDocument>,
+    @InjectModel(User.name) private readonly users: Model<UserDocument>,
+    @InjectModel(Role.name) private readonly roles: Model<RoleDocument>,
+    @InjectModel(Tier.name) private readonly tiers: Model<TierDocument>,
+  ) {}
 
   async create(dto: CreateRegistrationDto): Promise<{ id: string }> {
-    const ref = await this.firebase.db.collection(COLLECTION).add({
+    const doc = await this.model.create({
       fullName: dto.fullName,
       phone: dto.phone,
       tierId: dto.tierId ?? null,
       city: dto.city ?? null,
       message: dto.message ?? null,
       status: 'pending',
-      rejectionReason: null,
-      reviewedBy: null,
-      reviewedAt: null,
-      createdUserId: null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
-    return { id: ref.id };
+    return { id: doc.id };
   }
 
   async findAll(
     limit = 20,
     cursor?: string,
   ): Promise<{ data: Record<string, unknown>[]; nextCursor: string | null }> {
-    let query = this.firebase.db
-      .collection(COLLECTION)
-      .orderBy('createdAt', 'desc')
-      .limit(limit);
-
-    if (cursor) {
-      const cursorDoc = await this.firebase.db.collection(COLLECTION).doc(cursor).get();
-      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-    }
-
-    const snapshot = await query.get();
-    const data = snapshot.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }));
-    const nextCursor =
-      snapshot.docs.length === limit ? snapshot.docs[snapshot.docs.length - 1].id : null;
+    const filter: Record<string, unknown> = {};
+    if (cursor && Types.ObjectId.isValid(cursor)) filter._id = { $lt: new Types.ObjectId(cursor) };
+    const docs = await this.model.find(filter).sort({ _id: -1 }).limit(limit).lean();
+    const data = docs.map(serialize);
+    const nextCursor = docs.length === limit ? String(docs[docs.length - 1]._id) : null;
     return { data, nextCursor };
   }
 
   async approve(id: string, reviewedBy: string): Promise<{ userId: string }> {
-    const doc = await this.firebase.db.collection(COLLECTION).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Join request ${id} not found`);
-
-    const data = doc.data() as JoinRequestData;
-    if (data.status !== 'pending') {
-      throw new BadRequestException(`Join request is already ${data.status}`);
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException(`Join request ${id} not found`);
+    const jr = await this.model.findById(id);
+    if (!jr) throw new NotFoundException(`Join request ${id} not found`);
+    if (jr.status !== 'pending') {
+      throw new BadRequestException(`Join request is already ${jr.status}`);
     }
 
-    // Resolve member roleId
-    const roleSnap = await this.firebase.db
-      .collection('roles')
-      .where('slug', '==', 'member')
-      .limit(1)
-      .get();
-    if (roleSnap.empty) {
+    const role = await this.roles.findOne({ slug: 'member' }).select('_id').lean();
+    if (!role) {
       throw new InternalServerErrorException('Default member role not found — seed the roles collection first');
     }
-    const roleId = roleSnap.docs[0].id;
+    const roleId = String(role._id);
 
-    // Resolve tierId — use request's choice or fall back to basic tier
-    let tierId = data.tierId ?? null;
+    let tierId = jr.tierId ?? null;
     if (!tierId) {
-      const tierSnap = await this.firebase.db
-        .collection('tiers')
-        .where('slug', '==', 'basic')
-        .limit(1)
-        .get();
-      if (!tierSnap.empty) tierId = tierSnap.docs[0].id;
+      const tier = await this.tiers.findOne({ slug: 'basic' }).select('_id').lean();
+      if (tier) tierId = String(tier._id);
     }
 
-    // Create Firebase Auth account
-    const e164 = `${COUNTRY_CODE}${data.phone}`;
-    let authUid: string;
-    try {
-      const authUser = await this.firebase.auth.createUser({ phoneNumber: e164 });
-      authUid = authUser.uid;
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code;
-      if (code === 'auth/phone-number-already-exists') {
-        // Phone already in Auth — fetch existing UID
-        const existing = await this.firebase.auth.getUserByPhoneNumber(e164);
-        authUid = existing.uid;
-      } else {
-        throw new InternalServerErrorException(`Firebase Auth error: ${String(err)}`);
-      }
-    }
-
-    // Create users document (idempotent — set with merge)
-    await this.firebase.db.collection('users').doc(authUid).set(
-      {
-        fullName: data.fullName,
-        phoneNumber: data.phone,
-        whatsappNumber: data.phone,
-        city: data.city ?? null,
+    // Idempotent: reuse an existing member with the same phone, else create one.
+    let user = await this.users.findOne({ phoneNumber: jr.phone });
+    if (!user) {
+      user = await this.users.create({
+        fullName: jr.fullName,
+        phoneNumber: jr.phone,
+        whatsappNumber: jr.phone,
+        city: jr.city ?? null,
         regionId: null,
         roleId,
         tierId,
         joinRequestId: id,
         profilePictureId: null,
         outsidePlatform: false,
+        isBlocked: false,
+        outsideWhatsapp: false,
         status: 'active',
         approvedBy: reviewedBy,
-        approvedAt: FieldValue.serverTimestamp(),
+        approvedAt: new Date(),
         lastLoginAt: null,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
+      });
+    } else {
+      await this.users.updateOne(
+        { _id: user._id },
+        { $set: { status: 'active', approvedBy: reviewedBy, approvedAt: new Date(), joinRequestId: id } },
+      );
+    }
+
+    await this.model.updateOne(
+      { _id: id },
+      { $set: { status: 'approved', createdUserId: String(user._id), reviewedBy, reviewedAt: new Date() } },
     );
 
-    // Mark join request approved
-    await doc.ref.update({
-      status: 'approved',
-      createdUserId: authUid,
-      reviewedBy,
-      reviewedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-
-    return { userId: authUid };
+    return { userId: String(user._id) };
   }
 
   async reject(id: string, reviewedBy: string, rejectionReason?: string): Promise<void> {
-    const doc = await this.firebase.db.collection(COLLECTION).doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Join request ${id} not found`);
-
-    const data = doc.data() as JoinRequestData;
-    if (data.status !== 'pending') {
-      throw new BadRequestException(`Join request is already ${data.status}`);
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException(`Join request ${id} not found`);
+    const jr = await this.model.findById(id).lean();
+    if (!jr) throw new NotFoundException(`Join request ${id} not found`);
+    if (jr.status !== 'pending') {
+      throw new BadRequestException(`Join request is already ${jr.status}`);
     }
 
-    await doc.ref.update({
-      status: 'rejected',
-      rejectionReason: rejectionReason ?? null,
-      reviewedBy,
-      reviewedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await this.model.updateOne(
+      { _id: id },
+      { $set: { status: 'rejected', rejectionReason: rejectionReason ?? null, reviewedBy, reviewedAt: new Date() } },
+    );
   }
 }

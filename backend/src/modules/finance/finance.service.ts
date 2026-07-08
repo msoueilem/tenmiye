@@ -1,39 +1,39 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { FirebaseService } from '../../common/firebase/firebase.service';
-import { serializeDoc } from '../../common/utils/firestore';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { PaymentChannel, PaymentChannelDocument } from './schemas/payment-channel.schema';
+import { Transaction, TransactionDocument } from './schemas/transaction.schema';
+import { Upload, UploadDocument } from '../uploads/schemas/upload.schema';
+import { serialize } from '../../common/database/serialize';
 import { CreatePaymentChannelDto } from './dto/create-payment-channel.dto';
 import { UpdatePaymentChannelDto } from './dto/update-payment-channel.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { ListTransactionsDto } from './dto/list-transactions.dto';
 
-type ChannelData = {
-  type: 'mobile' | 'cash';
-  requiresScreenshot: boolean;
-  requiresReceiver: boolean;
-  isActive: boolean;
-};
-
-// ─── Payment Channels ────────────────────────────────────────────────────────
-
 @Injectable()
 export class FinanceService {
-  constructor(private readonly firebase: FirebaseService) {}
+  constructor(
+    @InjectModel(PaymentChannel.name) private readonly channels: Model<PaymentChannelDocument>,
+    @InjectModel(Transaction.name) private readonly transactions: Model<TransactionDocument>,
+    @InjectModel(Upload.name) private readonly uploads: Model<UploadDocument>,
+  ) {}
+
+  // ─── Payment Channels ──────────────────────────────────────────────────────
 
   async findAllPaymentChannels() {
-    const snap = await this.firebase.db.collection('paymentChannels').orderBy('name').get();
-    return snap.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }));
+    const docs = await this.channels.find().sort({ name: 1 }).lean();
+    return docs.map(serialize);
   }
 
   async createPaymentChannel(dto: CreatePaymentChannelDto): Promise<{ id: string }> {
-    const dup = await this.firebase.db.collection('paymentChannels').where('name', '==', dto.name).limit(1).get();
-    if (!dup.empty) throw new BadRequestException(`Payment channel '${dto.name}' already exists`);
-
+    if (await this.channels.exists({ name: dto.name })) {
+      throw new BadRequestException(`Payment channel '${dto.name}' already exists`);
+    }
     if (dto.type === 'mobile' && (!dto.walletNumber || !dto.walletOwner)) {
       throw new BadRequestException('walletNumber and walletOwner are required for mobile channels');
     }
 
-    const ref = await this.firebase.db.collection('paymentChannels').add({
+    const doc = await this.channels.create({
       name: dto.name,
       type: dto.type,
       walletNumber: dto.walletNumber ?? null,
@@ -41,15 +41,14 @@ export class FinanceService {
       requiresScreenshot: dto.type === 'mobile',
       requiresReceiver: dto.type === 'cash',
       isActive: dto.isActive ?? true,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
-    return { id: ref.id };
+    return { id: doc.id };
   }
 
   async updatePaymentChannel(id: string, dto: UpdatePaymentChannelDto): Promise<{ id: string }> {
-    const doc = await this.firebase.db.collection('paymentChannels').doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Payment channel ${id} not found`);
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException(`Payment channel ${id} not found`);
+    const exists = await this.channels.exists({ _id: id });
+    if (!exists) throw new NotFoundException(`Payment channel ${id} not found`);
 
     const payload: Record<string, unknown> = {};
     if (dto.name !== undefined) payload.name = dto.name;
@@ -62,66 +61,57 @@ export class FinanceService {
       payload.requiresReceiver = dto.type === 'cash';
     }
 
-    await this.firebase.db.collection('paymentChannels').doc(id).update({
-      ...payload,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await this.channels.updateOne({ _id: id }, { $set: payload });
     return { id };
   }
 
   async removePaymentChannel(id: string): Promise<{ id: string }> {
-    const doc = await this.firebase.db.collection('paymentChannels').doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Payment channel ${id} not found`);
-    await this.firebase.db.collection('paymentChannels').doc(id).delete();
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException(`Payment channel ${id} not found`);
+    const res = await this.channels.deleteOne({ _id: id });
+    if (res.deletedCount === 0) throw new NotFoundException(`Payment channel ${id} not found`);
     return { id };
   }
 
-  // ─── Transactions ─────────────────────────────────────────────────────────
+  // ─── Transactions ────────────────────────────────────────────────────────
 
   async findAllTransactions(query: ListTransactionsDto) {
-    let ref = this.firebase.db
-      .collection('transactions')
-      .limit(query.limit + 1) as FirebaseFirestore.Query;
-
-    if (query.type) ref = ref.where('type', '==', query.type);
-    if (query.year) ref = ref.where('year', '==', query.year);
-    if (query.month) ref = ref.where('month', '==', query.month);
-    if (query.userId) ref = ref.where('userId', '==', query.userId);
-
-    if (query.cursor) {
-      const cursorDoc = await this.firebase.db.collection('transactions').doc(query.cursor).get();
-      if (cursorDoc.exists) ref = ref.startAfter(cursorDoc);
+    const filter: Record<string, unknown> = {};
+    if (query.type) filter.type = query.type;
+    if (query.year) filter.year = query.year;
+    if (query.month) filter.month = query.month;
+    if (query.userId) filter.userId = query.userId;
+    if (query.cursor && Types.ObjectId.isValid(query.cursor)) {
+      filter._id = { $lt: new Types.ObjectId(query.cursor) };
     }
 
-    const snap = await ref.get();
-    const hasMore = snap.docs.length > query.limit;
-    const docs = hasMore ? snap.docs.slice(0, query.limit) : snap.docs;
+    const docs = await this.transactions
+      .find(filter)
+      .sort({ date: -1, _id: -1 })
+      .limit(query.limit + 1)
+      .lean();
 
-    const data = docs
-      .map((d) => ({ id: d.id, ...serializeDoc(d.data()) }))
-      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
-        const aTs = a.date as { _seconds?: number; seconds?: number } | null;
-        const bTs = b.date as { _seconds?: number; seconds?: number } | null;
-        const aS = aTs?._seconds ?? aTs?.seconds ?? 0;
-        const bS = bTs?._seconds ?? bTs?.seconds ?? 0;
-        return bS - aS;
-      });
-
-    const nextCursor = hasMore ? docs[docs.length - 1].id : null;
+    const hasMore = docs.length > query.limit;
+    const page = hasMore ? docs.slice(0, query.limit) : docs;
+    const data = page.map(serialize);
+    const nextCursor = hasMore ? String(page[page.length - 1]._id) : null;
     return { data, nextCursor };
   }
 
   async createTransaction(dto: CreateTransactionDto, recordedBy: string): Promise<{ id: string }> {
-    const channelDoc = await this.firebase.db.collection('paymentChannels').doc(dto.paymentChannelId).get();
-    if (!channelDoc.exists) throw new NotFoundException(`Payment channel ${dto.paymentChannelId} not found`);
-
-    const channel = channelDoc.data() as ChannelData;
+    const channel = Types.ObjectId.isValid(dto.paymentChannelId)
+      ? await this.channels.findById(dto.paymentChannelId).lean()
+      : null;
+    if (!channel) throw new NotFoundException(`Payment channel ${dto.paymentChannelId} not found`);
     if (!channel.isActive) throw new BadRequestException('This payment channel is inactive');
 
     if (channel.requiresScreenshot) {
-      if (!dto.screenshotUploadId) throw new BadRequestException('screenshotUploadId is required for mobile payments');
-      const uploadDoc = await this.firebase.db.collection('uploads').doc(dto.screenshotUploadId).get();
-      if (!uploadDoc.exists || uploadDoc.data()?.deleted === true) {
+      if (!dto.screenshotUploadId) {
+        throw new BadRequestException('screenshotUploadId is required for mobile payments');
+      }
+      const upload = Types.ObjectId.isValid(dto.screenshotUploadId)
+        ? await this.uploads.findById(dto.screenshotUploadId).lean()
+        : null;
+      if (!upload || (upload as { deleted?: boolean }).deleted === true) {
         throw new BadRequestException(`Upload ${dto.screenshotUploadId} not found`);
       }
     }
@@ -131,10 +121,10 @@ export class FinanceService {
     }
 
     const date = new Date(dto.date);
-    const ref = await this.firebase.db.collection('transactions').add({
+    const doc = await this.transactions.create({
       type: dto.type,
       amount: dto.amount,
-      date: Timestamp.fromDate(date),
+      date,
       year: date.getFullYear(),
       month: date.getMonth() + 1,
       paymentChannelId: dto.paymentChannelId,
@@ -150,60 +140,46 @@ export class FinanceService {
       recordedBy,
       verifiedBy: null,
       verifiedAt: null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
-    return { id: ref.id };
+    return { id: doc.id };
   }
 
   async verifyTransaction(id: string, verifiedBy: string): Promise<{ id: string }> {
-    const doc = await this.firebase.db.collection('transactions').doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Transaction ${id} not found`);
-    if (doc.data()?.verifiedBy) throw new BadRequestException('Transaction is already verified');
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException(`Transaction ${id} not found`);
+    const doc = await this.transactions.findById(id).lean();
+    if (!doc) throw new NotFoundException(`Transaction ${id} not found`);
+    if (doc.verifiedBy) throw new BadRequestException('Transaction is already verified');
 
-    await doc.ref.update({
-      verifiedBy,
-      verifiedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await this.transactions.updateOne({ _id: id }, { $set: { verifiedBy, verifiedAt: new Date() } });
     return { id };
   }
 
   async disableTransaction(id: string, disabledBy: string): Promise<{ id: string }> {
-    const doc = await this.firebase.db.collection('transactions').doc(id).get();
-    if (!doc.exists) throw new NotFoundException(`Transaction ${id} not found`);
-    if (doc.data()?.isActive === false) throw new BadRequestException('Transaction is already disabled');
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException(`Transaction ${id} not found`);
+    const doc = await this.transactions.findById(id).lean();
+    if (!doc) throw new NotFoundException(`Transaction ${id} not found`);
+    if (doc.isActive === false) throw new BadRequestException('Transaction is already disabled');
 
-    await doc.ref.update({
-      isActive: false,
-      disabledBy,
-      disabledAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await this.transactions.updateOne(
+      { _id: id },
+      { $set: { isActive: false, disabledBy, disabledAt: new Date() } },
+    );
     return { id };
   }
 
-  // ─── Summary ──────────────────────────────────────────────────────────────
+  // ─── Summary ─────────────────────────────────────────────────────────────
 
   async getSummary(year: number, month?: number) {
-    const snap = await this.firebase.db
-      .collection('transactions')
-      .where('year', '==', year)
-      .get();
+    const filter: Record<string, unknown> = { year };
+    if (month) filter.month = month;
+    const docs = await this.transactions.find(filter).lean();
 
     const totals: Record<string, number> = { contribution: 0, donation: 0, expense: 0 };
-
-    for (const doc of snap.docs) {
-      const d = doc.data() as { type: string; amount: number; month: number };
-      if (month && d.month !== month) continue;
-      if (d.type in totals) {
-        totals[d.type] = (totals[d.type] ?? 0) + (d.amount ?? 0);
-      }
+    for (const d of docs) {
+      if (d.type in totals) totals[d.type] += d.amount ?? 0;
     }
-
     const income = totals.contribution + totals.donation;
     const net = income - totals.expense;
-
     return { year, month: month ?? null, totals, income, net, currency: 'MRU' };
   }
 }
